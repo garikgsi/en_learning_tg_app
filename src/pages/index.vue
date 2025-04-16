@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 
-import {computed, ref} from 'vue';
+import {computed, ref, onMounted} from 'vue';
 import IWord from "@/components/IWord.vue";
 import type {WordResult} from "@/components/types/WordResult.ts";
 
@@ -34,6 +34,31 @@ const words = computed(() => {
   ]
 });
 
+const wordsCount = computed(() => {
+  return words.value.length;
+})
+
+const totalTimer = ref(0);
+
+const mSecOnWord = ref(5000);
+
+const wordTimer = computed(() => {
+  return totalTimer.value % mSecOnWord.value
+});
+
+const currentWord = computed(() => Math.floor(totalTimer.value / mSecOnWord.value))
+
+const wordProgressColor = computed(() => {
+  return 'success'
+});
+
+const timerStep = 100;
+
+onMounted(() => {
+  setInterval(()=> {
+    totalTimer.value = totalTimer.value + timerStep;
+  }, timerStep);
+});
 
 </script>
 
@@ -49,10 +74,16 @@ const words = computed(() => {
       </v-navigation-drawer>
 
       <v-main>
+
         <v-container>
-          <h1>Слово 1 из 5</h1>
+          <h1>Слово 1 из 5 | {{totalTimer}} | {{currentWord}}</h1>
+
+<!--          {{totalTimer}}| {{wordTimer}}-->
 
           <IWord word="птица" translate="bird" @finish="onFinish"></IWord>
+
+          <v-progress-linear :buffer-value="wordTimer" :color="wordProgressColor" :max="mSecOnWord"></v-progress-linear>
+
         </v-container>
       </v-main>
     </v-app>
