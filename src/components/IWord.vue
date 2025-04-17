@@ -1,15 +1,18 @@
 <script setup lang="ts">
 
-import {ref, computed} from 'vue';
+import {computed, ref} from 'vue';
 import type {WordResult} from "@/components/types/WordResult.ts";
 
 interface Props {
+  modelValue: string
   word: string
   translate: string
   easyMode?: boolean
 }
+
 interface Emits {
   'finish': (result: WordResult) => {}
+  'update:model-value': (modelValue: string) => {}
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -18,7 +21,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emits = defineEmits<Emits>()
 
-const answer = ref('');
+const answer = computed({
+  get: () => props.modelValue,
+  set: (newValue) => emits('update:model-value', newValue)
+})
 
 const isFullFilled = computed(() => answer.value.length === props.translate.length)
 
@@ -46,6 +52,17 @@ const onFinish = (ans: string) => {
 
 }
 
+const otp = ref(null);
+
+const reset = () => {
+  otp.value?.reset();
+  otp.value?.focus();
+}
+
+defineExpose({
+  reset
+})
+
 </script>
 
 <template>
@@ -59,6 +76,7 @@ const onFinish = (ans: string) => {
     </div>
 
     <v-otp-input
+      ref="otp"
       v-model="answer"
       autofocus
       :color="color"
