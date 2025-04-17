@@ -8,6 +8,7 @@ interface Props {
   word: string
   translate: string
   easyMode?: boolean
+  disabled?: boolean
 }
 
 interface Emits {
@@ -16,7 +17,8 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  easyMode: true
+  easyMode: true,
+  disabled: false
 })
 
 const emits = defineEmits<Emits>()
@@ -71,22 +73,27 @@ defineExpose({
       Напишите перевод слова<br>
     </div>
 
-    <div class="text-body-1 text-center">
+    <div class="text-h2 text-center">
       {{ word }}
     </div>
 
-    <v-otp-input
-      ref="otp"
-      v-model="answer"
-      autofocus
-      :color="color"
-      :error="isError"
-      class="mb-8"
-      type="text"
-      :length="translate.length"
-      variant="outlined"
-      @finish="onFinish"
-    ></v-otp-input>
+    <div>
+      <v-otp-input
+        ref="otp"
+        v-model="answer"
+        :disabled="disabled"
+        autofocus
+        :color="color"
+        :error="isError"
+        class="mb-8"
+        type="text"
+        :length="translate.length"
+        variant="outlined"
+        @finish="onFinish"
+      ></v-otp-input>
+    </div>
+
+
   </div>
 </template>
 
