@@ -3,6 +3,7 @@
 import {computed, onMounted, ref, watch} from "vue";
 import IWord from "@/components/IWord.vue";
 import type {WordResult} from "@/components/types/WordResult.ts";
+import random from "@/libs/random.ts";
 
 
 type Word = {
@@ -20,8 +21,13 @@ type WordStat = {
   id: number,
   retries: number,
   isOk: boolean,
-  variants: string[]
+  variants: string[],
+  skipTimes: number,
+  hintTimes: number
 }
+
+type CreateWordResult = Partial<Omit<WordStat, 'id'>> & Pick<WordStat, 'id'>
+
 
 const props = defineProps<Props>()
 
@@ -30,7 +36,7 @@ const onFinish = (wordId: number, result: WordResult) => {
   const word = words.value.find(w => w.id === wordId);
 
   if (word) {
-    const res = results.value.find(r => r.id === word.id);
+    const res = getWordResult(currentWord.value.id);
 
     if (result.isOk) {
       startNewWord();
@@ -44,15 +50,26 @@ const onFinish = (wordId: number, result: WordResult) => {
       return;
     }
 
-    results.value.push({
-      id: word.id,
+    createWordResult({
+      id: currentWord.value.id,
       retries: 1,
       isOk: result.isOk,
       variants: [result.answer]
-    })
+    });
+
+  }
+}
+
+const getNextWordIndex = () => {
+  if (wordsCount.value === 1) {
+    return 0;
   }
 
+  const nextIndex = random(0, wordsCount.value - 1, currentWordIndex.value);
+
+  return nextIndex;
 }
+
 
 const finishedWords = computed(() => {
   return results.value.filter(w => w.isOk).map(w => w.id);
@@ -64,20 +81,17 @@ const words = computed(() => {
   return props.enList.filter(w => !finishedWords.value.includes(w.id));
 });
 
-
 const wordsCount = computed(() => {
   return words.value.length;
 })
 
-const totalTimer = ref(0);
+const wordTimer = ref(0);
 
-const secOnWord = ref(20);
+const secOnWord = ref(50);
 
-const wordTimer = computed(() => {
-  return totalTimer.value % (secOnWord.value * 1000);
-});
+const isTimeout = computed(() => wordTimer.value >= secOnWord.value * 1000)
 
-const currentWordIndex = computed(() => Math.floor(totalTimer.value / (secOnWord.value * 1000)) % wordsCount.value)
+const currentWordIndex = ref(0);
 
 const currentWord = computed(() => {
   return words.value[currentWordIndex.value];
@@ -87,53 +101,57 @@ const wordProgressColor = computed(() => {
   return 'success'
 });
 
-const timerStep = 100;
+const intervalTimer = ref();
 
-const timer = ref();
+const timerStep = 100;
 
 const timerPaused = ref(false);
 
 const startTimer = () => {
-  timer.value = setInterval(() => {
+
+  wordTimer.value = 0;
+
+  clearInterval(intervalTimer.value);
+
+  intervalTimer.value = setInterval(() => {
 
     if (!timerPaused.value && wordsCount.value > 0) {
-      totalTimer.value = totalTimer.value + timerStep;
+      wordTimer.value = wordTimer.value + timerStep;
     }
 
   }, timerStep);
-}
-
-const stopTimer = () => {
-
-  clearInterval(timer.value);
 
 }
+
+const pauseTimer = () => {
+  timerPaused.value = true;
+}
+
+const runTimer = () => {
+  timerPaused.value = false;
+}
+
 
 onMounted(() => {
-  startTimer();
+  startNewWord();
 });
 
-watch(currentWord, (newWord, oldWord) => {
-  console.log('new word', newWord, oldWord)
+watch(isTimeout, (isTimedOut) => {
 
-  startNewWord();
+  if (isTimedOut) {
+    startNewWord();
+  }
 });
 
 const startNewWord = () => {
 
-  timerPaused.value = true;
+  currentWordIndex.value = getNextWordIndex();
+
+  startTimer();
 
   answer.value = '';
 
-  setTimeout(() => {
-
-    totalTimer.value = 0;
-
-    otp.value?.reset();
-
-    timerPaused.value = false;
-
-  }, 2000);
+  otp.value?.reset();
 
 }
 
@@ -141,7 +159,65 @@ const answer = ref('');
 
 const otp = ref(null);
 
-const progressValue = computed(() => timerPaused.value ? secOnWord * 1000 : wordTimer.value)
+const progressValue = computed(() => wordTimer.value);
+
+
+const skipWord = () => {
+  // const res = getWordResult(currentWord.value.id);
+  //
+  // if (res) {
+  //   res.skipTimes += 1;
+  //   return;
+  // }
+  //
+  // createWordResult({
+  //   id: currentWord.value.id,
+  //   skipTimes: 1
+  // });
+
+  startNewWord();
+}
+
+const getWordResult = (id) => {
+  return results.value.find(r => r.id === id);
+}
+
+const getHint = () => {
+  const res = getWordResult(currentWord.value.id);
+
+  if (res) {
+    res.skipTimes += 1;
+    return;
+  }
+
+  createWordResult({
+    id: currentWord.value.id,
+    retries: 1,
+  });
+
+  console.log('currentWord.value.translate[answer.value.length]', currentWord.value.translate[answer.value.length], answer.value)
+
+  if (currentWord.value.translate.substring(0, answer.value.length) === answer.value) {
+
+    answer.value = answer.value + currentWord.value.translate[answer.value.length]
+
+    otp.value?.focus();
+
+  }
+
+}
+
+
+const createWordResult = (result: CreateWordResult) => {
+  results.value.push({
+    id: result.id,
+    retries: result.retries || 0,
+    isOk: result.isOk || false,
+    variants: result.variants || [],
+    skipTimes: result.skipTimes || 0,
+    hintTimes: result.hintTimes || 0
+  });
+}
 
 </script>
 
@@ -156,6 +232,16 @@ const progressValue = computed(() => timerPaused.value ? secOnWord * 1000 : word
       <v-row>
         <v-progress-linear :buffer-value="progressValue" :color="wordProgressColor"
                            :max="secOnWord*1000"></v-progress-linear>
+      </v-row>
+
+      <v-row>
+        <v-col>
+          <v-btn color="primary" @click="skipWord">Пропустить</v-btn>
+        </v-col>
+        <v-col class="text-right">
+          <v-btn color="warning" @click="getHint">Подсказка</v-btn>
+        </v-col>
+
       </v-row>
 
     </template>

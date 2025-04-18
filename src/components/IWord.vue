@@ -61,8 +61,12 @@ const reset = () => {
   otp.value?.focus();
 }
 
+const focus = () => {
+  otp.value?.focus();
+}
+
 defineExpose({
-  reset
+  reset, focus
 })
 
 </script>
