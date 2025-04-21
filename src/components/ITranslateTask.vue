@@ -163,17 +163,16 @@ const progressValue = computed(() => wordTimer.value);
 
 
 const skipWord = () => {
-  // const res = getWordResult(currentWord.value.id);
-  //
-  // if (res) {
-  //   res.skipTimes += 1;
-  //   return;
-  // }
-  //
-  // createWordResult({
-  //   id: currentWord.value.id,
-  //   skipTimes: 1
-  // });
+  const res = getWordResult(currentWord.value.id);
+
+  if (res) {
+    res.skipTimes += 1;
+  } else {
+    createWordResult({
+      id: currentWord.value.id,
+      skipTimes: 1
+    });
+  }
 
   startNewWord();
 }
@@ -186,14 +185,14 @@ const getHint = () => {
   const res = getWordResult(currentWord.value.id);
 
   if (res) {
-    res.skipTimes += 1;
-    return;
-  }
+    res.retries += 1;
 
-  createWordResult({
-    id: currentWord.value.id,
-    retries: 1,
-  });
+  } else {
+    createWordResult({
+      id: currentWord.value.id,
+      retries: 1,
+    });
+  }
 
   console.log('currentWord.value.translate[answer.value.length]', currentWord.value.translate[answer.value.length], answer.value)
 
@@ -201,9 +200,11 @@ const getHint = () => {
 
     answer.value = answer.value + currentWord.value.translate[answer.value.length]
 
-    otp.value?.focus();
-
+  } else {
+    answer.value = currentWord.value.translate[0]
   }
+
+  otp.value?.focus();
 
 }
 
@@ -226,10 +227,11 @@ const createWordResult = (result: CreateWordResult) => {
     <template v-if="wordsCount > 0">
       <h1>Осталось выполнить заданий: {{ wordsCount }} из {{ enList.length }}</h1>
 
-      <IWord ref="otp" v-model="answer" :word="currentWord.word" :translate="currentWord.translate"
-             @finish="(res) => onFinish(currentWord.id, res)" :disabled="timerPaused"></IWord>
+      <IWord v-if="currentWord" ref="otp" v-model="answer" :word="currentWord.word" :translate="currentWord.translate"
+             @finish="(res: WordResult) => onFinish(currentWord.id, res)" :disabled="timerPaused"></IWord>
 
       <v-row>
+
         <v-progress-linear :buffer-value="progressValue" :color="wordProgressColor"
                            :max="secOnWord*1000"></v-progress-linear>
       </v-row>
@@ -238,6 +240,7 @@ const createWordResult = (result: CreateWordResult) => {
         <v-col>
           <v-btn color="primary" @click="skipWord">Пропустить</v-btn>
         </v-col>
+
         <v-col class="text-right">
           <v-btn color="warning" @click="getHint">Подсказка</v-btn>
         </v-col>
@@ -245,6 +248,7 @@ const createWordResult = (result: CreateWordResult) => {
       </v-row>
 
     </template>
+
     <v-alert
       v-else
       text="Поздравляю, вы выполнили все задания, получайте свою награду"

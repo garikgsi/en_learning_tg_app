@@ -45,12 +45,12 @@ const color = computed(() => {
 })
 
 const isError = computed(() => {
-  return isFullFilled.value && answer.value.toLowerCase() !== props.translate.toLowerCase()
+  return isFullFilled.value && answer.value.toLowerCase() !== props.translate.toLowerCase();
 })
 
 const onFinish = (ans: string) => {
 
-  emits('finish', {isOk: !isError.value, answer: ans})
+  emits('finish', {isOk: !isError.value, answer: ans});
 
 }
 
