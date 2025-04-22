@@ -81,7 +81,7 @@ defineExpose({
       {{ word }}
     </div>
 
-    <div>
+    <v-row>
       <v-otp-input
         ref="otp"
         v-model="answer"
@@ -95,7 +95,15 @@ defineExpose({
         variant="outlined"
         @finish="onFinish"
       ></v-otp-input>
-    </div>
+
+      <v-row justify="center">
+        <v-col cols="auto" v-for="i in translate.length" :key="i">
+          <v-text-field class="mr-1 text-center" variant="outlined"
+          ></v-text-field>
+        </v-col>
+
+      </v-row>
+    </v-row>
 
 
   </div>
