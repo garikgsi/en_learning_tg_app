@@ -15,6 +15,10 @@ const list = computed(() => {
   ];
 });
 
+const ruList = computed(() => {
+  return list.value.map(w => ({id: w.id, word: w.translate, translate: w.word}));
+})
+
 
 </script>
 
@@ -34,7 +38,7 @@ const list = computed(() => {
 
         <v-container>
 
-          <ITranslateTask :en-list="list"></ITranslateTask>
+          <ITranslateTask :en-list="list" :ru-list="ruList"></ITranslateTask>
 
         </v-container>
 

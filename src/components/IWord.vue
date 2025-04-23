@@ -9,6 +9,7 @@ interface Props {
   translate: string
   easyMode?: boolean
   disabled?: boolean
+  color?: string
 }
 
 interface Emits {
@@ -18,7 +19,8 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   easyMode: true,
-  disabled: false
+  disabled: false,
+  color: 'primary'
 })
 
 const emits = defineEmits<Emits>()
@@ -30,19 +32,19 @@ const answer = computed({
 
 const isFullFilled = computed(() => answer.value.length === props.translate.length)
 
-const color = computed(() => {
-
-  if (answer.value.length === 0) {
-    return null
-  }
-
-  if (isFullFilled.value) {
-    if (!isError.value) {
-      return 'success'
-    }
-  }
-
-})
+// const color = computed(() => {
+//
+//   if (answer.value.length === 0) {
+//     return null
+//   }
+//
+//   if (isFullFilled.value) {
+//     if (!isError.value) {
+//       return 'success'
+//     }
+//   }
+//
+// })
 
 const isError = computed(() => {
   return isFullFilled.value && answer.value.toLowerCase() !== props.translate.toLowerCase();
@@ -81,7 +83,7 @@ defineExpose({
       {{ word }}
     </div>
 
-    <v-row>
+    <div>
       <v-otp-input
         ref="otp"
         v-model="answer"
@@ -95,15 +97,7 @@ defineExpose({
         variant="outlined"
         @finish="onFinish"
       ></v-otp-input>
-
-      <v-row justify="center">
-        <v-col cols="auto" v-for="i in translate.length" :key="i">
-          <v-text-field class="mr-1 text-center" variant="outlined"
-          ></v-text-field>
-        </v-col>
-
-      </v-row>
-    </v-row>
+    </div>
 
 
   </div>
