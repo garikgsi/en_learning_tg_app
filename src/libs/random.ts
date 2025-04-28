@@ -23,5 +23,11 @@ export default function random(from: number, to: number, exclude?: number): numb
 
   const {from: start, to: finish} = getRange(from, to, exclude);
 
-  return Math.floor(Math.random() * (finish - start + 1)) + start;
+  const rand = Math.floor(Math.random() * (finish - start + 1)) + start;
+
+  const isOk = rand >= from && rand <= to && rand !== exclude;
+
+  console.log(`random ${from}, ${to}, ${exclude} = ${rand}`, isOk);
+
+  return rand;
 }

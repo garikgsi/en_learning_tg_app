@@ -2,22 +2,17 @@
 
 import {computed, onMounted, ref, watch} from "vue";
 import IWord from "@/components/IWord.vue";
-import type {WordResult} from "@/components/types/WordResult.ts";
+import type {WordResult} from "@/components/IWord.vue";
 import random from "@/libs/random.ts";
 
 
-type Word = {
+export type Word = {
   id: number,
   word: string,
   translate: string
 }
 
-type Props = {
-  ruList: Word[],
-  enList: Word[]
-}
-
-type WordStat = {
+export type WordStat = {
   id: number,
   retries: number,
   isOk: boolean,
@@ -26,18 +21,28 @@ type WordStat = {
   hintTimes: number
 }
 
-type Lang = 'en' | 'ru';
+export type Lang = 'en' | 'ru';
 
-type CreateWordResult = Partial<Omit<WordStat, 'id'>> & Pick<WordStat, 'id'>
+export type CreateWordResult = Partial<Omit<WordStat, 'id'>> & Pick<WordStat, 'id'>
 
-type Task = {
+export type Task = {
   lang: Lang,
   list: Word[],
   results: WordStat[]
 }
 
+type Props = {
+  ruList: Word[],
+  enList: Word[]
+}
 
-const props = defineProps<Props>()
+type Emits = {
+  'finish': (taskResult: Task) => {}
+}
+
+const props = defineProps<Props>();
+
+const emits = defineEmits<Emits>();
 
 const onFinish = (wordId: number, result: WordResult) => {
 
@@ -73,7 +78,7 @@ const onFinish = (wordId: number, result: WordResult) => {
 }
 
 const getNextWordIndex = () => {
-  if (wordsCount.value === 1) {
+  if ([0, 1].includes(wordsCount.value)) {
     return 0;
   }
 
@@ -82,26 +87,36 @@ const getNextWordIndex = () => {
   return nextIndex;
 }
 
-
-const finishedWords = computed(() => {
-  return results.value.filter(w => w.isOk).map(w => w.id);
-});
-
-const results = ref<WordStat[]>([]);
+const ruResults = ref<WordStat[]>([]);
+const enResults = ref<WordStat[]>([]);
 
 const lang = ref<Lang>();
 
 const tasks = computed<Task[]>(() => {
   return [
-    {lang: 'ru', list: props.ruList, results: []},
-    {lang: 'en', list: props.enList, results: []},
+    {lang: 'ru', list: props.ruList, results: ruResults.value},
+    {lang: 'en', list: props.enList, results: enResults.value},
   ];
 });
 
-const words = computed(() => {
-  const list = tasks.value.find(t => t.lang === lang.value)?.list || [];
+const currentLangResults = computed<WordStat[]>(() => {
+  if (lang.value && tasks.value) {
+    return tasks.value.find(t => t.lang === lang.value).results;
+  }
 
-  return list.filter(w => !finishedWords.value.includes(w.id));
+  return [];
+})
+
+const finishedWords = computed(() => {
+  return currentLangResults.value.filter(w => w.isOk).map(w => w.id);
+});
+
+const currentLangList = computed(() => {
+  return tasks.value.find(t => t.lang === lang.value)?.list || [];
+});
+
+const words = computed(() => {
+  return currentLangList.value.filter(w => !finishedWords.value.includes(w.id));
 });
 
 const wordsCount = computed(() => {
@@ -120,6 +135,10 @@ const currentWord = computed(() => {
   return words.value[currentWordIndex.value];
 })
 
+const taskTitle = computed(() => {
+  return `Осталось выполнить заданий: ${wordsCount.value} из ${currentLangList.value.length}`
+})
+
 const wordProgressColor = computed(() => {
   const progress = wordTimer.value / (secOnWord.value * 1000);
 
@@ -131,7 +150,7 @@ const wordProgressColor = computed(() => {
     return 'warning';
   }
 
-  return 'success';
+  return 'green-darken-3';
 });
 
 const intervalTimer = ref();
@@ -156,12 +175,12 @@ const startTimer = () => {
 
 }
 
-const pauseTimer = () => {
-  timerPaused.value = true;
-}
+const isPaused = computed(() => timerPaused.value);
 
-const runTimer = () => {
-  timerPaused.value = false;
+const playPauseIcon = computed(() => isPaused.value ? 'mdi-play' : 'mdi-pause');
+
+const playPause = () => {
+  timerPaused.value = !timerPaused.value
 }
 
 
@@ -174,6 +193,7 @@ watch(isTimeout, (isTimedOut) => {
   if (isTimedOut) {
     startNewWord();
   }
+
 });
 
 const startNewWord = () => {
@@ -210,32 +230,52 @@ const skipWord = () => {
   startNewWord();
 }
 
-const getWordResult = (id) => {
-  return results.value.find(r => r.id === id);
+const getWordResult = (id: number) => {
+  return currentLangResults.value.find(r => r.id === id);
 }
 
 const getHint = () => {
-  const res = getWordResult(currentWord.value.id);
 
-  if (res) {
-    res.retries += 1;
+  if (isHintsAvailable.value) {
 
-  } else {
-    createWordResult({
-      id: currentWord.value.id,
-      retries: 1,
-    });
+    const res = getWordResult(currentWord.value.id);
+
+    if (res) {
+      res.hintTimes += 1;
+
+    } else {
+      createWordResult({
+        id: currentWord.value.id,
+        hintTimes: 1,
+      });
+    }
+
+    if (wrongAnswerPos.value === null) {
+      answer.value = answer.value + currentWord.value.translate[answer.value.length]
+    } else {
+      answer.value = answer.value.substring(0, wrongAnswerPos.value) + currentWord.value.translate[wrongAnswerPos.value]
+    }
+
+    otp.value?.focus();
+
   }
-
-  if (wrongAnswerPos.value === null) {
-    answer.value = answer.value + currentWord.value.translate[answer.value.length]
-  } else {
-    answer.value = answer.value.substring(0, wrongAnswerPos.value) + currentWord.value.translate[wrongAnswerPos.value]
-  }
-
-  otp.value?.focus();
 
 }
+
+const currentWordResult = computed(() => {
+  return currentLangResults.value.find(r => r.id === currentWord.value.id)
+})
+
+const maxHintsOnWord = 2;
+
+const isHintsAvailable = computed(() => {
+  if (currentWordResult.value) {
+    return (currentWordResult.value.hintTimes || 0) < maxHintsOnWord
+  }
+
+  return true;
+
+})
 
 const wrongAnswerPos = computed(() => {
   if (answer.value.length === 0) {
@@ -271,14 +311,28 @@ const otpColor = computed(() => {
 })
 
 const createWordResult = (result: CreateWordResult) => {
-  results.value.push({
-    id: result.id,
-    retries: result.retries || 0,
-    isOk: result.isOk || false,
-    variants: result.variants || [],
-    skipTimes: result.skipTimes || 0,
-    hintTimes: result.hintTimes || 0
-  });
+
+  const results = tasks.value.find(t => t.lang === lang.value).results;
+
+  if (results) {
+    results.push({
+      id: result.id,
+      retries: result.retries || 0,
+      isOk: result.isOk || false,
+      variants: result.variants || [],
+      skipTimes: result.skipTimes || 0,
+      hintTimes: result.hintTimes || 0
+    });
+  }
+
+
+}
+
+const selectEnglish = () => {
+  lang.value = 'en'
+}
+const selectRussian = () => {
+  lang.value = 'ru'
 }
 
 </script>
@@ -286,37 +340,51 @@ const createWordResult = (result: CreateWordResult) => {
 <template>
   <template v-if="enList.length > 0 || ruList.length > 0">
     <template v-if="wordsCount > 0">
-      <h1>Осталось выполнить заданий: {{ wordsCount }} из {{ enList.length }}</h1>
+      <v-card :title="taskTitle">
+        <v-card-text>
+          <IWord v-if="currentWord" ref="otp" v-model="answer" :word="currentWord.word"
+                 :translate="currentWord.translate"
+                 @finish="(res: WordResult) => onFinish(currentWord.id, res)" :disabled="timerPaused"
+                 :color="otpColor"></IWord>
+        </v-card-text>
+        <v-card-text>
+          <v-progress-linear :buffer-value="progressValue"
+                             :color="wordProgressColor"
+                             :max="secOnWord*1000"
+                             :height="22"
+                             rounded="lg"
+          ></v-progress-linear>
+        </v-card-text>
+        <v-card-actions>
+          <v-row>
+            <v-col>
+              <v-btn color="primary" @click="skipWord">Пропустить</v-btn>
+            </v-col>
 
-      <IWord v-if="currentWord" ref="otp" v-model="answer" :word="currentWord.word" :translate="currentWord.translate"
-             @finish="(res: WordResult) => onFinish(currentWord.id, res)" :disabled="timerPaused"
-             :color="otpColor"></IWord>
+            <v-col>
+              <v-btn :icon="playPauseIcon" flat rounded @click="playPause"></v-btn>
+            </v-col>
 
-      <v-row>
+            <v-col class="text-right">
+              <v-btn :disabled="!isHintsAvailable" color="warning" @click="getHint">Подсказка</v-btn>
+            </v-col>
 
-        <v-progress-linear :buffer-value="progressValue" :color="wordProgressColor"
-                           :max="secOnWord*1000"></v-progress-linear>
-      </v-row>
-
-      <v-row>
-        <v-col>
-          <v-btn color="primary" @click="skipWord">Пропустить</v-btn>
-        </v-col>
-
-        <v-col class="text-right">
-          <v-btn color="warning" @click="getHint">Подсказка</v-btn>
-        </v-col>
-
-      </v-row>
+          </v-row>
+        </v-card-actions>
+      </v-card>
 
     </template>
 
-    <v-alert
-      v-else
-      text="Поздравляю, вы выполнили все задания, получайте свою награду"
-      title="Задание выполнено"
-      type="success"
-    ></v-alert>
+    <template v-else>
+      <v-card title="Выберем язык"
+              subtitle="Выберите язык для повторения"
+              text="На выбранном языке будут даны слова, которые вы будете переводить">
+        <v-card-actions>
+          <v-btn @click="selectEnglish" color="error">English</v-btn>
+          <v-btn @click="selectRussian" color="ok">Русский</v-btn>
+        </v-card-actions>
+      </v-card>
+    </template>
 
   </template>
 

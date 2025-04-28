@@ -1,7 +1,8 @@
 <script setup lang="ts">
 
 import {computed, ref} from 'vue';
-import type {WordResult} from "@/components/types/WordResult.ts";
+
+export type WordResult = { isOk: boolean, answer: string }
 
 interface Props {
   modelValue: string
