@@ -44,7 +44,32 @@ const props = defineProps<Props>();
 
 const emits = defineEmits<Emits>();
 
+const wordCompleteSuccessfully = ref(false);
+
+const pauseOnWordsChangeSec = 3;
+
+const intervalTimer = ref();
+
+const timerStep = 100;
+
+const timerPaused = ref(false);
+
+const wordTimer = ref(0);
+
+const secOnWord = ref(30);
+
+const currentWordIndex = ref(0);
+
+const answer = ref('');
+
+const otp = ref(null);
+
+const maxHintsOnWord = 2;
+
+
 const onFinish = (wordId: number, result: WordResult) => {
+
+  console.log('finish', wordId, result)
 
   const word = words.value.find(w => w.id === wordId);
 
@@ -52,7 +77,11 @@ const onFinish = (wordId: number, result: WordResult) => {
     const res = getWordResult(currentWord.value.id);
 
     if (result.isOk) {
+      wordCompleteSuccessfully.value = true;
+
       setTimeout(() => {
+        answer.value = ''
+
         if (res) {
           res.retries += 1;
           res.isOk = result.isOk;
@@ -68,9 +97,11 @@ const onFinish = (wordId: number, result: WordResult) => {
           variants: [result.answer]
         });
 
+        wordCompleteSuccessfully.value = false;
+
         startNewWord();
 
-      }, 1000);
+      }, pauseOnWordsChangeSec * 1000);
 
     }
 
@@ -123,13 +154,7 @@ const wordsCount = computed(() => {
   return words.value.length;
 })
 
-const wordTimer = ref(0);
-
-const secOnWord = ref(30);
-
 const isTimeout = computed(() => wordTimer.value >= secOnWord.value * 1000)
-
-const currentWordIndex = ref(0);
 
 const currentWord = computed(() => {
   return words.value[currentWordIndex.value];
@@ -152,12 +177,6 @@ const wordProgressColor = computed(() => {
 
   return 'green-darken-3';
 });
-
-const intervalTimer = ref();
-
-const timerStep = 100;
-
-const timerPaused = ref(false);
 
 const startTimer = () => {
 
@@ -200,17 +219,16 @@ const startNewWord = () => {
 
   currentWordIndex.value = getNextWordIndex();
 
+  wordCompleteSuccessfully.value = false;
+
   startTimer();
 
   answer.value = '';
 
   otp.value?.reset();
+  otp.value?.focus();
 
 }
-
-const answer = ref('');
-
-const otp = ref(null);
 
 const progressValue = computed(() => wordTimer.value);
 
@@ -266,16 +284,32 @@ const currentWordResult = computed(() => {
   return currentLangResults.value.find(r => r.id === currentWord.value.id)
 })
 
-const maxHintsOnWord = 2;
-
 const isHintsAvailable = computed(() => {
+  if (answer.value.length === currentWord.value.translate.length - 1) {
+    return false;
+  }
+
   if (currentWordResult.value) {
-    return (currentWordResult.value.hintTimes || 0) < maxHintsOnWord
+    return (currentWordResult.value?.hintTimes || 0) < maxHintsOnWord;
   }
 
   return true;
 
 })
+
+const countHintsOnCurrentWord = computed(() => {
+  return currentWordResult.value?.hintTimes || 0;
+});
+
+const countErrorsOnCurrentWord = computed(() => {
+  const variants = (currentWordResult.value?.variants || []).length;
+
+  if (variants > 1) {
+    return variants - 1;
+  }
+
+  return 0;
+});
 
 const wrongAnswerPos = computed(() => {
   if (answer.value.length === 0) {
@@ -335,25 +369,51 @@ const selectRussian = () => {
   lang.value = 'ru'
 }
 
+const completeBoxData = computed(() => {
+  if (countHintsOnCurrentWord.value + countErrorsOnCurrentWord.value > 0) {
+    return {
+      text: 'Отлично!',
+      title: `Хорошая работа. Перевод слова ${currentWord.value.word} - ${currentWord.value.translate}`,
+      type: 'warning'
+    };
+  }
+
+  return {
+    text: 'Отлично!',
+    title: `Вы отлично справились. Перевод слова ${currentWord.value.word} - ${currentWord.value.translate}`,
+    type: 'success'
+  };
+});
+
 </script>
 
 <template>
   <template v-if="enList.length > 0 || ruList.length > 0">
     <template v-if="wordsCount > 0">
       <v-card :title="taskTitle">
+
         <v-card-text>
           <IWord v-if="currentWord" ref="otp" v-model="answer" :word="currentWord.word"
                  :translate="currentWord.translate"
                  @finish="(res: WordResult) => onFinish(currentWord.id, res)" :disabled="timerPaused"
                  :color="otpColor"></IWord>
         </v-card-text>
+
         <v-card-text>
-          <v-progress-linear :buffer-value="progressValue"
+
+          <v-alert
+            v-if="wordCompleteSuccessfully"
+            v-bind="completeBoxData"
+          ></v-alert>
+
+          <v-progress-linear v-else
+                             :buffer-value="progressValue"
                              :color="wordProgressColor"
                              :max="secOnWord*1000"
                              :height="22"
                              rounded="lg"
           ></v-progress-linear>
+
         </v-card-text>
         <v-card-actions>
           <v-row>
