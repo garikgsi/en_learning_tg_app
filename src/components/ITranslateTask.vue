@@ -56,7 +56,7 @@ const timerPaused = ref(false);
 
 const wordTimer = ref(0);
 
-const secOnWord = ref(30);
+const secOnWord = ref(100);
 
 const currentWordIndex = ref(0);
 
@@ -66,42 +66,59 @@ const otp = ref(null);
 
 const maxHintsOnWord = 2;
 
+const changeWordPause = async (pauseSec: number) => {
+  wordCompleteSuccessfully.value = true;
+  console.log('timer start', wordCompleteSuccessfully.value)
 
-const onFinish = (wordId: number, result: WordResult) => {
+  return setTimeout(() => {
+
+    wordCompleteSuccessfully.value = false;
+    console.log('timer done')
+    console.log('timer start', wordCompleteSuccessfully.value)
+
+    return true;
+  }, pauseSec * 1000);
+
+}
+
+
+const onFinish = async (wordId: number, result: WordResult) => {
 
   console.log('finish', wordId, result)
 
   const word = words.value.find(w => w.id === wordId);
 
   if (word) {
-    const res = getWordResult(currentWord.value.id);
+    const res = getWordResult(word.id);
 
     if (result.isOk) {
       wordCompleteSuccessfully.value = true;
 
-      setTimeout(() => {
-        answer.value = ''
+      await changeWordPause(pauseOnWordsChangeSec);
 
-        if (res) {
-          res.retries += 1;
-          res.isOk = result.isOk;
-          res.variants.push(result.answer);
+      //setTimeout(() => {
+      answer.value = ''
 
-          return;
-        }
+      if (res) {
+        res.retries += 1;
+        res.isOk = result.isOk;
+        res.variants.push(result.answer);
 
-        createWordResult({
-          id: currentWord.value.id,
-          retries: 1,
-          isOk: result.isOk,
-          variants: [result.answer]
-        });
+        return;
+      }
 
-        wordCompleteSuccessfully.value = false;
+      createWordResult({
+        id: currentWord.value.id,
+        retries: 1,
+        isOk: result.isOk,
+        variants: [result.answer]
+      });
 
-        startNewWord();
+      wordCompleteSuccessfully.value = false;
 
-      }, pauseOnWordsChangeSec * 1000);
+      startNewWord();
+
+      // }, pauseOnWordsChangeSec * 1000);
 
     }
 
@@ -184,7 +201,7 @@ const startTimer = () => {
 
   clearInterval(intervalTimer.value);
 
-  intervalTimer.value = setInterval(() => {
+  setInterval(() => {
 
     if (!timerPaused.value && wordsCount.value > 0) {
       wordTimer.value = wordTimer.value + timerStep;
@@ -205,6 +222,8 @@ const playPause = () => {
 
 onMounted(() => {
   startNewWord();
+  // changeWordPause(10);
+
 });
 
 watch(isTimeout, (isTimedOut) => {
@@ -385,6 +404,8 @@ const completeBoxData = computed(() => {
   };
 });
 
+const showCompleteBox = computed(() => wordCompleteSuccessfully.value);
+
 </script>
 
 <template>
@@ -393,6 +414,11 @@ const completeBoxData = computed(() => {
       <v-card :title="taskTitle">
 
         <v-card-text>
+
+          wordTimer={{ wordTimer }}
+
+          intervalTimer={{ intervalTimer }}
+
           <IWord v-if="currentWord" ref="otp" v-model="answer" :word="currentWord.word"
                  :translate="currentWord.translate"
                  @finish="(res: WordResult) => onFinish(currentWord.id, res)" :disabled="timerPaused"
@@ -402,7 +428,7 @@ const completeBoxData = computed(() => {
         <v-card-text>
 
           <v-alert
-            v-if="wordCompleteSuccessfully"
+            v-if="showCompleteBox"
             v-bind="completeBoxData"
           ></v-alert>
 
