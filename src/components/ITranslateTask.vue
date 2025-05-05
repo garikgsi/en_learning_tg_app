@@ -66,25 +66,45 @@ const otp = ref(null);
 
 const maxHintsOnWord = 2;
 
+const sleep = (pauseSec: number) => {
+  return new Promise((resolve) => setTimeout(resolve, pauseSec * 1000));
+}
+
 const changeWordPause = async (pauseSec: number) => {
+
+  timerPaused.value = true;
+
   wordCompleteSuccessfully.value = true;
-  console.log('timer start', wordCompleteSuccessfully.value)
 
-  return setTimeout(() => {
+  await sleep(pauseSec);
 
-    wordCompleteSuccessfully.value = false;
-    console.log('timer done')
-    console.log('timer start', wordCompleteSuccessfully.value)
+  wordCompleteSuccessfully.value = false;
 
-    return true;
-  }, pauseSec * 1000);
+  timerPaused.value = false;
 
 }
 
+const ruUncompletedWords = computed(() => {
+  const ruTask = tasks.value.find(t => t.lang === 'ru');
+
+  if (ruTask) {
+    return ruTask.list.length - ruTask.results.filter(r => r.isOk).length;
+  }
+
+  return null;
+})
+
+const enUncompletedWords = computed(() => {
+  const enTask = tasks.value.find(t => t.lang === 'en');
+
+  if (enTask) {
+    return enTask.list.length - enTask.results.filter(r => r.isOk).length;
+  }
+
+  return null;
+})
 
 const onFinish = async (wordId: number, result: WordResult) => {
-
-  console.log('finish', wordId, result)
 
   const word = words.value.find(w => w.id === wordId);
 
@@ -92,11 +112,14 @@ const onFinish = async (wordId: number, result: WordResult) => {
     const res = getWordResult(word.id);
 
     if (result.isOk) {
-      wordCompleteSuccessfully.value = true;
+
+
+      console.log('start')
 
       await changeWordPause(pauseOnWordsChangeSec);
 
-      //setTimeout(() => {
+      wordTimer.value = 0;
+
       answer.value = ''
 
       if (res) {
@@ -114,11 +137,7 @@ const onFinish = async (wordId: number, result: WordResult) => {
         variants: [result.answer]
       });
 
-      wordCompleteSuccessfully.value = false;
-
       startNewWord();
-
-      // }, pauseOnWordsChangeSec * 1000);
 
     }
 
@@ -244,7 +263,7 @@ const startNewWord = () => {
 
   answer.value = '';
 
-  otp.value?.reset();
+  // otp.value?.reset();
   otp.value?.focus();
 
 }
@@ -266,6 +285,18 @@ const skipWord = () => {
 
   startNewWord();
 }
+
+const isSkipAvailable = computed(() => {
+  if (isWordCompleted.value) {
+    return false;
+  }
+
+  if (wordsCount.value === 1) {
+    return false;
+  }
+
+  return true;
+})
 
 const getWordResult = (id: number) => {
   return currentLangResults.value.find(r => r.id === id);
@@ -310,6 +341,20 @@ const isHintsAvailable = computed(() => {
 
   if (currentWordResult.value) {
     return (currentWordResult.value?.hintTimes || 0) < maxHintsOnWord;
+  }
+
+  if (wordCompleteSuccessfully.value) {
+    return false;
+  }
+
+  return true;
+
+})
+
+const isPauseAvailable = computed(() => {
+
+  if (wordCompleteSuccessfully.value) {
+    return false;
   }
 
   return true;
@@ -378,51 +423,72 @@ const createWordResult = (result: CreateWordResult) => {
     });
   }
 
-
 }
 
 const selectEnglish = () => {
-  lang.value = 'en'
+  lang.value = 'en';
 }
 const selectRussian = () => {
-  lang.value = 'ru'
+  lang.value = 'ru';
 }
 
 const completeBoxData = computed(() => {
+
   if (countHintsOnCurrentWord.value + countErrorsOnCurrentWord.value > 0) {
     return {
-      text: 'Отлично!',
-      title: `Хорошая работа. Перевод слова ${currentWord.value.word} - ${currentWord.value.translate}`,
+      text: 'Замечательно!',
+      title: `Хорошая работа! Перевод слова ${currentWord.value.word} - ${currentWord.value.translate}`,
       type: 'warning'
     };
   }
 
   return {
     text: 'Отлично!',
-    title: `Вы отлично справились. Перевод слова ${currentWord.value.word} - ${currentWord.value.translate}`,
+    title: `Вы отлично справились! Перевод слова ${currentWord.value.word} - ${currentWord.value.translate}`,
     type: 'success'
   };
+
 });
 
 const showCompleteBox = computed(() => wordCompleteSuccessfully.value);
 
+const pauseText = computed(() => lang.value === 'ru' ? 'Похоже, время сделать паузу' : 'Let\'s get a pause')
+
 </script>
 
 <template>
-  <template v-if="enList.length > 0 || ruList.length > 0">
+
+  <template v-if="enUncompletedWords > 0 || ruUncompletedWords > 0">
+
     <template v-if="wordsCount > 0">
+
       <v-card :title="taskTitle">
 
         <v-card-text>
 
-          wordTimer={{ wordTimer }}
+          <template v-if="timerPaused">
 
-          intervalTimer={{ intervalTimer }}
+            <div class="text-h4 text-green-darken-2">{{ pauseText }}
 
-          <IWord v-if="currentWord" ref="otp" v-model="answer" :word="currentWord.word"
-                 :translate="currentWord.translate"
-                 @finish="(res: WordResult) => onFinish(currentWord.id, res)" :disabled="timerPaused"
-                 :color="otpColor"></IWord>
+              <v-btn
+                class="ma-2"
+                color="green-darken-2"
+                icon="mdi-cat"
+                variant="text"
+              ></v-btn>
+            </div>
+
+          </template>
+
+          <template v-else>
+
+            <IWord v-if="currentWord" ref="otp" v-model="answer" :word="currentWord.word"
+                   :translate="currentWord.translate"
+                   @finish="(res: WordResult) => onFinish(currentWord.id, res)" :disabled="timerPaused"
+                   :color="otpColor"></IWord>
+
+          </template>
+
         </v-card-text>
 
         <v-card-text>
@@ -444,11 +510,11 @@ const showCompleteBox = computed(() => wordCompleteSuccessfully.value);
         <v-card-actions>
           <v-row>
             <v-col>
-              <v-btn color="primary" @click="skipWord">Пропустить</v-btn>
+              <v-btn :disabled="!isSkipAvailable" color="primary" @click="skipWord">Пропустить</v-btn>
             </v-col>
 
             <v-col>
-              <v-btn :icon="playPauseIcon" flat rounded @click="playPause"></v-btn>
+              <v-btn :disabled="!isPauseAvailable" :icon="playPauseIcon" flat rounded @click="playPause"></v-btn>
             </v-col>
 
             <v-col class="text-right">
@@ -462,14 +528,35 @@ const showCompleteBox = computed(() => wordCompleteSuccessfully.value);
     </template>
 
     <template v-else>
-      <v-card title="Выберем язык"
+
+      <v-card v-if="enUncompletedWords > 0 && ruUncompletedWords > 0"
+              title="Выберем язык"
               subtitle="Выберите язык для повторения"
               text="На выбранном языке будут даны слова, которые вы будете переводить">
         <v-card-actions>
-          <v-btn @click="selectEnglish" color="error">English</v-btn>
-          <v-btn @click="selectRussian" color="ok">Русский</v-btn>
+          <v-btn :disabled="enUncompletedWords === 0" @click="selectEnglish" color="error">English</v-btn>
+          <v-btn :disabled="ruUncompletedWords === 0" @click="selectRussian" color="primary">Русский</v-btn>
         </v-card-actions>
       </v-card>
+
+      <v-card v-else-if="enUncompletedWords > 0 && ruUncompletedWords === 0"
+              title="А теперь давайте по английски"
+              subtitle="Я буду писать слова по-русски"
+              text="Вам предстоит писать перевод русских слов по-английски">
+        <v-card-actions>
+          <v-btn @click="selectEnglish" color="error">Поехали!</v-btn>
+        </v-card-actions>
+      </v-card>
+
+      <v-card v-else
+              title="А теперь давайте по-русски"
+              subtitle="Я буду писать слова по-английски"
+              text="Вам предстоит писать перевод английских слов по-русски">
+        <v-card-actions>
+          <v-btn @click="selectRussian" color="primary">Поехали!</v-btn>
+        </v-card-actions>
+      </v-card>
+
     </template>
 
   </template>
