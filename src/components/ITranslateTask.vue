@@ -497,9 +497,11 @@ const isShownPause = computed(() => {
   <template v-if="enUncompletedWords > 0 || ruUncompletedWords > 0">
 
     <template v-if="wordsCount > 0">
+      <!--
       wordsCount={{ wordsCount }}
       wordTimer={{ wordTimer }}
       currentWord={{ currentWord }} | {{ JSON.stringify(currentWord) }}
+      -->
       <v-card :title="taskTitle">
 
         <v-card-text>
