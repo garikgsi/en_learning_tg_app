@@ -2,21 +2,26 @@
 
 import {computed} from 'vue';
 import ITranslateTask from "@/components/ITranslateTask.vue";
+import type {Task} from "@/components/ITranslateTask.vue"
 
 
 const list = computed(() => {
   return [
     {id: 1, word: 'птица', translate: 'bird'},
-    {id: 2, word: 'кошка', translate: 'cat'},
-    {id: 3, word: 'школа', translate: 'school'},
-    {id: 4, word: 'дом', translate: 'home'},
-    {id: 5, word: 'сегодня', translate: 'today'},
-    {id: 6, word: 'завтра', translate: 'tomorrow'},
+    // {id: 2, word: 'кошка', translate: 'cat'},
+    // {id: 3, word: 'школа', translate: 'school'},
+    // {id: 4, word: 'дом', translate: 'home'},
+    // {id: 5, word: 'сегодня', translate: 'today'},
+    // {id: 6, word: 'завтра', translate: 'tomorrow'},
   ];
 });
 
 const ruList = computed(() => {
   return list.value.map(w => ({id: w.id, word: w.translate, translate: w.word}));
+});
+
+const taskCompleted = ((task: Task[]) => {
+  console.log('taskCompleted', task)
 })
 
 
@@ -38,7 +43,7 @@ const ruList = computed(() => {
 
         <v-container>
 
-          <ITranslateTask :en-list="list" :ru-list="ruList"></ITranslateTask>
+          <ITranslateTask :en-list="list" :ru-list="ruList" @finish="taskCompleted"></ITranslateTask>
 
         </v-container>
 

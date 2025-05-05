@@ -37,7 +37,7 @@ type Props = {
 }
 
 type Emits = {
-  'finish': (taskResult: Task) => {}
+  (e: 'finish', taskResult: Task[]): void
 }
 
 const props = defineProps<Props>();
@@ -113,9 +113,6 @@ const onFinish = async (wordId: number, result: WordResult) => {
 
     if (result.isOk) {
 
-
-      console.log('start')
-
       await changeWordPause(pauseOnWordsChangeSec);
 
       wordTimer.value = 0;
@@ -137,7 +134,22 @@ const onFinish = async (wordId: number, result: WordResult) => {
         variants: [result.answer]
       });
 
-      startNewWord();
+
+      if (lang.value === 'ru' && ruUncompletedWords.value && ruUncompletedWords.value > 0) {
+
+        startNewWord();
+
+      }
+
+      if (lang.value === 'en' && enUncompletedWords.value && enUncompletedWords.value > 0) {
+
+        startNewWord();
+
+      }
+
+      if (ruUncompletedWords.value === 0 && enUncompletedWords.value === 0) {
+        emits('finish', tasks.value);
+      }
 
     }
 
@@ -255,16 +267,20 @@ watch(isTimeout, (isTimedOut) => {
 
 const startNewWord = () => {
 
-  currentWordIndex.value = getNextWordIndex();
+  if (words.value.length > 0) {
 
-  wordCompleteSuccessfully.value = false;
+    currentWordIndex.value = getNextWordIndex();
 
-  startTimer();
+    wordCompleteSuccessfully.value = false;
 
-  answer.value = '';
+    startTimer();
 
-  // otp.value?.reset();
-  otp.value?.focus();
+    answer.value = '';
+
+    // otp.value?.reset();
+    otp.value?.focus();
+
+  }
 
 }
 
@@ -452,7 +468,11 @@ const completeBoxData = computed(() => {
 
 const showCompleteBox = computed(() => wordCompleteSuccessfully.value);
 
-const pauseText = computed(() => lang.value === 'ru' ? 'Похоже, время сделать паузу' : 'Let\'s get a pause')
+const pauseText = computed(() => lang.value === 'ru' ? 'Похоже, время сделать паузу' : 'Let\'s get a pause');
+
+const isShownPause = computed(() => {
+  return timerPaused.value && !isWordCompleted.value
+})
 
 </script>
 
@@ -461,12 +481,12 @@ const pauseText = computed(() => lang.value === 'ru' ? 'Похоже, время
   <template v-if="enUncompletedWords > 0 || ruUncompletedWords > 0">
 
     <template v-if="wordsCount > 0">
-
+      wordsCount={{ wordsCount }}
       <v-card :title="taskTitle">
 
         <v-card-text>
 
-          <template v-if="timerPaused">
+          <template v-if="isShownPause">
 
             <div class="text-h4 text-green-darken-2">{{ pauseText }}
 
@@ -484,9 +504,10 @@ const pauseText = computed(() => lang.value === 'ru' ? 'Похоже, время
 
             <IWord v-if="currentWord" ref="otp" v-model="answer" :word="currentWord.word"
                    :translate="currentWord.translate"
-                   @finish="(res: WordResult) => onFinish(currentWord.id, res)" :disabled="timerPaused"
-                   :color="otpColor"></IWord>
-
+                   :disabled="timerPaused"
+                   :color="otpColor"
+                   @finish="(res: WordResult) => onFinish(currentWord.id, res)"
+            ></IWord>
           </template>
 
         </v-card-text>
@@ -565,7 +586,7 @@ const pauseText = computed(() => lang.value === 'ru' ? 'Похоже, время
     v-else
     text="На сегодня все задания выполнены"
     title="Нет заданий"
-    type="primary"
+    type="info"
   ></v-alert>
 
 </template>

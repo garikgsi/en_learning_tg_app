@@ -3,6 +3,10 @@ export default function random(from: number, to: number, exclude?: number): numb
   const getRange = (from: number, to: number, exclude?: number): { from: number, to: number } => {
 
     if (exclude) {
+      if (exclude > to || exclude < from) {
+        return {from: from, to: to}
+      }
+
       if (exclude === from) {
         return {from: exclude + 1, to: to}
       }
@@ -23,7 +27,7 @@ export default function random(from: number, to: number, exclude?: number): numb
 
   const {from: start, to: finish} = getRange(from, to, exclude);
 
-  const rand = Math.floor(Math.random() * (finish - (start + 1))) + start;
+  const rand = Math.floor(Math.random() * (finish - start)) + start;
 
   const isOk = rand >= from && rand <= to && rand !== exclude;
 
