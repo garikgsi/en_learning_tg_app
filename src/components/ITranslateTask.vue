@@ -156,12 +156,14 @@ const onFinish = async (wordId: number, result: WordResult) => {
   }
 }
 
-const getNextWordIndex = () => {
+const getNextWordIndex = (exclude?: number) => {
   if ([0, 1].includes(wordsCount.value)) {
     return 0;
   }
 
-  const nextIndex = random(0, wordsCount.value - 1, currentWordIndex.value);
+  const nextIndex = random(0, wordsCount.value - 1, exclude);
+
+  console.log('nextIndex', nextIndex)
 
   return nextIndex;
 }
@@ -232,7 +234,7 @@ const startTimer = () => {
 
   clearInterval(intervalTimer.value);
 
-  setInterval(() => {
+  intervalTimer.value = setInterval(() => {
 
     if (!timerPaused.value && wordsCount.value > 0) {
       wordTimer.value = wordTimer.value + timerStep;
@@ -253,8 +255,8 @@ const playPause = () => {
 
 onMounted(() => {
   startNewWord();
-  // changeWordPause(10);
 
+  startTimer()
 });
 
 watch(isTimeout, (isTimedOut) => {
@@ -265,11 +267,11 @@ watch(isTimeout, (isTimedOut) => {
 
 });
 
-const startNewWord = () => {
+const startNewWord = (exclude?: number) => {
 
   if (words.value.length > 0) {
 
-    currentWordIndex.value = getNextWordIndex();
+    currentWordIndex.value = getNextWordIndex(exclude);
 
     wordCompleteSuccessfully.value = false;
 
@@ -299,7 +301,7 @@ const skipWord = () => {
     });
   }
 
-  startNewWord();
+  startNewWord(currentWordIndex.value);
 }
 
 const isSkipAvailable = computed(() => {
@@ -482,6 +484,7 @@ const isShownPause = computed(() => {
 
     <template v-if="wordsCount > 0">
       wordsCount={{ wordsCount }}
+      wordTimer={{ wordTimer }}
       <v-card :title="taskTitle">
 
         <v-card-text>

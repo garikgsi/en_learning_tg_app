@@ -1,27 +1,37 @@
 <script lang="ts" setup>
 
-import {computed} from 'vue';
+import {computed, ref, onMounted} from 'vue';
 import ITranslateTask from "@/components/ITranslateTask.vue";
-import type {Task} from "@/components/ITranslateTask.vue"
+import type {Task, Word} from "@/components/ITranslateTask.vue"
 
 
-const list = computed(() => {
-  return [
-    {id: 1, word: 'птица', translate: 'bird'},
-    // {id: 2, word: 'кошка', translate: 'cat'},
-    // {id: 3, word: 'школа', translate: 'school'},
-    // {id: 4, word: 'дом', translate: 'home'},
-    // {id: 5, word: 'сегодня', translate: 'today'},
-    // {id: 6, word: 'завтра', translate: 'tomorrow'},
-  ];
-});
+const list = ref<Word[]>([]);
 
 const ruList = computed(() => {
-  return list.value.map(w => ({id: w.id, word: w.translate, translate: w.word}));
+  if (list.value.length) {
+    return list.value.map(w => ({id: w.id, word: w.translate, translate: w.word}));
+  }
+
+  return [];
 });
 
 const taskCompleted = ((task: Task[]) => {
   console.log('taskCompleted', task)
+});
+
+const loadList = async () => {
+  list.value = [
+    {id: 1, word: 'птица', translate: 'bird'},
+    {id: 2, word: 'кошка', translate: 'cat'},
+    {id: 3, word: 'школа', translate: 'school'},
+    {id: 4, word: 'дом', translate: 'home'},
+    {id: 5, word: 'сегодня', translate: 'today'},
+    {id: 6, word: 'завтра', translate: 'tomorrow'},
+  ];
+}
+
+onMounted(async () => {
+  await loadList();
 })
 
 
@@ -43,7 +53,8 @@ const taskCompleted = ((task: Task[]) => {
 
         <v-container>
 
-          <ITranslateTask :en-list="list" :ru-list="ruList" @finish="taskCompleted"></ITranslateTask>
+          <ITranslateTask v-if="list" :en-list="list" :ru-list="ruList" @finish="taskCompleted"></ITranslateTask>
+          <template v-else>Идет загрузка задания...</template>
 
         </v-container>
 
