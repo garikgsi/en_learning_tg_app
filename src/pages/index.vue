@@ -25,8 +25,8 @@ const loadList = async () => {
     {id: 2, word: 'кошка', translate: 'cat'},
     {id: 3, word: 'школа', translate: 'school'},
     {id: 4, word: 'дом', translate: 'home'},
-    {id: 5, word: 'сегодня', translate: 'today'},
-    {id: 6, word: 'завтра', translate: 'tomorrow'},
+    // {id: 5, word: 'сегодня', translate: 'today'},
+    // {id: 6, word: 'завтра', translate: 'tomorrow'},
   ];
 }
 

@@ -2,7 +2,7 @@ export default function random(from: number, to: number, exclude?: number): numb
 
   const getRange = (from: number, to: number, exclude?: number): { from: number, to: number } => {
 
-    if (exclude) {
+    if (exclude !== undefined) {
       if (exclude > to || exclude < from) {
         return {from: from, to: to}
       }

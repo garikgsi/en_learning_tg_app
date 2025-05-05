@@ -124,11 +124,10 @@ const onFinish = async (wordId: number, result: WordResult) => {
         res.isOk = result.isOk;
         res.variants.push(result.answer);
 
-        return;
       }
 
-      createWordResult({
-        id: currentWord.value.id,
+      await createWordResult({
+        id: wordId,
         retries: 1,
         isOk: result.isOk,
         variants: [result.answer]
@@ -138,17 +137,20 @@ const onFinish = async (wordId: number, result: WordResult) => {
       if (lang.value === 'ru' && ruUncompletedWords.value && ruUncompletedWords.value > 0) {
 
         startNewWord();
+        return;
 
       }
 
       if (lang.value === 'en' && enUncompletedWords.value && enUncompletedWords.value > 0) {
 
         startNewWord();
+        return;
 
       }
 
       if (ruUncompletedWords.value === 0 && enUncompletedWords.value === 0) {
         emits('finish', tasks.value);
+        return;
       }
 
     }
@@ -157,13 +159,15 @@ const onFinish = async (wordId: number, result: WordResult) => {
 }
 
 const getNextWordIndex = (exclude?: number) => {
-  if ([0, 1].includes(wordsCount.value)) {
-    return 0;
-  }
 
-  const nextIndex = random(0, wordsCount.value - 1, exclude);
+  console.log('currentWord', currentWord.value)
+  console.log('exclude', exclude)
+  console.log('wordsCount', wordsCount.value)
+  console.log('words.length', words.value.length)
 
-  console.log('nextIndex', nextIndex)
+  const nextIndex = wordsCount.value < 2 ? 0 : random(0, wordsCount.value - 1, exclude);
+
+  console.log('nextIndex', nextIndex, words.value[nextIndex])
 
   return nextIndex;
 }
@@ -254,7 +258,7 @@ const playPause = () => {
 
 
 onMounted(() => {
-  startNewWord();
+  startNewWord(0);
 
   startTimer()
 });
@@ -289,13 +293,13 @@ const startNewWord = (exclude?: number) => {
 const progressValue = computed(() => wordTimer.value);
 
 
-const skipWord = () => {
+const skipWord = async () => {
   const res = getWordResult(currentWord.value.id);
 
   if (res) {
     res.skipTimes += 1;
   } else {
-    createWordResult({
+    await createWordResult({
       id: currentWord.value.id,
       skipTimes: 1
     });
@@ -320,7 +324,7 @@ const getWordResult = (id: number) => {
   return currentLangResults.value.find(r => r.id === id);
 }
 
-const getHint = () => {
+const getHint = async () => {
 
   if (isHintsAvailable.value) {
 
@@ -330,7 +334,7 @@ const getHint = () => {
       res.hintTimes += 1;
 
     } else {
-      createWordResult({
+      await createWordResult({
         id: currentWord.value.id,
         hintTimes: 1,
       });
@@ -353,6 +357,10 @@ const currentWordResult = computed(() => {
 })
 
 const isHintsAvailable = computed(() => {
+  if (!currentWord.value) {
+    return false;
+  }
+
   if (answer.value.length === currentWord.value.translate.length - 1) {
     return false;
   }
@@ -411,7 +419,13 @@ const wrongAnswerPos = computed(() => {
 })
 
 const isWordCompleted = computed(() => {
-  return answer.value.length === currentWord.value.translate.length && wrongAnswerPos.value === null
+  if (currentWord.value) {
+
+    return answer.value.length === currentWord.value.translate.length && wrongAnswerPos.value === null
+
+  }
+
+  return false;
 })
 
 const otpColor = computed(() => {
@@ -426,7 +440,7 @@ const otpColor = computed(() => {
   return null;
 })
 
-const createWordResult = (result: CreateWordResult) => {
+const createWordResult = async (result: CreateWordResult) => {
 
   const results = tasks.value.find(t => t.lang === lang.value).results;
 
