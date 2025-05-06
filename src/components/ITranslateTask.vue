@@ -345,9 +345,9 @@ const getHint = async () => {
     }
 
     if (wrongAnswerPos.value === null || !wrongAnswerPos.value) {
-      answer.value = answer.value + currentWord.value.translate[answer.value.length]
+      answer.value = answer.value + currentWord.value.translate[answer.value.length].toUpperCase()
     } else {
-      answer.value = answer.value.substring(0, wrongAnswerPos.value) + currentWord.value.translate[wrongAnswerPos.value]
+      answer.value = answer.value.substring(0, wrongAnswerPos.value) + currentWord.value.translate[wrongAnswerPos.value].toUpperCase()
     }
 
     otp.value?.focus();
