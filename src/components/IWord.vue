@@ -1,6 +1,7 @@
 <script setup lang="ts">
 
 import {computed, ref} from 'vue';
+import type {VOtpInput} from 'vuetify/components'
 
 export type WordResult = { isOk: boolean, answer: string }
 
@@ -14,8 +15,9 @@ interface Props {
 }
 
 interface Emits {
-  'finish': (result: WordResult) => {}
-  'update:model-value': (modelValue: string) => {}
+  (e: 'finish', result: WordResult): void,
+
+  (e: 'update:model-value', modelValue: string): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -57,7 +59,7 @@ const onFinish = (ans: string) => {
 
 }
 
-const otp = ref(null);
+const otp = ref<VOtpInput | null>(null);
 
 const reset = () => {
   otp.value?.reset();

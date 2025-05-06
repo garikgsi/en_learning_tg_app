@@ -1,8 +1,10 @@
 <script setup lang="ts">
 
-import {computed, onMounted, ref, watch} from "vue";
+import {computed, type ComputedRef, onMounted, ref, watch} from "vue";
 import IWord from "@/components/IWord.vue";
 import type {WordResult} from "@/components/IWord.vue";
+import type {VOtpInput} from 'vuetify/components'
+
 // import random from "@/libs/random.ts";
 
 
@@ -62,7 +64,7 @@ const currentWordIndex = ref(0);
 
 const answer = ref('');
 
-const otp = ref(null);
+const otp = ref<VOtpInput | null>(null);
 
 const maxHintsOnWord = 2;
 
@@ -188,7 +190,7 @@ const tasks = computed<Task[]>(() => {
 
 const currentLangResults = computed<WordStat[]>(() => {
   if (lang.value && tasks.value) {
-    return tasks.value.find(t => t.lang === lang.value).results;
+    return tasks.value.find(t => t.lang === lang.value)?.results || [];
   }
 
   return [];
@@ -342,7 +344,7 @@ const getHint = async () => {
       });
     }
 
-    if (wrongAnswerPos.value === null) {
+    if (wrongAnswerPos.value === null || !wrongAnswerPos.value) {
       answer.value = answer.value + currentWord.value.translate[answer.value.length]
     } else {
       answer.value = answer.value.substring(0, wrongAnswerPos.value) + currentWord.value.translate[wrongAnswerPos.value]
@@ -439,12 +441,11 @@ const otpColor = computed(() => {
     return 'success';
   }
 
-  return null;
 })
 
 const createWordResult = async (result: CreateWordResult) => {
 
-  const results = tasks.value.find(t => t.lang === lang.value).results;
+  const results = tasks.value.find(t => t.lang === lang.value)?.results;
 
   if (results) {
     results.push({
@@ -466,7 +467,7 @@ const selectRussian = () => {
   lang.value = 'ru';
 }
 
-const completeBoxData = computed(() => {
+const completeBoxData: ComputedRef<{ text: string, title: string, type: 'warning' | 'success' }> = computed(() => {
 
   if (countHintsOnCurrentWord.value + countErrorsOnCurrentWord.value > 0) {
     return {
@@ -496,7 +497,7 @@ const isShownPause = computed(() => {
 
 <template>
 
-  <template v-if="enUncompletedWords > 0 || ruUncompletedWords > 0">
+  <template v-if="!enUncompletedWords || enUncompletedWords > 0 || !ruUncompletedWords || ruUncompletedWords > 0">
 
     <template v-if="wordsCount > 0">
       <!--
@@ -542,6 +543,7 @@ const isShownPause = computed(() => {
           <v-alert
             v-if="showCompleteBox"
             v-bind="completeBoxData"
+            variant="text"
           ></v-alert>
 
           <v-progress-linear v-else
@@ -575,7 +577,7 @@ const isShownPause = computed(() => {
 
     <template v-else>
 
-      <v-card v-if="enUncompletedWords > 0 && ruUncompletedWords > 0"
+      <v-card v-if="!!enUncompletedWords && enUncompletedWords > 0 && !!ruUncompletedWords && ruUncompletedWords > 0"
               title="Выберем язык"
               subtitle="Выберите язык для повторения"
               text="На выбранном языке нужно будет писать перевод заданных слов">
@@ -585,7 +587,7 @@ const isShownPause = computed(() => {
         </v-card-actions>
       </v-card>
 
-      <v-card v-else-if="enUncompletedWords > 0 && ruUncompletedWords === 0"
+      <v-card v-else-if="!!enUncompletedWords && enUncompletedWords > 0 && ruUncompletedWords === 0"
               title="А теперь давайте по английски"
               subtitle="Я буду писать слова по-русски"
               text="Вам предстоит писать перевод русских слов по-английски">
