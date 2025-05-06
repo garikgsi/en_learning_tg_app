@@ -518,7 +518,14 @@ const isTasksUncompletedTotally = computed(() => {
       wordTimer={{ wordTimer }}
       currentWord={{ currentWord }} | {{ JSON.stringify(currentWord) }}
       -->
-      <v-card :title="taskTitle">
+      <v-card>
+
+        <template #title>
+          <div class="text-center">
+            {{taskTitle}}
+          </div>
+
+        </template>
 
         <v-card-text>
 
@@ -546,7 +553,46 @@ const isTasksUncompletedTotally = computed(() => {
                    :disabled="timerPaused"
                    :color="otpColor"
                    @finish="(res: WordResult) => onFinish(currentWord.id, res)"
-            ></IWord>
+            >
+              <template #header>
+                <v-row>
+                  <v-col cols="1">
+                    <v-btn icon="mdi-skip-forward"
+                           :disabled="!isSkipAvailable"
+                           color="primary"
+                           title="Пропустить"
+                           flat
+                           rounded="sm"
+                           @click="skipWord">
+                    </v-btn>
+
+                  </v-col>
+                  <v-col>
+                    <v-progress-linear v-if="!showCompleteBox"
+                                       :buffer-value="progressValue"
+                                       :color="wordProgressColor"
+                                       :max="secOnWord*1000"
+                                       :height="52"
+                                       rounded="sm"
+                    >
+                      напишите перевод слова
+                    </v-progress-linear>
+                  </v-col>
+                  <v-col cols="1" class="text-right">
+                    <v-btn :icon="playPauseIcon"
+                           :disabled="!isPauseAvailable"
+                           color="warning"
+                           :title="isPaused ? 'Дальше' : 'Пауза'"
+                           flat
+                           rounded="sm"
+                           @click="playPause">
+                    </v-btn>
+
+                  </v-col>
+                </v-row>
+
+              </template>
+            </IWord>
           </template>
 
         </v-card-text>
@@ -558,14 +604,6 @@ const isTasksUncompletedTotally = computed(() => {
             v-bind="completeBoxData"
             variant="text"
           ></v-alert>
-
-          <v-progress-linear v-else
-                             :buffer-value="progressValue"
-                             :color="wordProgressColor"
-                             :max="secOnWord*1000"
-                             :height="22"
-                             rounded="lg"
-          ></v-progress-linear>
 
         </v-card-text>
         <v-card-actions>
@@ -581,7 +619,7 @@ const isTasksUncompletedTotally = computed(() => {
                      color="primary"
                      title="Пропустить"
                      flat
-                     rounded
+                     rounded="sm"
                      @click="skipWord">
               </v-btn>
             </v-col>
@@ -598,7 +636,7 @@ const isTasksUncompletedTotally = computed(() => {
                      color="warning"
                      :title="isPaused ? 'Дальше' : 'Пауза'"
                      flat
-                     rounded
+                     rounded="sm"
                      @click="playPause">
               </v-btn>
 
@@ -617,7 +655,7 @@ const isTasksUncompletedTotally = computed(() => {
                      color="warning"
                      title="Подсказка"
                      flat
-                     rounded
+                     rounded="sm"
                      @click="getHint">
               </v-btn>
 

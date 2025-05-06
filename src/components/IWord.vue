@@ -78,9 +78,11 @@ defineExpose({
 
 <template>
   <div>
-    <div class="text-body-2 text-center">
-      Напишите перевод слова<br>
-    </div>
+    <slot name="header">
+      <div class="text-body-2 text-center">
+        Напишите перевод слова<br>
+      </div>
+    </slot>
 
     <div class="text-h2 text-center">
       {{ word }}
