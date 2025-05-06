@@ -493,11 +493,24 @@ const isShownPause = computed(() => {
   return timerPaused.value === true && isWordCompleted.value === false
 })
 
+const isTasksUncompletedTotally = computed(() => {
+  if (enUncompletedWords.value !== null && enUncompletedWords.value > 0) {
+    return false;
+  }
+
+  if (ruUncompletedWords.value !== null && ruUncompletedWords.value > 0) {
+    return false;
+  }
+
+  return true;
+})
+
 </script>
 
 <template>
 
-  <template v-if="!enUncompletedWords || enUncompletedWords > 0 || !ruUncompletedWords || ruUncompletedWords > 0">
+  <template
+    v-if="!isTasksUncompletedTotally">
 
     <template v-if="wordsCount > 0">
       <!--

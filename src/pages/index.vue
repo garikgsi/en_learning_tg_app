@@ -35,14 +35,21 @@ onMounted(async () => {
 })
 
 const items = [
-  { text: 'My Files', icon: 'mdi-folder' },
-  { text: 'Shared with me', icon: 'mdi-account-multiple' },
-  { text: 'Starred', icon: 'mdi-star' },
-  { text: 'Recent', icon: 'mdi-history' },
-  { text: 'Offline', icon: 'mdi-check-circle' },
-  { text: 'Uploads', icon: 'mdi-upload' },
-  { text: 'Backups', icon: 'mdi-cloud-upload' },
-]
+  {text: 'My Files', icon: 'mdi-folder'},
+  {text: 'Shared with me', icon: 'mdi-account-multiple'},
+  {text: 'Starred', icon: 'mdi-star'},
+  {text: 'Recent', icon: 'mdi-history'},
+  {text: 'Offline', icon: 'mdi-check-circle'},
+  {text: 'Uploads', icon: 'mdi-upload'},
+  {text: 'Backups', icon: 'mdi-cloud-upload'},
+];
+
+const accountDetails = ref(false);
+
+const toggleDetails = () => {
+  accountDetails.value = !accountDetails.value;
+}
+
 
 </script>
 
@@ -61,14 +68,15 @@ const items = [
               <v-list>
                 <v-list-item
                   prepend-avatar="https://cdn.vuetifyjs.com/images/john.png"
-                  subtitle="john@google.com"
-                  title="John Leider"
+                  subtitle="test@example.org"
+                  title="Your Nickname"
                 >
                   <template v-slot:append>
                     <v-btn
-                      icon="mdi-menu-down"
+                      :icon="accountDetails ? 'mdi-menu-up' : 'mdi-menu-down'"
                       size="small"
                       variant="text"
+                      @click="toggleDetails"
                     ></v-btn>
                   </template>
                 </v-list-item>
@@ -77,9 +85,11 @@ const items = [
               <v-divider></v-divider>
 
               <v-list
+                v-if="accountDetails"
                 :lines="false"
                 density="compact"
                 nav
+
               >
                 <v-list-item
                   v-for="(item, i) in items"
