@@ -219,7 +219,7 @@ const currentWord = computed(() => {
 })
 
 const taskTitle = computed(() => {
-  return `Осталось выполнить заданий: ${wordsCount.value} из ${currentLangList.value.length}`
+  return `Осталось слов: ${wordsCount.value} из ${currentLangList.value.length}`
 })
 
 const wordProgressColor = computed(() => {
