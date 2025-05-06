@@ -160,16 +160,18 @@ const onFinish = async (wordId: number, result: WordResult) => {
 
 const getNextWordIndex = (exclude?: number) => {
 
-  console.log('currentWord', currentWord.value)
-  console.log('exclude', exclude)
-  console.log('wordsCount', wordsCount.value)
-  console.log('words.length', words.value.length)
+  return (wordsCount.value - 1) > (currentWordIndex.value + 1) ? currentWordIndex.value + 1 : 0;
 
-  const nextIndex = wordsCount.value < 2 ? 0 : random(0, wordsCount.value - 1, exclude);
-
-  console.log('nextIndex', nextIndex, words.value[nextIndex])
-
-  return nextIndex;
+  // console.log('currentWord', currentWord.value)
+  // console.log('exclude', exclude)
+  // console.log('wordsCount', wordsCount.value)
+  // console.log('words.length', words.value.length)
+  //
+  // const nextIndex = wordsCount.value < 2 ? 0 : random(0, wordsCount.value - 1, exclude);
+  //
+  // console.log('nextIndex', nextIndex, words.value[nextIndex])
+  //
+  // return nextIndex;
 }
 
 const ruResults = ref<WordStat[]>([]);
@@ -576,7 +578,7 @@ const isShownPause = computed(() => {
       <v-card v-if="enUncompletedWords > 0 && ruUncompletedWords > 0"
               title="Выберем язык"
               subtitle="Выберите язык для повторения"
-              text="На выбранном языке будут даны слова, которые вы будете переводить">
+              text="На выбранном языке нужно будет писать перевод заданных слов">
         <v-card-actions>
           <v-btn :disabled="enUncompletedWords === 0" @click="selectEnglish" color="error">English</v-btn>
           <v-btn :disabled="ruUncompletedWords === 0" @click="selectRussian" color="primary">Русский</v-btn>
