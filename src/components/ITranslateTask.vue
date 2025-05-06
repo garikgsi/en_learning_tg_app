@@ -3,7 +3,7 @@
 import {computed, onMounted, ref, watch} from "vue";
 import IWord from "@/components/IWord.vue";
 import type {WordResult} from "@/components/IWord.vue";
-import random from "@/libs/random.ts";
+// import random from "@/libs/random.ts";
 
 
 export type Word = {
