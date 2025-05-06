@@ -410,12 +410,12 @@ const wrongAnswerPos = computed(() => {
     return null;
   }
 
-  if (currentWord.value.translate.substring(0, answer.value.length) === answer.value) {
+  if (currentWord.value.translate.substring(0, answer.value.length).toLowerCase() === answer.value.toLowerCase()) {
     return null;
   }
 
   for (let i = 1; i < answer.value.length + 1; i++) {
-    if (currentWord.value.translate.substring(0, i) !== answer.value.substring(0, i)) {
+    if (currentWord.value.translate.substring(0, i).toLowerCase() !== answer.value.substring(0, i).toLowerCase()) {
       return i - 1;
     }
   }
@@ -490,7 +490,7 @@ const showCompleteBox = computed(() => wordCompleteSuccessfully.value);
 const pauseText = computed(() => lang.value === 'ru' ? 'Похоже, время сделать паузу' : 'Let\'s get a pause');
 
 const isShownPause = computed(() => {
-  return timerPaused.value && !isWordCompleted.value
+  return timerPaused.value === true && isWordCompleted.value === false
 })
 
 </script>
@@ -558,15 +558,56 @@ const isShownPause = computed(() => {
         <v-card-actions>
           <v-row>
             <v-col>
-              <v-btn :disabled="!isSkipAvailable" color="primary" @click="skipWord">Пропустить</v-btn>
+              <v-btn class="d-none d-sm-block" :disabled="!isSkipAvailable" color="primary" @click="skipWord">
+                Пропустить
+              </v-btn>
+
+              <v-btn class="d-xs-block d-sm-none"
+                     icon="mdi-skip-forward"
+                     :disabled="!isSkipAvailable"
+                     color="primary"
+                     title="Пропустить"
+                     flat
+                     rounded
+                     @click="skipWord">
+              </v-btn>
             </v-col>
 
-            <v-col>
-              <v-btn :disabled="!isPauseAvailable" :icon="playPauseIcon" flat rounded @click="playPause"></v-btn>
+            <v-col class="text-center">
+
+              <v-btn class="d-none d-sm-inline" :disabled="!isPauseAvailable" @click="playPause">
+                {{ isPaused ? 'Дальше' : 'Пауза' }}
+              </v-btn>
+
+              <v-btn class="d-xs-block d-sm-none"
+                     :icon="playPauseIcon"
+                     :disabled="!isPauseAvailable"
+                     color="warning"
+                     :title="isPaused ? 'Дальше' : 'Пауза'"
+                     flat
+                     rounded
+                     @click="playPause">
+              </v-btn>
+
+
             </v-col>
 
             <v-col class="text-right">
-              <v-btn :disabled="!isHintsAvailable" color="warning" @click="getHint">Подсказка</v-btn>
+
+              <v-btn class="d-none d-sm-inline" :disabled="!isSkipAvailable" color="warning" @click="getHint">
+                Подсказка
+              </v-btn>
+
+              <v-btn class="d-xs-block d-sm-none"
+                     icon="mdi-help"
+                     :disabled="!isHintsAvailable"
+                     color="warning"
+                     title="Подсказка"
+                     flat
+                     rounded
+                     @click="getHint">
+              </v-btn>
+
             </v-col>
 
           </v-row>
