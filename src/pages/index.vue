@@ -4,6 +4,12 @@ import {computed, ref, onMounted} from 'vue';
 import ITranslateTask from "@/components/ITranslateTask.vue";
 import type {Task, Word} from "@/components/ITranslateTask.vue"
 
+type Props = {
+  code?: string
+}
+
+const props = defineProps<Props>()
+
 
 const list = ref<Word[]>([]);
 
@@ -22,7 +28,9 @@ const taskCompleted = ((task: Task[]) => {
   console.log('taskCompleted', task)
 });
 
-const loadList = async () => {
+const loadList = async (code?: string) => {
+
+  console.log('loading words list with code', code);
 
   isLoading.value = true;
 
@@ -43,7 +51,10 @@ const loadList = async () => {
 }
 
 onMounted(async () => {
-  await loadList();
+
+  const code = props.code;
+
+  await loadList(code);
 })
 
 const items = [

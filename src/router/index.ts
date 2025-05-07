@@ -5,12 +5,17 @@
  */
 
 // Composables
-import { createRouter, createWebHistory } from 'vue-router/auto'
-import { routes } from 'vue-router/auto-routes'
+import {createRouter, createWebHistory} from 'vue-router/auto'
+import {routes} from 'vue-router/auto-routes'
+import index from '@/pages/index.vue'
+
+const advancedRoutes = [
+  {path: '/:code?', component: index, props: true},
+]
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes,
+  routes: [...routes, ...advancedRoutes],
 })
 
 // Workaround for https://github.com/vitejs/vite/issues/11804
