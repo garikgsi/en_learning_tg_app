@@ -7,6 +7,9 @@ import type {Task, Word} from "@/components/ITranslateTask.vue"
 
 const list = ref<Word[]>([]);
 
+const isLoading = ref(false);
+
+
 const ruList = computed(() => {
   if (list.value.length) {
     return list.value.map(w => ({id: w.id, word: w.translate, translate: w.word}));
@@ -20,14 +23,23 @@ const taskCompleted = ((task: Task[]) => {
 });
 
 const loadList = async () => {
-  list.value = [
-    {id: 1, word: 'птица', translate: 'bird'},
-    {id: 2, word: 'кошка', translate: 'cat'},
-    {id: 3, word: 'школа', translate: 'school'},
-    {id: 4, word: 'дом', translate: 'home'},
-    {id: 5, word: 'сегодня', translate: 'today'},
-    {id: 6, word: 'завтра', translate: 'tomorrow'},
-  ];
+
+  isLoading.value = true;
+
+  setTimeout(() => {
+    list.value = [
+      {id: 1, word: 'птица', translate: 'bird'},
+      {id: 2, word: 'кошка', translate: 'cat'},
+      {id: 3, word: 'школа', translate: 'school'},
+      {id: 4, word: 'дом', translate: 'home'},
+      {id: 5, word: 'сегодня', translate: 'today'},
+      {id: 6, word: 'завтра', translate: 'tomorrow'},
+    ];
+
+    isLoading.value = false;
+  }, 10)
+
+
 }
 
 onMounted(async () => {
@@ -56,7 +68,19 @@ const toggleDetails = () => {
 <template>
   <v-responsive class="border rounded">
     <v-app>
-      <v-app-bar title="Ежедневное задание"></v-app-bar>
+      <!--
+    <v-app-bar class="d-sm-block d-none">
+
+    <template #prepend>
+        <v-app-bar-nav-icon @click="console.log('test')"></v-app-bar-nav-icon>
+      </template>
+      <v-app-bar-title class="d-sm-block d-none">
+        Перевод слов
+      </v-app-bar-title>
+
+
+      </v-app-bar>
+      -->
 
       <v-navigation-drawer>
         <v-card
@@ -64,7 +88,7 @@ const toggleDetails = () => {
           width="256"
         >
           <v-layout>
-            <v-navigation-drawer absolute permanent>
+            <v-navigation-drawer>
               <v-list>
                 <v-list-item
                   prepend-avatar="https://cdn.vuetifyjs.com/images/john.png"
@@ -117,7 +141,8 @@ const toggleDetails = () => {
 
         <v-container>
 
-          <ITranslateTask v-if="list" :en-list="list" :ru-list="ruList" @finish="taskCompleted"></ITranslateTask>
+          <ITranslateTask v-if="!isLoading && list.length> 0" :en-list="list" :ru-list="ruList"
+                          @finish="taskCompleted"></ITranslateTask>
           <template v-else>Идет загрузка задания...</template>
 
         </v-container>

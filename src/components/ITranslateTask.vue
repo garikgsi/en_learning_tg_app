@@ -48,7 +48,7 @@ const emits = defineEmits<Emits>();
 
 const wordCompleteSuccessfully = ref(false);
 
-const pauseOnWordsChangeSec = 3;
+const pauseOnWordsChangeSec = 1;
 
 const intervalTimer = ref();
 
@@ -69,7 +69,9 @@ const otp = ref<VOtpInput | null>(null);
 const maxHintsOnWord = 2;
 
 const sleep = (pauseSec: number) => {
-  return new Promise((resolve) => setTimeout(resolve, pauseSec * 1000));
+  return new Promise((resolve) => {
+    setTimeout(resolve, pauseSec * 1000);
+  });
 }
 
 const changeWordPause = async (pauseSec: number) => {
@@ -136,14 +138,14 @@ const onFinish = async (wordId: number, result: WordResult) => {
       });
 
 
-      if (lang.value === 'ru' && ruUncompletedWords.value && ruUncompletedWords.value > 0) {
+      if (lang.value === 'ru' && ruUncompletedWords.value !== null && ruUncompletedWords.value > 0) {
 
         startNewWord();
         return;
 
       }
 
-      if (lang.value === 'en' && enUncompletedWords.value && enUncompletedWords.value > 0) {
+      if (lang.value === 'en' && enUncompletedWords.value !== null && enUncompletedWords.value > 0) {
 
         startNewWord();
         return;
@@ -467,20 +469,20 @@ const selectRussian = () => {
   lang.value = 'ru';
 }
 
-const completeBoxData: ComputedRef<{ text: string, title: string, type: 'warning' | 'success' }> = computed(() => {
+const completeBoxData: ComputedRef<{ title: string, type: 'warning' | 'success', icon: string }> = computed(() => {
 
   if (countHintsOnCurrentWord.value + countErrorsOnCurrentWord.value > 0) {
     return {
-      text: 'Замечательно!',
-      title: `Хорошая работа! Перевод слова ${currentWord.value.word} - ${currentWord.value.translate}`,
-      type: 'warning'
+      title: `Хорошая работа!`,
+      type: 'warning',
+      icon: 'mdi-thumb-up'
     };
   }
 
   return {
-    text: 'Отлично!',
-    title: `Вы отлично справились! Перевод слова ${currentWord.value.word} - ${currentWord.value.translate}`,
-    type: 'success'
+    title: `Вы отлично справились!`,
+    type: 'success',
+    icon: 'mdi-thumb-up'
   };
 
 });
@@ -522,7 +524,7 @@ const isTasksUncompletedTotally = computed(() => {
 
         <template #title>
           <div class="text-center">
-            {{taskTitle}}
+            {{ taskTitle }}
           </div>
 
         </template>
@@ -531,15 +533,12 @@ const isTasksUncompletedTotally = computed(() => {
 
           <template v-if="isShownPause">
 
-            <div class="text-h4 text-green-darken-2">{{ pauseText }}
-
-              <v-btn
-                class="ma-2"
-                color="green-darken-2"
-                icon="mdi-cat"
-                variant="text"
-              ></v-btn>
-            </div>
+            <v-alert
+              class="mt-4"
+              icon="mdi-cat"
+              color="success"
+              :title="pauseText"
+            ></v-alert>
 
           </template>
 
@@ -555,8 +554,8 @@ const isTasksUncompletedTotally = computed(() => {
                    @finish="(res: WordResult) => onFinish(currentWord.id, res)"
             >
               <template #header>
-                <v-row>
-                  <v-col cols="1">
+                <div class="d-flex justify-space-between">
+                  <div class="ma-1 flex-grow-0 flex-shrink-0">
                     <v-btn icon="mdi-skip-forward"
                            :disabled="!isSkipAvailable"
                            color="primary"
@@ -566,30 +565,30 @@ const isTasksUncompletedTotally = computed(() => {
                            @click="skipWord">
                     </v-btn>
 
-                  </v-col>
-                  <v-col>
+                  </div>
+                  <v-sheet class="ma-1 flex-grow-1 flex-shrink-0">
                     <v-progress-linear v-if="!showCompleteBox"
                                        :buffer-value="progressValue"
                                        :color="wordProgressColor"
                                        :max="secOnWord*1000"
-                                       :height="52"
+                                       :height="48"
                                        rounded="sm"
                     >
                       напишите перевод слова
                     </v-progress-linear>
-                  </v-col>
-                  <v-col cols="1" class="text-right">
-                    <v-btn :icon="playPauseIcon"
-                           :disabled="!isPauseAvailable"
+                  </v-sheet>
+                  <div class="ma-1 flex-grow-0 flex-shrink-1">
+                    <v-btn icon="mdi-help"
+                           :disabled="!isHintsAvailable"
                            color="warning"
-                           :title="isPaused ? 'Дальше' : 'Пауза'"
+                           title="Подсказка"
                            flat
                            rounded="sm"
-                           @click="playPause">
+                           @click="getHint">
                     </v-btn>
 
-                  </v-col>
-                </v-row>
+                  </div>
+                </div>
 
               </template>
             </IWord>
@@ -602,7 +601,6 @@ const isTasksUncompletedTotally = computed(() => {
           <v-alert
             v-if="showCompleteBox"
             v-bind="completeBoxData"
-            variant="text"
           ></v-alert>
 
         </v-card-text>
