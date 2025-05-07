@@ -1,5 +1,9 @@
 <script lang="ts" setup>
 
+/*
+* localhost:5432 database=tg_en login=tg passwd=Tconsult
+* */
+
 import {computed, ref, onMounted} from 'vue';
 import ITranslateTask from "@/components/ITranslateTask.vue";
 import type {Task, Word} from "@/components/ITranslateTask.vue"
