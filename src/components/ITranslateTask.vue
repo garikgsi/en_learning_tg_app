@@ -346,7 +346,7 @@ const getHint = async () => {
       });
     }
 
-    if (wrongAnswerPos.value === null || !wrongAnswerPos.value) {
+    if (wrongAnswerPos.value === null || wrongAnswerPos.value === undefined) {
       answer.value = answer.value + currentWord.value.translate[answer.value.length].toUpperCase()
     } else {
       answer.value = answer.value.substring(0, wrongAnswerPos.value) + currentWord.value.translate[wrongAnswerPos.value].toUpperCase()
