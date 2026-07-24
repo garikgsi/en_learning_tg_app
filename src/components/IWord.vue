@@ -1,7 +1,8 @@
 <script setup lang="ts">
 
-import {computed, ref} from 'vue';
+import {computed, nextTick, ref} from 'vue';
 import type {VOtpInput} from 'vuetify/components'
+import {normalizeKeyboardInput} from '@/libs/keyboardNormalizer'
 
 export type WordResult = { isOk: boolean, answer: string }
 
@@ -17,6 +18,8 @@ interface Props {
 interface Emits {
   (e: 'finish', result: WordResult): void,
 
+  (e: 'mistake', count: number): void,
+
   (e: 'update:model-value', modelValue: string): void
 }
 
@@ -27,10 +30,65 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emits = defineEmits<Emits>()
+const otp = ref<VOtpInput | null>(null);
+const root = ref<HTMLElement | null>(null);
+
+const getField = (index: number) => {
+  const fields = root.value?.querySelectorAll<HTMLInputElement>('.v-otp-input__field');
+  const fieldIndex = Math.min(index, (fields?.length ?? 1) - 1);
+
+  return fields?.[fieldIndex];
+}
+
+const focus = async (index = 0) => {
+  await nextTick();
+
+  getField(index)?.focus();
+}
+
+const focusAndSelect = async (index: number) => {
+  await nextTick();
+
+  requestAnimationFrame(() => {
+    const field = getField(index);
+
+    field?.focus();
+    field?.setSelectionRange(0, field.value.length);
+  });
+}
+
+const normalizeAnswer = (value: string) => {
+  return normalizeKeyboardInput(value, props.translate)
+}
+
+const getWrongAnswerIndex = (value: string) => {
+  return Array.from(value).findIndex((letter, index) => {
+    return letter.toLowerCase() !== props.translate[index]?.toLowerCase()
+  })
+}
 
 const answer = computed({
   get: () => props.modelValue,
-  set: (newValue) => emits('update:model-value', newValue)
+  set: (newValue) => {
+    const normalizedAnswer = normalizeAnswer(newValue)
+    const wrongAnswerIndex = getWrongAnswerIndex(normalizedAnswer)
+    const mistakesCount = Array.from(normalizedAnswer).filter((letter, index) => {
+      const isChanged = letter !== props.modelValue[index]
+      const isWrong = letter.toLowerCase() !== props.translate[index]?.toLowerCase()
+
+      return isChanged && isWrong
+    }).length
+
+    emits('update:model-value', normalizedAnswer)
+
+    if (mistakesCount > 0) {
+      emits('mistake', mistakesCount)
+    }
+
+    if (wrongAnswerIndex >= 0) {
+      focusAndSelect(wrongAnswerIndex)
+    }
+  }
 })
 
 const isFullFilled = computed(() => answer.value.length === props.translate.length)
@@ -50,24 +108,22 @@ const isFullFilled = computed(() => answer.value.length === props.translate.leng
 // })
 
 const isError = computed(() => {
-  return isFullFilled.value && answer.value.toLowerCase() !== props.translate.toLowerCase();
+  return getWrongAnswerIndex(answer.value) >= 0;
 })
 
 const onFinish = (ans: string) => {
+  const normalizedAnswer = normalizeAnswer(ans)
 
-  emits('finish', {isOk: !isError.value, answer: ans});
+  emits('finish', {
+    isOk: normalizedAnswer.toLowerCase() === props.translate.toLowerCase(),
+    answer: normalizedAnswer
+  });
 
 }
-
-const otp = ref<VOtpInput | null>(null);
 
 const reset = () => {
   otp.value?.reset();
-  otp.value?.focus();
-}
-
-const focus = () => {
-  otp.value?.focus();
+  focus();
 }
 
 defineExpose({
@@ -77,7 +133,7 @@ defineExpose({
 </script>
 
 <template>
-  <div>
+  <div ref="root">
     <slot name="header">
       <div class="text-body-2 text-center">
         Напишите перевод слова<br>

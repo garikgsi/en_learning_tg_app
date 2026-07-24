@@ -3,7 +3,6 @@
 import {computed, type ComputedRef, onMounted, ref, watch} from "vue";
 import IWord from "@/components/IWord.vue";
 import type {WordResult} from "@/components/IWord.vue";
-import type {VOtpInput} from 'vuetify/components'
 
 // import random from "@/libs/random.ts";
 
@@ -20,7 +19,8 @@ export type WordStat = {
   isOk: boolean,
   variants: string[],
   skipTimes: number,
-  hintTimes: number
+  hintTimes: number,
+  errorTimes: number
 }
 
 export type Lang = 'en' | 'ru';
@@ -63,8 +63,9 @@ const secOnWord = ref(100);
 const currentWordIndex = ref(0);
 
 const answer = ref('');
+const errorsOnCurrentAttempt = ref(0);
 
-const otp = ref<VOtpInput | null>(null);
+const otp = ref<InstanceType<typeof IWord> | null>(null);
 
 const maxHintsOnWord = 2;
 
@@ -116,6 +117,7 @@ const onFinish = async (wordId: number, result: WordResult) => {
     const res = getWordResult(word.id);
 
     if (result.isOk) {
+      const shouldRepeatWord = errorsOnCurrentAttempt.value > word.translate.length / 2;
 
       await changeWordPause(pauseOnWordsChangeSec);
 
@@ -125,18 +127,22 @@ const onFinish = async (wordId: number, result: WordResult) => {
 
       if (res) {
         res.retries += 1;
-        res.isOk = result.isOk;
+        res.isOk = !shouldRepeatWord;
         res.variants.push(result.answer);
 
+      } else {
+        await createWordResult({
+          id: wordId,
+          retries: 1,
+          isOk: !shouldRepeatWord,
+          variants: [result.answer]
+        });
       }
 
-      await createWordResult({
-        id: wordId,
-        retries: 1,
-        isOk: result.isOk,
-        variants: [result.answer]
-      });
-
+      if (shouldRepeatWord) {
+        startNewWord(currentWordIndex.value);
+        return;
+      }
 
       if (lang.value === 'ru' && ruUncompletedWords.value !== null && ruUncompletedWords.value > 0) {
 
@@ -288,6 +294,7 @@ const startNewWord = (exclude?: number) => {
     startTimer();
 
     answer.value = '';
+    errorsOnCurrentAttempt.value = 0;
 
     // otp.value?.reset();
     otp.value?.focus();
@@ -330,6 +337,21 @@ const getWordResult = (id: number) => {
   return currentLangResults.value.find(r => r.id === id);
 }
 
+const addMistakes = async (count: number) => {
+  errorsOnCurrentAttempt.value += count;
+
+  const res = getWordResult(currentWord.value.id);
+
+  if (res) {
+    res.errorTimes += count;
+  } else {
+    await createWordResult({
+      id: currentWord.value.id,
+      errorTimes: count
+    });
+  }
+}
+
 const getHint = async () => {
 
   if (isHintsAvailable.value) {
@@ -352,7 +374,7 @@ const getHint = async () => {
       answer.value = answer.value.substring(0, wrongAnswerPos.value) + currentWord.value.translate[wrongAnswerPos.value].toUpperCase()
     }
 
-    otp.value?.focus();
+    otp.value?.focus(answer.value.length);
 
   }
 
@@ -398,13 +420,15 @@ const countHintsOnCurrentWord = computed(() => {
 });
 
 const countErrorsOnCurrentWord = computed(() => {
-  const variants = (currentWordResult.value?.variants || []).length;
+  return currentWordResult.value?.errorTimes || 0;
+});
 
-  if (variants > 1) {
-    return variants - 1;
-  }
-
-  return 0;
+const countErrorsOnExercise = computed(() => {
+  return tasks.value.reduce((total, task) => {
+    return total + task.results.reduce((taskTotal, result) => {
+      return taskTotal + result.errorTimes;
+    }, 0);
+  }, 0);
 });
 
 const wrongAnswerPos = computed(() => {
@@ -456,7 +480,8 @@ const createWordResult = async (result: CreateWordResult) => {
       isOk: result.isOk || false,
       variants: result.variants || [],
       skipTimes: result.skipTimes || 0,
-      hintTimes: result.hintTimes || 0
+      hintTimes: result.hintTimes || 0,
+      errorTimes: result.errorTimes || 0
     });
   }
 
@@ -523,8 +548,21 @@ const isTasksUncompletedTotally = computed(() => {
       <v-card>
 
         <template #title>
-          <div class="text-center">
-            {{ taskTitle }}
+          <div class="task-title">
+            <div class="task-title__text">
+              {{ taskTitle }}
+            </div>
+
+            <v-chip
+              v-if="countErrorsOnExercise > 0"
+              class="task-title__errors"
+              color="error"
+              prepend-icon="mdi-alert-circle-outline"
+              size="small"
+              variant="flat"
+            >
+              Ошибок: {{ countErrorsOnCurrentWord }}/{{ countErrorsOnExercise }}
+            </v-chip>
           </div>
 
         </template>
@@ -550,8 +588,9 @@ const isTasksUncompletedTotally = computed(() => {
                    :word="currentWord.word"
                    :translate="currentWord.translate"
                    :disabled="timerPaused"
-                   :color="otpColor"
-                   @finish="(res: WordResult) => onFinish(currentWord.id, res)"
+                    :color="otpColor"
+                    @finish="(res: WordResult) => onFinish(currentWord.id, res)"
+                    @mistake="addMistakes"
             >
               <template #header>
                 <div class="d-flex justify-space-between">
@@ -709,5 +748,22 @@ const isTasksUncompletedTotally = computed(() => {
 </template>
 
 <style scoped>
+
+.task-title {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+}
+
+.task-title__text {
+  grid-column: 2;
+  text-align: center;
+}
+
+.task-title__errors {
+  grid-column: 3;
+  justify-self: end;
+}
 
 </style>
