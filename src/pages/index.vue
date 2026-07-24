@@ -4,9 +4,11 @@
 * localhost:5432 database=tg_en login=tg passwd=Tconsult
 * */
 
-import {computed, ref, onMounted} from 'vue';
+import {ref, onMounted} from 'vue';
+import {storeToRefs} from 'pinia';
 import ITranslateTask from "@/components/ITranslateTask.vue";
-import type {Task, Word} from "@/components/ITranslateTask.vue"
+import type {Task} from "@/components/ITranslateTask.vue"
+import {useTranslateStore} from "@/stores/translateStore";
 
 type Props = {
   code?: string
@@ -14,51 +16,15 @@ type Props = {
 
 const props = defineProps<Props>()
 
-
-const list = ref<Word[]>([]);
-
-const isLoading = ref(false);
-
-
-const ruList = computed(() => {
-  if (list.value.length) {
-    return list.value.map(w => ({id: w.id, word: w.translate, translate: w.word}));
-  }
-
-  return [];
-});
+const translateStore = useTranslateStore();
+const {enList, isLoading} = storeToRefs(translateStore);
 
 const taskCompleted = ((task: Task[]) => {
   console.log('taskCompleted', task)
 });
 
-const loadList = async (code?: string) => {
-
-  console.log('loading words list with code', code);
-
-  isLoading.value = true;
-
-  setTimeout(() => {
-    list.value = [
-      {id: 1, word: 'птица', translate: 'bird'},
-      {id: 2, word: 'кошка', translate: 'cat'},
-      {id: 3, word: 'школа', translate: 'school'},
-      {id: 4, word: 'дом', translate: 'home'},
-      {id: 5, word: 'сегодня', translate: 'today'},
-      {id: 6, word: 'завтра', translate: 'tomorrow'},
-    ];
-
-    isLoading.value = false;
-  }, 10)
-
-
-}
-
 onMounted(async () => {
-
-  const code = props.code;
-
-  await loadList(code);
+  await translateStore.loadWords(props.code);
 })
 
 const items = [
@@ -156,7 +122,7 @@ const toggleDetails = () => {
 
         <v-container>
 
-          <ITranslateTask v-if="!isLoading && list.length> 0" :en-list="list" :ru-list="ruList"
+          <ITranslateTask v-if="!isLoading && enList.length > 0"
                           @finish="taskCompleted"></ITranslateTask>
           <template v-else>Идет загрузка задания...</template>
 

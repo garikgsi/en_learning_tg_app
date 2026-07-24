@@ -1,17 +1,13 @@
 <script setup lang="ts">
 
 import {computed, type ComputedRef, onMounted, ref, watch} from "vue";
+import {storeToRefs} from "pinia";
 import IWord from "@/components/IWord.vue";
 import type {WordResult} from "@/components/IWord.vue";
+import {useTranslateStore, type Word} from "@/stores/translateStore";
 
 // import random from "@/libs/random.ts";
 
-
-export type Word = {
-  id: number,
-  word: string,
-  translate: string
-}
 
 export type WordStat = {
   id: number,
@@ -33,18 +29,12 @@ export type Task = {
   results: WordStat[]
 }
 
-type Props = {
-  ruList: Word[],
-  enList: Word[]
-}
-
 type Emits = {
   (e: 'finish', taskResult: Task[]): void
 }
 
-const props = defineProps<Props>();
-
 const emits = defineEmits<Emits>();
+const {enList, ruList} = storeToRefs(useTranslateStore());
 
 const wordCompleteSuccessfully = ref(false);
 
@@ -191,8 +181,8 @@ const lang = ref<Lang>();
 
 const tasks = computed<Task[]>(() => {
   return [
-    {lang: 'ru', list: props.ruList, results: ruResults.value},
-    {lang: 'en', list: props.enList, results: enResults.value},
+    {lang: 'ru', list: ruList.value, results: ruResults.value},
+    {lang: 'en', list: enList.value, results: enResults.value},
   ];
 });
 
