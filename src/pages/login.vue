@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import {reactive, ref} from 'vue';
+import {computed, reactive, ref} from 'vue';
 import {storeToRefs} from 'pinia';
 import {useRouter} from 'vue-router';
 import {
-  MIN_PASSWORD_LENGTH,
-  MIN_USER_NAME_LENGTH,
+  normalizeRussianPhone,
+  PIN_CODE_LENGTH,
+  RUSSIAN_PHONE_LENGTH,
   useUserStore,
 } from '@/stores/userStore';
 
@@ -16,31 +17,40 @@ const userStore = useUserStore();
 const router = useRouter();
 const {
   user,
+  savedPhone,
   isLoading,
   errorMessage,
   isAuthenticated,
 } = storeToRefs(userStore);
 
 const form = ref<AuthorizationForm | null>(null);
-const isFormValid = ref<boolean | null>(false);
-const isPasswordVisible = ref(false);
 const authorizationData = reactive({
-  name: '',
-  password: '',
+  phone: normalizeRussianPhone(savedPhone.value),
+  pinCode: '',
 });
 
 const requiredRule = (value: string) => {
   return value.trim().length > 0 || 'Поле обязательно';
 }
 
-const nameLengthRule = (value: string) => {
-  return value.trim().length >= MIN_USER_NAME_LENGTH
-    || `Минимум ${MIN_USER_NAME_LENGTH} символа`;
+const phoneRule = (value: string) => {
+  return normalizeRussianPhone(value).length === RUSSIAN_PHONE_LENGTH
+    || 'Введите 10 цифр номера';
 }
 
-const passwordLengthRule = (value: string) => {
-  return value.length >= MIN_PASSWORD_LENGTH
-    || `Минимум ${MIN_PASSWORD_LENGTH} символов`;
+const isAuthorizationDataValid = computed(() => {
+  return normalizeRussianPhone(authorizationData.phone).length === RUSSIAN_PHONE_LENGTH
+    && new RegExp(`^\\d{${PIN_CODE_LENGTH}}$`).test(authorizationData.pinCode);
+});
+
+const updatePhone = (value: string) => {
+  authorizationData.phone = normalizeRussianPhone(value)
+    .slice(0, RUSSIAN_PHONE_LENGTH);
+}
+
+const updatePinCode = (value: string) => {
+  authorizationData.pinCode = value.replace(/\D/g, '')
+    .slice(0, PIN_CODE_LENGTH);
 }
 
 const authorize = async () => {
@@ -66,7 +76,7 @@ const authorize = async () => {
       <v-card-text>
         <v-list-item
           :prepend-avatar="user.avatar"
-          :subtitle="user.email"
+          :subtitle="user.phone"
           :title="user.name"
         ></v-list-item>
       </v-card-text>
@@ -87,7 +97,7 @@ const authorize = async () => {
     <template v-else>
       <v-card-title>Авторизация</v-card-title>
       <v-card-subtitle>
-        Введите имя и пароль
+        Введите номер телефона и ПИН-код
       </v-card-subtitle>
 
       <v-card-text>
@@ -103,33 +113,37 @@ const authorize = async () => {
 
         <v-form
           ref="form"
-          v-model="isFormValid"
           validate-on="input"
           @submit.prevent="authorize"
         >
           <v-text-field
-            v-model="authorizationData.name"
-            :rules="[requiredRule, nameLengthRule]"
-            autocomplete="username"
-            label="Имя"
-            prepend-inner-icon="mdi-account-outline"
+            :model-value="authorizationData.phone"
+            :rules="[requiredRule, phoneRule]"
+            autocomplete="tel"
+            inputmode="numeric"
+            label="Телефон"
+            maxlength="10"
+            prefix="+7"
+            prepend-inner-icon="mdi-phone-outline"
+            type="tel"
             variant="outlined"
+            @update:model-value="updatePhone"
           ></v-text-field>
 
-          <v-text-field
-            v-model="authorizationData.password"
-            :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
-            :rules="[requiredRule, passwordLengthRule]"
-            :type="isPasswordVisible ? 'text' : 'password'"
-            autocomplete="current-password"
-            label="Пароль"
-            prepend-inner-icon="mdi-lock-outline"
-            variant="outlined"
-            @click:append-inner="isPasswordVisible = !isPasswordVisible"
-          ></v-text-field>
+          <v-otp-input
+            :autofocus="Boolean(savedPhone)"
+            :length="PIN_CODE_LENGTH"
+            :loading="isLoading"
+            :model-value="authorizationData.pinCode"
+            class="login-otp mb-4"
+            divider="-"
+            label="Цифра ПИН-кода"
+            type="number"
+            @update:model-value="updatePinCode"
+          ></v-otp-input>
 
           <v-btn
-            :disabled="!isFormValid || isLoading"
+            :disabled="!isAuthorizationDataValid || isLoading"
             :loading="isLoading"
             block
             color="primary"
@@ -143,3 +157,27 @@ const authorize = async () => {
     </template>
   </v-card>
 </template>
+
+<style scoped>
+.login-otp {
+  width: 100%;
+}
+
+.login-otp :deep(.v-otp-input__content) {
+  gap: 8px;
+  width: 100%;
+  max-width: none;
+  padding-inline: 0;
+}
+
+.login-otp :deep(.v-field) {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+}
+
+.login-otp :deep(.v-otp-input__divider) {
+  flex: 0 0 auto;
+  margin-inline: 0;
+}
+</style>

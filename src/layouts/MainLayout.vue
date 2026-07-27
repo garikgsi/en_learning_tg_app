@@ -29,7 +29,7 @@ const accountAvatar = computed(() => {
 });
 
 const accountName = computed(() => user.value?.name ?? 'Гость');
-const accountSubtitle = computed(() => user.value?.email ?? 'Войдите в аккаунт');
+const accountSubtitle = computed(() => user.value?.phone ?? 'Войдите в аккаунт');
 
 const menuItems = computed(() => [
   {
