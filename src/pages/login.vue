@@ -2,6 +2,7 @@
 import {computed, reactive, ref} from 'vue';
 import {storeToRefs} from 'pinia';
 import {useRouter} from 'vue-router';
+import IPinCodeInput from '@/components/IPinCodeInput.vue';
 import {
   normalizeRussianPhone,
   PIN_CODE_LENGTH,
@@ -48,11 +49,6 @@ const updatePhone = (value: string) => {
     .slice(0, RUSSIAN_PHONE_LENGTH);
 }
 
-const updatePinCode = (value: string) => {
-  authorizationData.pinCode = value.replace(/\D/g, '')
-    .slice(0, PIN_CODE_LENGTH);
-}
-
 const authorize = async () => {
   const validationResult = await form.value?.validate();
 
@@ -75,10 +71,20 @@ const authorize = async () => {
 
       <v-card-text>
         <v-list-item
-          :prepend-avatar="user.avatar"
           :subtitle="user.phone"
           :title="user.name"
-        ></v-list-item>
+        >
+          <template #prepend>
+            <v-avatar
+              color="primary"
+              :image="user.avatar || undefined"
+            >
+              <span v-if="!user.avatar">
+                {{ user.name.trim().charAt(0).toUpperCase() }}
+              </span>
+            </v-avatar>
+          </template>
+        </v-list-item>
       </v-card-text>
 
       <v-card-actions>
@@ -130,28 +136,34 @@ const authorize = async () => {
             @update:model-value="updatePhone"
           ></v-text-field>
 
-          <v-otp-input
+          <IPinCodeInput
+            v-model="authorizationData.pinCode"
             :autofocus="Boolean(savedPhone)"
-            :length="PIN_CODE_LENGTH"
             :loading="isLoading"
-            :model-value="authorizationData.pinCode"
-            class="login-otp mb-4"
-            divider="-"
-            label="Цифра ПИН-кода"
-            type="number"
-            @update:model-value="updatePinCode"
-          ></v-otp-input>
+            class="mb-4"
+          ></IPinCodeInput>
 
-          <v-btn
-            :disabled="!isAuthorizationDataValid || isLoading"
-            :loading="isLoading"
-            block
-            color="primary"
-            size="large"
-            type="submit"
-          >
-            Войти
-          </v-btn>
+          <div class="d-flex ga-3">
+            <v-btn
+              :disabled="!isAuthorizationDataValid || isLoading"
+              :loading="isLoading"
+              class="login-action"
+              color="primary"
+              size="large"
+              type="submit"
+            >
+              Войти
+            </v-btn>
+
+            <v-btn
+              class="login-action"
+              color="secondary"
+              size="large"
+              to="/register"
+            >
+              Регистрация
+            </v-btn>
+          </div>
         </v-form>
       </v-card-text>
     </template>
@@ -159,25 +171,8 @@ const authorize = async () => {
 </template>
 
 <style scoped>
-.login-otp {
-  width: 100%;
-}
-
-.login-otp :deep(.v-otp-input__content) {
-  gap: 8px;
-  width: 100%;
-  max-width: none;
-  padding-inline: 0;
-}
-
-.login-otp :deep(.v-field) {
+.login-action {
   flex: 1 1 0;
-  width: 0;
   min-width: 0;
-}
-
-.login-otp :deep(.v-otp-input__divider) {
-  flex: 0 0 auto;
-  margin-inline: 0;
 }
 </style>

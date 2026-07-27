@@ -2,6 +2,7 @@
 import {computed, ref, watch} from 'vue';
 import {storeToRefs} from 'pinia';
 import {useDisplay} from 'vuetify';
+import {routes} from '@/router/routeAccess';
 import {useUserStore} from '@/stores/userStore';
 
 type Props = {
@@ -14,7 +15,7 @@ withDefaults(defineProps<Props>(), {
 
 const {smAndDown} = useDisplay();
 const userStore = useUserStore();
-const {user, isAuthenticated} = storeToRefs(userStore);
+const {user} = storeToRefs(userStore);
 
 const drawer = ref(true);
 const rail = ref(true);
@@ -25,34 +26,22 @@ watch(smAndDown, (isSmallScreen) => {
 }, {immediate: true});
 
 const accountAvatar = computed(() => {
-  return user.value?.avatar ?? 'https://cdn.vuetifyjs.com/images/john.png';
+  return user.value?.avatar ?? '';
 });
 
 const accountName = computed(() => user.value?.name ?? 'Гость');
-const accountSubtitle = computed(() => user.value?.phone ?? 'Войдите в аккаунт');
+const accountInitial = computed(() => {
+  return accountName.value.trim().charAt(0).toUpperCase();
+});
+const accountSubtitle = computed(() => user.value?.phone ?? 'Войти');
 
-const menuItems = computed(() => [
-  {
-    text: 'Упражнения',
-    icon: 'mdi-school',
-    to: '/exercises',
-  },
-  {
-    text: 'Словарь',
-    icon: 'mdi-book-open-page-variant',
-    to: '/dictionary',
-  },
-  {
-    text: 'Настройки',
-    icon: 'mdi-cog',
-    to: '/settings',
-  },
-  {
-    text: isAuthenticated.value ? 'Профиль' : 'Войти',
-    icon: isAuthenticated.value ? 'mdi-account-circle' : 'mdi-login',
-    to: '/login',
-  },
-]);
+const menuItems = Object.entries(routes)
+  .filter(([, route]) => route.showInSideBar)
+  .map(([to, route]) => ({
+    text: route.title,
+    icon: route.icon,
+    to,
+  }));
 
 const expandRail = () => {
   if (!smAndDown.value) {
@@ -93,23 +82,40 @@ const closeMenuOnSmallScreen = () => {
       class="d-flex justify-center py-2"
     >
       <v-btn
-        aria-label="Развернуть меню"
+        aria-label="Открыть профиль"
         icon
         size="48"
+        to="/profile"
         variant="text"
-        @click.stop="rail = false"
+        @click.stop
       >
-        <v-avatar :image="accountAvatar" size="40"></v-avatar>
+        <v-avatar
+          color="primary"
+          :image="accountAvatar || undefined"
+          size="40"
+        >
+          <span v-if="!accountAvatar">{{ accountInitial }}</span>
+        </v-avatar>
       </v-btn>
     </v-list>
 
     <v-list v-else>
       <v-list-item
         nav
-        :prepend-avatar="accountAvatar"
         :subtitle="accountSubtitle"
         :title="accountName"
+        to="/profile"
+        @click="closeMenuOnSmallScreen"
       >
+        <template #prepend>
+          <v-avatar
+            color="primary"
+            :image="accountAvatar || undefined"
+          >
+            <span v-if="!accountAvatar">{{ accountInitial }}</span>
+          </v-avatar>
+        </template>
+
         <template #append>
           <v-btn
             v-if="!smAndDown && !rail"
