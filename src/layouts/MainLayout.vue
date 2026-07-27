@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import {ref, watch} from 'vue';
+import {computed, ref, watch} from 'vue';
+import {storeToRefs} from 'pinia';
 import {useDisplay} from 'vuetify';
+import {useUserStore} from '@/stores/userStore';
 
 type Props = {
   title?: string
@@ -11,6 +13,8 @@ withDefaults(defineProps<Props>(), {
 });
 
 const {smAndDown} = useDisplay();
+const userStore = useUserStore();
+const {user, isAuthenticated} = storeToRefs(userStore);
 
 const drawer = ref(true);
 const rail = ref(true);
@@ -20,9 +24,14 @@ watch(smAndDown, (isSmallScreen) => {
   rail.value = !isSmallScreen;
 }, {immediate: true});
 
-const accountAvatar = 'https://cdn.vuetifyjs.com/images/john.png';
+const accountAvatar = computed(() => {
+  return user.value?.avatar ?? 'https://cdn.vuetifyjs.com/images/john.png';
+});
 
-const menuItems = [
+const accountName = computed(() => user.value?.name ?? 'Гость');
+const accountSubtitle = computed(() => user.value?.email ?? 'Войдите в аккаунт');
+
+const menuItems = computed(() => [
   {
     text: 'Упражнения',
     icon: 'mdi-school',
@@ -38,7 +47,12 @@ const menuItems = [
     icon: 'mdi-cog',
     to: '/settings',
   },
-];
+  {
+    text: isAuthenticated.value ? 'Профиль' : 'Войти',
+    icon: isAuthenticated.value ? 'mdi-account-circle' : 'mdi-login',
+    to: '/login',
+  },
+]);
 
 const expandRail = () => {
   if (!smAndDown.value) {
@@ -93,8 +107,8 @@ const closeMenuOnSmallScreen = () => {
       <v-list-item
         nav
         :prepend-avatar="accountAvatar"
-        subtitle="test@example.org"
-        title="Your Nickname"
+        :subtitle="accountSubtitle"
+        :title="accountName"
       >
         <template #append>
           <v-btn

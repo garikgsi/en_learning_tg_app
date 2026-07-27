@@ -16,10 +16,6 @@ export type DictionarySortItem = {
   order?: boolean | 'asc' | 'desc'
 }
 
-export type DictionaryTableOptions = {
-  sortBy: DictionarySortItem[]
-}
-
 type DictionaryPage = {
   items: DictionaryWord[]
   total: number
@@ -84,7 +80,12 @@ export const useDictionaryStore = defineStore('dictionary', () => {
   const totalItems = ref(0);
   const isLoading = ref(false);
   const search = ref('');
-  const sortBy = ref<DictionarySortItem[]>([]);
+  const sortBy = ref<DictionarySortItem[]>([
+    {
+      key: 'russian',
+      order: 'asc',
+    },
+  ]);
 
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
   let requestId = 0;
@@ -132,11 +133,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     };
   }
 
-  const loadDictionary = async (options?: DictionaryTableOptions): Promise<void> => {
-    if (options) {
-      sortBy.value = options.sortBy;
-    }
-
+  const loadDictionary = async (): Promise<void> => {
     const currentRequestId = ++requestId;
     isLoading.value = true;
 
@@ -160,7 +157,12 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       void loadDictionary();
-    }, 300);
+    }, 1000);
+  }
+
+  const sortDictionary = (value: DictionarySortItem[]): void => {
+    sortBy.value = value;
+    void loadDictionary();
   }
 
   return {
@@ -171,5 +173,6 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     sortBy,
     loadDictionary,
     searchDictionary,
+    sortDictionary,
   };
 });

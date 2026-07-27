@@ -8,6 +8,8 @@
 import {createRouter, createWebHistory} from 'vue-router/auto'
 import {routes} from 'vue-router/auto-routes'
 import index from '@/pages/index.vue'
+import {isPublicRoute} from '@/router/routeAccess'
+import {useUserStore} from '@/stores/userStore'
 
 const advancedRoutes = [
   {path: '/:code?', component: index, props: true},
@@ -16,6 +18,19 @@ const advancedRoutes = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [...routes, ...advancedRoutes],
+})
+
+router.beforeEach(to => {
+  const userStore = useUserStore()
+
+  if (!isPublicRoute(to.path) && !userStore.isAuthenticated) {
+    return {
+      path: '/login',
+      query: {
+        redirect: to.fullPath,
+      },
+    }
+  }
 })
 
 // Workaround for https://github.com/vitejs/vite/issues/11804
