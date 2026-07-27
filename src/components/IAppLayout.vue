@@ -1,0 +1,122 @@
+<script setup lang="ts">
+import {ref, watch} from 'vue';
+import {useDisplay} from 'vuetify';
+
+type Props = {
+  title?: string
+}
+
+withDefaults(defineProps<Props>(), {
+  title: 'Перевод слов',
+});
+
+const {smAndDown} = useDisplay();
+
+const drawer = ref(true);
+const rail = ref(true);
+
+watch(smAndDown, (isSmallScreen) => {
+  drawer.value = !isSmallScreen;
+  rail.value = !isSmallScreen;
+}, {immediate: true});
+
+const accountAvatar = 'https://cdn.vuetifyjs.com/images/john.png';
+
+const menuItems = [
+  {
+    text: 'Настройки',
+    icon: 'mdi-cog',
+    to: '/settings',
+  },
+];
+
+const expandRail = () => {
+  if (!smAndDown.value) {
+    rail.value = false;
+  }
+}
+
+const closeMenuOnSmallScreen = () => {
+  if (smAndDown.value) {
+    drawer.value = false;
+  }
+}
+</script>
+
+<template>
+  <v-app-bar v-if="smAndDown">
+    <template #prepend>
+      <v-app-bar-nav-icon
+        aria-label="Открыть меню"
+        @click="drawer = !drawer"
+      ></v-app-bar-nav-icon>
+    </template>
+
+    <v-app-bar-title>
+      <slot name="title">{{ title }}</slot>
+    </v-app-bar-title>
+  </v-app-bar>
+
+  <v-navigation-drawer
+    v-model="drawer"
+    :permanent="!smAndDown"
+    :rail="!smAndDown && rail"
+    :temporary="smAndDown"
+    @click="expandRail"
+  >
+    <v-list
+      v-if="!smAndDown && rail"
+      class="d-flex justify-center py-2"
+    >
+      <v-btn
+        aria-label="Развернуть меню"
+        icon
+        size="48"
+        variant="text"
+        @click.stop="rail = false"
+      >
+        <v-avatar :image="accountAvatar" size="40"></v-avatar>
+      </v-btn>
+    </v-list>
+
+    <v-list v-else>
+      <v-list-item
+        nav
+        :prepend-avatar="accountAvatar"
+        subtitle="test@example.org"
+        title="Your Nickname"
+      >
+        <template #append>
+          <v-btn
+            v-if="!smAndDown && !rail"
+            aria-label="Свернуть меню"
+            icon="mdi-chevron-left"
+            size="small"
+            variant="text"
+            @click.stop="rail = true"
+          ></v-btn>
+        </template>
+      </v-list-item>
+    </v-list>
+
+    <v-divider></v-divider>
+
+    <v-list density="compact" nav>
+      <v-list-item
+        v-for="item in menuItems"
+        :key="item.to"
+        :prepend-icon="item.icon"
+        :title="item.text"
+        :to="item.to"
+        color="primary"
+        @click="closeMenuOnSmallScreen"
+      ></v-list-item>
+    </v-list>
+  </v-navigation-drawer>
+
+  <v-main>
+    <v-container class="py-6" fluid>
+      <slot></slot>
+    </v-container>
+  </v-main>
+</template>

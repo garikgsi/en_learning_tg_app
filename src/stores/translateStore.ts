@@ -1,5 +1,6 @@
 import {computed, ref} from 'vue'
 import {defineStore} from 'pinia'
+import type {Task} from '@/components/ITranslateTask.vue'
 
 export type Word = {
   id: number
@@ -40,10 +41,15 @@ export const useTranslateStore = defineStore('translate', () => {
     }
   }
 
+  const taskCompleted = async (tasks: Task[]): Promise<void> => {
+    console.log('taskCompleted', tasks)
+  }
+
   return {
     enList,
     ruList,
     isLoading,
-    loadWords
+    loadWords,
+    taskCompleted
   }
 })

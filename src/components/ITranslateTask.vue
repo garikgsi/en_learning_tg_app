@@ -540,7 +540,10 @@ const isTasksUncompletedTotally = computed(() => {
         <template #title>
           <div class="task-title">
             <div class="task-title__text">
-              {{ taskTitle }}
+              <span class="d-none d-sm-inline">{{ taskTitle }}</span>
+              <span class="d-sm-none">
+                Слов: {{ wordsCount }}/{{ currentLangList.length }}
+              </span>
             </div>
 
             <v-chip
@@ -551,7 +554,8 @@ const isTasksUncompletedTotally = computed(() => {
               size="small"
               variant="flat"
             >
-              Ошибок: {{ countErrorsOnCurrentWord }}/{{ countErrorsOnExercise }}
+              <span class="d-none d-sm-inline">Ошибок: </span>
+              {{ countErrorsOnCurrentWord }}/{{ countErrorsOnExercise }}
             </v-chip>
           </div>
 
@@ -743,17 +747,21 @@ const isTasksUncompletedTotally = computed(() => {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  gap: 4px;
   width: 100%;
 }
 
 .task-title__text {
   grid-column: 2;
+  min-width: 0;
   text-align: center;
+  white-space: nowrap;
 }
 
 .task-title__errors {
   grid-column: 3;
   justify-self: end;
+  flex-shrink: 0;
 }
 
 </style>
