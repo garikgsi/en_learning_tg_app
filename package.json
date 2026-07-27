@@ -9,9 +9,13 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix"
+    "lint": "eslint . --fix",
+    "android:sync": "npm run build-only && cap sync android",
+    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
     "@mdi/font": "7.4.47",
     "pinia": "^4.0.2",
     "roboto-fontface": "*",
@@ -19,6 +23,7 @@
     "vuetify": "^3.8.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
     "@tsconfig/node22": "^22.0.0",
     "@types/node": "^22.9.0",
     "@vitejs/plugin-vue": "^5.2.3",
