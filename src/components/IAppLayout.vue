@@ -24,6 +24,16 @@ const accountAvatar = 'https://cdn.vuetifyjs.com/images/john.png';
 
 const menuItems = [
   {
+    text: 'Упражнения',
+    icon: 'mdi-school',
+    to: '/exercises',
+  },
+  {
+    text: 'Словарь',
+    icon: 'mdi-book-open-page-variant',
+    to: '/dictionary',
+  },
+  {
     text: 'Настройки',
     icon: 'mdi-cog',
     to: '/settings',
