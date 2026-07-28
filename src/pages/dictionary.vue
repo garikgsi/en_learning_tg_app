@@ -35,7 +35,7 @@ const headers = [
     title: 'Повторения',
     key: 'repeatCount',
     align: 'end',
-    width: 140,
+    width: 260,
   },
 ] as const;
 
@@ -47,6 +47,14 @@ const getRepeatBadgeColor = (word: DictionaryWord) => {
 
 const getRepeatBadgeTitle = (word: DictionaryWord) => {
   return `Успешно: ${word.successfulRepeatCount}, безуспешно: ${word.failedRepeatCount}`;
+}
+
+const getRepetitionButtonTitle = (word: DictionaryWord) => {
+  if (dictionaryStore.isWordSelectedForRepetition(word.id)) {
+    return 'Добавлено в список на повторение';
+  }
+
+  return 'Добавить в список на повторение';
 }
 </script>
 
@@ -80,15 +88,58 @@ const getRepeatBadgeTitle = (word: DictionaryWord) => {
       @update:sort-by="dictionaryStore.sortDictionary"
     >
       <template #item.repeatCount="{item}">
-        <v-chip
-          :color="getRepeatBadgeColor(item)"
-          :title="getRepeatBadgeTitle(item)"
-          size="small"
-          variant="tonal"
-        >
-          {{ item.repeatCount }}
-        </v-chip>
+        <div class="repeat-actions">
+          <v-chip
+            :color="getRepeatBadgeColor(item)"
+            :title="getRepeatBadgeTitle(item)"
+            size="small"
+            variant="tonal"
+          >
+            {{ item.repeatCount }}
+          </v-chip>
+
+          <v-btn
+            class="repeat-button d-none d-sm-inline-flex"
+            :class="{'repeat-button--selected': dictionaryStore.isWordSelectedForRepetition(item.id)}"
+            :color="dictionaryStore.isWordSelectedForRepetition(item.id) ? 'success' : 'primary'"
+            :disabled="dictionaryStore.isWordSelectedForRepetition(item.id)"
+            prepend-icon="mdi-bell-plus-outline"
+            size="small"
+            :title="getRepetitionButtonTitle(item)"
+            variant="tonal"
+            @click="dictionaryStore.addWordToRepetition(item.id)"
+          >
+            Повторить
+          </v-btn>
+
+          <v-btn
+            :aria-label="getRepetitionButtonTitle(item)"
+            class="repeat-button d-sm-none"
+            :class="{'repeat-button--selected': dictionaryStore.isWordSelectedForRepetition(item.id)}"
+            :color="dictionaryStore.isWordSelectedForRepetition(item.id) ? 'success' : 'primary'"
+            :disabled="dictionaryStore.isWordSelectedForRepetition(item.id)"
+            icon="mdi-bell-plus-outline"
+            size="small"
+            :title="getRepetitionButtonTitle(item)"
+            variant="tonal"
+            @click="dictionaryStore.addWordToRepetition(item.id)"
+          ></v-btn>
+        </div>
       </template>
     </v-data-table-server>
   </v-card>
 </template>
+
+<style scoped>
+.repeat-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.repeat-button--selected.v-btn--disabled {
+  opacity: 1;
+}
+</style>
