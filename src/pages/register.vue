@@ -16,6 +16,7 @@ const router = useRouter();
 const {isLoading, errorMessage} = storeToRefs(userStore);
 
 const step = ref(1);
+const currentYear = new Date().getFullYear();
 const pinCodeConfirmation = ref('');
 const avatarFile = ref<File | null>(null);
 const avatarError = ref('');
@@ -23,6 +24,7 @@ const registrationData = reactive({
   name: '',
   phone: '',
   pinCode: '',
+  firstGradeYear: null as number | null,
   avatar: '',
 });
 
@@ -32,16 +34,12 @@ const steps = [
     value: 1,
   },
   {
-    title: 'Придумайте пин-код',
+    title: 'ПИН-код',
     value: 2,
   },
   {
-    title: 'Пин-код еще раз',
-    value: 3,
-  },
-  {
     title: 'Аватар',
-    value: 4,
+    value: 3,
   },
 ];
 
@@ -59,9 +57,18 @@ const phoneRule = (value: string) => {
     || 'Введите 10 цифр номера';
 }
 
+const firstGradeYearRule = (value: number | null) => {
+  return Number.isInteger(value)
+    && value !== null
+    && value >= 1900
+    && value <= currentYear
+    || `Введите год от 1900 до ${currentYear}`;
+}
+
 const isPersonalDataValid = computed(() => {
   return registrationData.name.trim().length >= MIN_USER_NAME_LENGTH
-    && normalizeRussianPhone(registrationData.phone).length === RUSSIAN_PHONE_LENGTH;
+    && normalizeRussianPhone(registrationData.phone).length === RUSSIAN_PHONE_LENGTH
+    && firstGradeYearRule(registrationData.firstGradeYear) === true;
 });
 
 const isPinCodeValid = computed(() => {
@@ -123,7 +130,12 @@ const register = async () => {
     return;
   }
 
-  const isRegistered = await userStore.register(registrationData, avatarFile.value);
+  const isRegistered = await userStore.register({
+    name: registrationData.name,
+    phone: registrationData.phone,
+    pinCode: registrationData.pinCode,
+    firstGradeYear: registrationData.firstGradeYear as number,
+  }, avatarFile.value);
 
   if (isRegistered) {
     await router.replace('/exercises');
@@ -135,8 +147,15 @@ const register = async () => {
   <v-card class="mx-auto" max-width="720">
     <v-card-title>Регистрация</v-card-title>
     <v-card-subtitle>
-      Создайте профиль за четыре шага
+      Создайте профиль за три шага
     </v-card-subtitle>
+
+    <v-progress-linear
+      :active="isLoading"
+      :indeterminate="isLoading"
+      color="primary"
+      height="3"
+    ></v-progress-linear>
 
     <v-card-text>
       <v-alert
@@ -180,6 +199,20 @@ const register = async () => {
             @update:model-value="updatePhone"
           ></v-text-field>
 
+          <v-text-field
+            v-model.number="registrationData.firstGradeYear"
+            :max="currentYear"
+            :rules="[firstGradeYearRule]"
+            autocomplete="off"
+            inputmode="numeric"
+            label="Год поступления в первый класс"
+            min="1900"
+            prepend-inner-icon="mdi-calendar-school"
+            type="number"
+            validate-on="input"
+            variant="outlined"
+          ></v-text-field>
+
           <div class="d-flex justify-end">
             <v-btn
               :disabled="!isPersonalDataValid"
@@ -192,33 +225,19 @@ const register = async () => {
         </template>
 
         <template #item.2>
+          <div class="text-subtitle-1 mb-3">Придумайте ПИН-код</div>
+
           <IPinCodeInput
             v-model="registrationData.pinCode"
             autofocus
-            class="mb-4"
+            class="mb-6"
           ></IPinCodeInput>
 
-          <div class="d-flex justify-space-between">
-            <v-btn variant="text" @click="step = 1">
-              Назад
-            </v-btn>
+          <div class="text-subtitle-1 mb-3">Повторите ПИН-код</div>
 
-            <v-btn
-              :disabled="!isPinCodeValid"
-              color="primary"
-              @click="step = 3"
-            >
-              Продолжить
-            </v-btn>
-          </div>
-        </template>
-
-        <template #item.3>
           <IPinCodeInput
             v-model="pinCodeConfirmation"
-            autofocus
             class="mb-2"
-            :loading="isLoading"
           ></IPinCodeInput>
 
           <v-alert
@@ -232,21 +251,21 @@ const register = async () => {
           </v-alert>
 
           <div class="d-flex justify-space-between">
-            <v-btn variant="text" @click="step = 2">
+            <v-btn @click="step = 2">
               Назад
             </v-btn>
 
             <v-btn
               :disabled="!isPinCodeConfirmed"
               color="primary"
-              @click="step = 4"
+              @click="step = 3"
             >
               Продолжить
             </v-btn>
           </div>
         </template>
 
-        <template #item.4>
+        <template #item.3>
           <div class="d-flex flex-column align-center mb-4">
             <v-avatar
               class="mb-4"
@@ -278,13 +297,12 @@ const register = async () => {
           </div>
 
           <div class="d-flex justify-space-between">
-            <v-btn variant="text" @click="step = 3">
+            <v-btn @click="step = 2">
               Назад
             </v-btn>
 
             <v-btn
               :disabled="Boolean(avatarError) || isLoading"
-              :loading="isLoading"
               color="primary"
               @click="register"
             >
@@ -296,7 +314,7 @@ const register = async () => {
     </v-card-text>
 
     <v-card-actions>
-      <v-btn prepend-icon="mdi-login" to="/login" variant="text">
+      <v-btn prepend-icon="mdi-login" to="/login">
         Уже есть аккаунт
       </v-btn>
     </v-card-actions>

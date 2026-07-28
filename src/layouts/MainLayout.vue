@@ -86,7 +86,6 @@ const closeMenuOnSmallScreen = () => {
         icon
         size="48"
         to="/profile"
-        variant="text"
         @click.stop
       >
         <v-avatar
@@ -130,7 +129,6 @@ const closeMenuOnSmallScreen = () => {
             aria-label="Свернуть меню"
             icon="mdi-chevron-left"
             size="small"
-            variant="text"
             @click.stop="rail = true"
           ></v-btn>
         </template>

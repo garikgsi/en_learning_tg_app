@@ -610,7 +610,6 @@ const isTasksUncompletedTotally = computed(() => {
                            :disabled="!isSkipAvailable"
                            color="primary"
                            title="Пропустить"
-                           flat
                            rounded="sm"
                            @click="skipWord">
                     </v-btn>
@@ -632,7 +631,6 @@ const isTasksUncompletedTotally = computed(() => {
                            :disabled="!isHintsAvailable"
                            color="warning"
                            title="Подсказка"
-                           flat
                            rounded="sm"
                            @click="getHint">
                     </v-btn>
@@ -666,7 +664,6 @@ const isTasksUncompletedTotally = computed(() => {
                      :disabled="!isSkipAvailable"
                      color="primary"
                      title="Пропустить"
-                     flat
                      rounded="sm"
                      @click="skipWord">
               </v-btn>
@@ -683,7 +680,6 @@ const isTasksUncompletedTotally = computed(() => {
                      :disabled="!isPauseAvailable"
                      color="warning"
                      :title="isPaused ? 'Дальше' : 'Пауза'"
-                     flat
                      rounded="sm"
                      @click="playPause">
               </v-btn>
@@ -702,7 +698,6 @@ const isTasksUncompletedTotally = computed(() => {
                      :disabled="!isHintsAvailable"
                      color="warning"
                      title="Подсказка"
-                     flat
                      rounded="sm"
                      @click="getHint">
               </v-btn>

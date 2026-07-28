@@ -17,6 +17,7 @@ const name = ref(user.value?.name ?? '');
 const currentPin = ref('');
 const pinCode = ref('');
 const pinCodeConfirmation = ref('');
+const isPinCodeEditorOpen = ref(false);
 const successMessage = ref('');
 const avatarFile = ref<File | null>(null);
 const avatarPreview = ref(user.value?.avatar ?? '');
@@ -109,12 +110,31 @@ const savePinCode = async () => {
     successMessage.value = 'ПИН-код изменён';
   }
 }
+
+const closePinCodeEditor = () => {
+  currentPin.value = '';
+  pinCode.value = '';
+  pinCodeConfirmation.value = '';
+  isPinCodeEditorOpen.value = false;
+}
+
+const logout = async () => {
+  await userStore.logout();
+  await router.replace('/login');
+}
 </script>
 
 <template>
   <v-card class="mx-auto" max-width="720">
     <v-card-title>Профиль</v-card-title>
     <v-card-subtitle>{{ user?.phone }}</v-card-subtitle>
+
+    <v-progress-linear
+      :active="isLoading"
+      :indeterminate="isLoading"
+      color="primary"
+      height="3"
+    ></v-progress-linear>
 
     <v-card-text>
       <v-alert
@@ -171,9 +191,9 @@ const savePinCode = async () => {
         <div class="d-flex justify-end">
           <v-btn
             :disabled="!avatarFile || Boolean(avatarError) || isLoading"
-            :loading="isLoading"
             color="primary"
             type="submit"
+            variant="outlined"
           >
             Сохранить аватар
           </v-btn>
@@ -202,9 +222,9 @@ const savePinCode = async () => {
         <div class="d-flex justify-end">
           <v-btn
             :disabled="!isNameValid || name.trim() === user?.name || isLoading"
-            :loading="isLoading"
             color="primary"
             type="submit"
+            variant="outlined"
           >
             Сохранить имя
           </v-btn>
@@ -213,50 +233,84 @@ const savePinCode = async () => {
 
       <v-divider class="mb-8"></v-divider>
 
-      <v-form @submit.prevent="savePinCode">
-        <div class="text-h6 mb-4">Текущий ПИН-код</div>
-
-        <IPinCodeInput
-          v-model="currentPin"
-          class="mb-6"
-        ></IPinCodeInput>
-
-        <div class="text-h6 mb-4">Новый ПИН-код</div>
-
-        <IPinCodeInput
-          v-model="pinCode"
-          class="mb-4"
-        ></IPinCodeInput>
-
-        <div class="text-subtitle-1 mb-4">ПИН-код ещё раз</div>
-
-        <IPinCodeInput
-          v-model="pinCodeConfirmation"
-          class="mb-2"
-          :loading="isLoading"
-        ></IPinCodeInput>
-
-        <v-alert
-          v-if="pinCodeConfirmation.length === PIN_CODE_LENGTH && !isPinCodeConfirmed"
-          class="mb-4"
-          density="compact"
-          type="error"
-          variant="tonal"
+      <div v-if="!isPinCodeEditorOpen" class="d-flex justify-end">
+        <v-btn
+          color="primary"
+          @click="isPinCodeEditorOpen = true"
         >
-          ПИН-коды не совпадают
-        </v-alert>
+          Изменить ПИН-код
+        </v-btn>
+      </div>
 
-        <div class="d-flex justify-end">
-          <v-btn
-            :disabled="currentPin.length !== PIN_CODE_LENGTH || !isPinCodeConfirmed || isLoading"
-            :loading="isLoading"
-            color="primary"
-            type="submit"
+      <v-expand-transition>
+        <v-form
+          v-if="isPinCodeEditorOpen"
+          @submit.prevent="savePinCode"
+        >
+          <div class="text-h6 mb-4">Текущий ПИН-код</div>
+
+          <IPinCodeInput
+            v-model="currentPin"
+            autofocus
+            class="mb-6"
+          ></IPinCodeInput>
+
+          <div class="text-h6 mb-4">Новый ПИН-код</div>
+
+          <IPinCodeInput
+            v-model="pinCode"
+            class="mb-4"
+          ></IPinCodeInput>
+
+          <div class="text-subtitle-1 mb-4">ПИН-код ещё раз</div>
+
+          <IPinCodeInput
+            v-model="pinCodeConfirmation"
+            class="mb-2"
+          ></IPinCodeInput>
+
+          <v-alert
+            v-if="pinCodeConfirmation.length === PIN_CODE_LENGTH && !isPinCodeConfirmed"
+            class="mb-4"
+            density="compact"
+            type="error"
+            variant="tonal"
           >
-            Изменить ПИН-код
-          </v-btn>
-        </div>
-      </v-form>
+            ПИН-коды не совпадают
+          </v-alert>
+
+          <div class="d-flex justify-end ga-3">
+            <v-btn
+              :disabled="isLoading"
+              color="grey"
+              @click="closePinCodeEditor"
+            >
+              Отмена
+            </v-btn>
+
+            <v-btn
+              :disabled="currentPin.length !== PIN_CODE_LENGTH || !isPinCodeConfirmed || isLoading"
+              color="primary"
+              type="submit"
+            >
+              Сохранить ПИН-код
+            </v-btn>
+          </div>
+        </v-form>
+      </v-expand-transition>
+
+      <v-divider class="my-8"></v-divider>
+
+      <div class="d-flex justify-end">
+        <v-btn
+          :disabled="isLoading"
+          color="grey"
+          variant="outlined"
+          @click="logout"
+        >
+          Выйти
+        </v-btn>
+      </div>
     </v-card-text>
   </v-card>
 </template>

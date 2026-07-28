@@ -82,6 +82,13 @@ const authorize = async () => {
     <template v-if="isAuthenticated && user">
       <v-card-title>Профиль</v-card-title>
 
+      <v-progress-linear
+        :active="isLoading"
+        :indeterminate="isLoading"
+        color="primary"
+        height="3"
+      ></v-progress-linear>
+
       <v-card-text>
         <v-list-item
           :subtitle="user.phone"
@@ -107,10 +114,9 @@ const authorize = async () => {
 
       <v-card-actions>
         <v-btn
-          :loading="isLoading"
+          :disabled="isLoading"
           color="error"
           prepend-icon="mdi-logout"
-          variant="tonal"
           @click="userStore.logout"
         >
           Выйти
@@ -123,6 +129,13 @@ const authorize = async () => {
       <v-card-subtitle>
         Введите номер телефона и ПИН-код
       </v-card-subtitle>
+
+      <v-progress-linear
+        :active="isLoading"
+        :indeterminate="isLoading"
+        color="primary"
+        height="3"
+      ></v-progress-linear>
 
       <v-card-text>
         <v-alert
@@ -158,7 +171,6 @@ const authorize = async () => {
             ref="pinCodeInput"
             v-model="authorizationData.pinCode"
             :autofocus="Boolean(savedPhone)"
-            :loading="isLoading"
             class="mb-4"
             @finish="authorize"
           ></IPinCodeInput>
@@ -166,7 +178,6 @@ const authorize = async () => {
           <div class="d-flex ga-3">
             <v-btn
               :disabled="!isAuthorizationDataValid || isLoading"
-              :loading="isLoading"
               class="login-action"
               color="primary"
               size="large"

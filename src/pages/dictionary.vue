@@ -106,7 +106,6 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
             prepend-icon="mdi-bell-plus-outline"
             size="small"
             :title="getRepetitionButtonTitle(item)"
-            variant="tonal"
             @click="dictionaryStore.addWordToRepetition(item.id)"
           >
             Повторить
@@ -121,7 +120,6 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
             icon="mdi-bell-plus-outline"
             size="small"
             :title="getRepetitionButtonTitle(item)"
-            variant="tonal"
             @click="dictionaryStore.addWordToRepetition(item.id)"
           ></v-btn>
         </div>

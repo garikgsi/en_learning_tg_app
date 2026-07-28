@@ -24,7 +24,7 @@ const dictionaryPageSizeOptions = [10, 20, 30, 50, 100];
     </v-card-text>
 
     <v-card-actions>
-      <v-btn prepend-icon="mdi-arrow-left" to="/" variant="text">
+      <v-btn prepend-icon="mdi-arrow-left" to="/">
         Назад
       </v-btn>
     </v-card-actions>

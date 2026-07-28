@@ -4,7 +4,6 @@ import {PIN_CODE_LENGTH} from '@/stores/userStore';
 
 type Props = {
   autofocus?: boolean
-  loading?: boolean
 }
 
 defineProps<Props>();
@@ -87,7 +86,6 @@ onBeforeUnmount(maskRevealedInput);
     ref="otpInput"
     :autofocus="autofocus"
     :length="PIN_CODE_LENGTH"
-    :loading="loading"
     :model-value="model"
     class="pin-code-input"
     divider="-"

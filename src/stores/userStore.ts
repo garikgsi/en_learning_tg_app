@@ -19,6 +19,7 @@ export type AuthorizationData = {
 
 export type RegistrationData = AuthorizationData & {
   name: string
+  firstGradeYear: number
 }
 
 export type PinCodeChangeData = {
@@ -162,6 +163,7 @@ export const useUserStore = defineStore('user', () => {
         name: registrationData.name.trim(),
         phone: toApiPhone(registrationData.phone),
         pinCode: registrationData.pinCode,
+        firstGradeYear: registrationData.firstGradeYear,
       });
 
       saveAuthorization(data);
