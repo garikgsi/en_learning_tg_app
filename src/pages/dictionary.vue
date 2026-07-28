@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import {onMounted} from 'vue';
+import {
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  watch,
+} from 'vue';
 import {storeToRefs} from 'pinia';
 import {
   type DictionaryWord,
@@ -13,13 +18,67 @@ const {
   items,
   totalItems,
   isLoading,
+  errorMessage,
+  hasMore,
   search,
-  sortBy,
 } = storeToRefs(dictionaryStore);
 const {dictionaryWordsPerPage} = storeToRefs(settingsStore);
 
+watch(dictionaryWordsPerPage, () => {
+  dictionaryStore.reloadFromFirstPage();
+});
+
+const lazyLoadThreshold = 300;
+let scrollFrame: number | null = null;
+
+const loadNextPageIfNeeded = () => {
+  if (!hasMore.value || isLoading.value) {
+    return;
+  }
+
+  const scrollingElement = document.scrollingElement
+    ?? document.documentElement;
+  const distanceToBottom = scrollingElement.scrollHeight
+    - scrollingElement.scrollTop
+    - window.innerHeight;
+
+  if (distanceToBottom <= lazyLoadThreshold) {
+    dictionaryStore.loadNextPage();
+  }
+}
+
+const handleScroll = () => {
+  if (scrollFrame !== null) {
+    return;
+  }
+
+  scrollFrame = window.requestAnimationFrame(() => {
+    scrollFrame = null;
+    loadNextPageIfNeeded();
+  });
+}
+
+watch(
+  () => items.value.length,
+  async () => {
+    await nextTick();
+    loadNextPageIfNeeded();
+  },
+);
+
 onMounted(async () => {
+  window.addEventListener('scroll', handleScroll, {passive: true});
   await dictionaryStore.loadDictionary();
+  await nextTick();
+  loadNextPageIfNeeded();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleScroll);
+
+  if (scrollFrame !== null) {
+    window.cancelAnimationFrame(scrollFrame);
+  }
 });
 
 const headers = [
@@ -61,6 +120,16 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
 <template>
   <v-card>
     <v-card-text class="pb-2">
+      <v-alert
+        v-if="errorMessage"
+        class="mb-4"
+        closable
+        type="error"
+        @click:close="dictionaryStore.clearError"
+      >
+        {{ errorMessage }}
+      </v-alert>
+
       <v-text-field
         :model-value="search"
         clearable
@@ -74,7 +143,6 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
     </v-card-text>
 
     <v-data-table-server
-      :sort-by="sortBy"
       :headers="headers"
       :items="items"
       :items-per-page="dictionaryWordsPerPage"
@@ -85,7 +153,6 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
       item-value="id"
       loading-text="Загружаем словарь..."
       no-data-text="Слова не найдены"
-      @update:sort-by="dictionaryStore.sortDictionary"
     >
       <template #item.repeatCount="{item}">
         <div class="repeat-actions">
@@ -125,6 +192,11 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
         </div>
       </template>
     </v-data-table-server>
+
+    <div
+      v-if="hasMore"
+      class="lazy-load-sentinel"
+    ></div>
   </v-card>
 </template>
 
@@ -139,5 +211,9 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
 
 .repeat-button--selected.v-btn--disabled {
   opacity: 1;
+}
+
+.lazy-load-sentinel {
+  height: 1px;
 }
 </style>
