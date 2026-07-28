@@ -123,7 +123,7 @@ const register = async () => {
     return;
   }
 
-  const isRegistered = await userStore.register(registrationData);
+  const isRegistered = await userStore.register(registrationData, avatarFile.value);
 
   if (isRegistered) {
     await router.replace('/exercises');
@@ -251,10 +251,14 @@ const register = async () => {
             <v-avatar
               class="mb-4"
               color="primary"
-              :image="registrationData.avatar || undefined"
               size="112"
             >
-              <span v-if="!registrationData.avatar" class="text-h3">
+              <v-img
+                v-if="registrationData.avatar"
+                :src="registrationData.avatar"
+                cover
+              ></v-img>
+              <span v-else class="text-h3">
                 {{ registrationInitial }}
               </span>
             </v-avatar>

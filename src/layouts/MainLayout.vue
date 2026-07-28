@@ -26,7 +26,7 @@ watch(smAndDown, (isSmallScreen) => {
 }, {immediate: true});
 
 const accountAvatar = computed(() => {
-  return user.value?.avatar ?? '';
+  return user.value?.avatar;
 });
 
 const accountName = computed(() => user.value?.name ?? 'Гость');
@@ -91,10 +91,14 @@ const closeMenuOnSmallScreen = () => {
       >
         <v-avatar
           color="primary"
-          :image="accountAvatar || undefined"
           size="40"
         >
-          <span v-if="!accountAvatar">{{ accountInitial }}</span>
+          <v-img
+            v-if="accountAvatar"
+            :src="accountAvatar"
+            cover
+          ></v-img>
+          <span v-else>{{ accountInitial }}</span>
         </v-avatar>
       </v-btn>
     </v-list>
@@ -110,9 +114,13 @@ const closeMenuOnSmallScreen = () => {
         <template #prepend>
           <v-avatar
             color="primary"
-            :image="accountAvatar || undefined"
           >
-            <span v-if="!accountAvatar">{{ accountInitial }}</span>
+            <v-img
+              v-if="accountAvatar"
+              :src="accountAvatar"
+              cover
+            ></v-img>
+            <span v-else>{{ accountInitial }}</span>
           </v-avatar>
         </template>
 

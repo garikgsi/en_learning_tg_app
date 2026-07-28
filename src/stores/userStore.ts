@@ -1,12 +1,14 @@
 import {computed, ref} from 'vue';
 import {defineStore} from 'pinia';
+import {apiClient} from '@/api/client';
+import {getApiErrorMessage} from '@/api/errors';
+import {tokenStorage, type TokenPair} from '@/api/tokenStorage';
 
 export type UserInfo = {
   id: string
   name: string
   phone: string
   avatar: string
-  email: string
   createdAt: string
 }
 
@@ -17,12 +19,22 @@ export type AuthorizationData = {
 
 export type RegistrationData = AuthorizationData & {
   name: string
-  avatar?: string
 }
 
 export type PinCodeChangeData = {
+  currentPin: string
   pinCode: string
   pinCodeConfirmation: string
+}
+
+type AuthResponse = TokenPair & {
+  user: UserInfo
+  tokenType: 'Bearer'
+  expiresIn: number
+}
+
+type UserResponse = {
+  data: UserInfo
 }
 
 export const RUSSIAN_PHONE_LENGTH = 10;
@@ -49,86 +61,68 @@ export const normalizeRussianPhone = (value: string): string => {
   return digits;
 }
 
+const toApiPhone = (phone: string): string => {
+  return `+7${normalizeRussianPhone(phone)}`;
+}
+
 export const useUserStore = defineStore('user', () => {
   const user = ref<UserInfo | null>(null);
   const savedPhone = ref(getSavedPhone());
   const isLoading = ref(false);
+  const isInitialized = ref(false);
   const errorMessage = ref<string | null>(null);
+  let restoreRequest: Promise<void> | null = null;
 
   const isAuthenticated = computed(() => user.value !== null);
 
-  const requestAuthorization = async (
-    authorizationData: AuthorizationData,
-  ): Promise<UserInfo> => {
-    // Temporary async boundary. Replace this block with an API request later.
-    await new Promise(resolve => setTimeout(resolve, 400));
-
-    const phoneDigits = normalizeRussianPhone(authorizationData.phone);
-    const pinCode = authorizationData.pinCode;
-
-    if (!phoneDigits || !pinCode) {
-      throw new Error('Укажите телефон и ПИН-код');
-    }
-
-    if (phoneDigits.length !== RUSSIAN_PHONE_LENGTH) {
-      throw new Error('Введите корректный номер телефона');
-    }
-
-    if (!new RegExp(`^\\d{${PIN_CODE_LENGTH}}$`).test(pinCode)) {
-      throw new Error(`ПИН-код должен содержать ${PIN_CODE_LENGTH} цифры`);
-    }
-
-    return {
-      id: `local-${phoneDigits}`,
-      name: 'Пользователь',
-      phone: `+7${phoneDigits}`,
-      avatar: '',
-      email: `user.${phoneDigits}@example.org`,
-      createdAt: new Date().toISOString(),
-    };
-  }
-
-  const requestRegistration = async (
-    registrationData: RegistrationData,
-  ): Promise<UserInfo> => {
-    // Temporary async boundary. Replace this block with an API request later.
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const name = registrationData.name.trim();
-    const phoneDigits = normalizeRussianPhone(registrationData.phone);
-    const pinCode = registrationData.pinCode;
-
-    if (name.length < MIN_USER_NAME_LENGTH) {
-      throw new Error(`Имя должно содержать минимум ${MIN_USER_NAME_LENGTH} символа`);
-    }
-
-    if (phoneDigits.length !== RUSSIAN_PHONE_LENGTH) {
-      throw new Error('Введите корректный номер телефона');
-    }
-
-    if (!new RegExp(`^\\d{${PIN_CODE_LENGTH}}$`).test(pinCode)) {
-      throw new Error(`ПИН-код должен содержать ${PIN_CODE_LENGTH} цифры`);
-    }
-
-    return {
-      id: `local-${phoneDigits}`,
-      name,
-      phone: `+7${phoneDigits}`,
-      avatar: registrationData.avatar || '',
-      email: `user.${phoneDigits}@example.org`,
-      createdAt: new Date().toISOString(),
-    };
-  }
-
-  const saveAuthorizedUser = (authorizedUser: UserInfo): void => {
+  const saveUser = (authorizedUser: UserInfo): void => {
     user.value = authorizedUser;
     savedPhone.value = authorizedUser.phone;
 
     try {
       localStorage.setItem(savedPhoneStorageKey, authorizedUser.phone);
     } catch {
-      // Authorization should still succeed when persistent storage is unavailable.
+      // Remembering the phone is optional.
     }
+  }
+
+  const saveAuthorization = (response: AuthResponse): void => {
+    tokenStorage.save(response);
+    saveUser(response.user);
+  }
+
+  const clearAuthorization = (): void => {
+    tokenStorage.clear();
+    user.value = null;
+  }
+
+  const restoreSession = async (): Promise<void> => {
+    if (isInitialized.value) {
+      return;
+    }
+
+    if (restoreRequest) {
+      return restoreRequest;
+    }
+
+    restoreRequest = (async () => {
+      if (!tokenStorage.getAccessToken() && !tokenStorage.getRefreshToken()) {
+        isInitialized.value = true;
+        return;
+      }
+
+      try {
+        const {data} = await apiClient.get<UserResponse>('/api/v1/users/me');
+        saveUser(data.data);
+      } catch {
+        clearAuthorization();
+      } finally {
+        isInitialized.value = true;
+        restoreRequest = null;
+      }
+    })();
+
+    return restoreRequest;
   }
 
   const authorize = async (
@@ -138,16 +132,18 @@ export const useUserStore = defineStore('user', () => {
     errorMessage.value = null;
 
     try {
-      const authorizedUser = await requestAuthorization(authorizationData);
+      const {data} = await apiClient.post<AuthResponse>('/api/v1/auth/login', {
+        phone: toApiPhone(authorizationData.phone),
+        pinCode: authorizationData.pinCode,
+      });
 
-      saveAuthorizedUser(authorizedUser);
-
+      saveAuthorization(data);
       return true;
     } catch (error) {
-      errorMessage.value = error instanceof Error
-        ? error.message
-        : 'Не удалось выполнить авторизацию';
-
+      errorMessage.value = getApiErrorMessage(
+        error,
+        'Не удалось выполнить авторизацию',
+      );
       return false;
     } finally {
       isLoading.value = false;
@@ -156,20 +152,37 @@ export const useUserStore = defineStore('user', () => {
 
   const register = async (
     registrationData: RegistrationData,
+    avatar?: File | null,
   ): Promise<boolean> => {
     isLoading.value = true;
     errorMessage.value = null;
 
     try {
-      const registeredUser = await requestRegistration(registrationData);
+      const {data} = await apiClient.post<AuthResponse>('/api/v1/auth/register', {
+        name: registrationData.name.trim(),
+        phone: toApiPhone(registrationData.phone),
+        pinCode: registrationData.pinCode,
+      });
 
-      saveAuthorizedUser(registeredUser);
+      saveAuthorization(data);
+
+      if (avatar) {
+        try {
+          await requestAvatarUpdate(avatar);
+        } catch (error) {
+          errorMessage.value = getApiErrorMessage(
+            error,
+            'Регистрация завершена, но загрузить аватар не удалось',
+          );
+        }
+      }
+
       return true;
     } catch (error) {
-      errorMessage.value = error instanceof Error
-        ? error.message
-        : 'Не удалось выполнить регистрацию';
-
+      errorMessage.value = getApiErrorMessage(
+        error,
+        'Не удалось выполнить регистрацию',
+      );
       return false;
     } finally {
       isLoading.value = false;
@@ -181,10 +194,13 @@ export const useUserStore = defineStore('user', () => {
     errorMessage.value = null;
 
     try {
-      // Temporary async boundary for a future API request.
-      await new Promise(resolve => setTimeout(resolve, 200));
-      user.value = null;
+      if (tokenStorage.getAccessToken()) {
+        await apiClient.post('/api/v1/auth/logout');
+      }
+    } catch (error) {
+      errorMessage.value = getApiErrorMessage(error, 'Не удалось завершить сессию');
     } finally {
+      clearAuthorization();
       isLoading.value = false;
     }
   }
@@ -194,63 +210,38 @@ export const useUserStore = defineStore('user', () => {
     errorMessage.value = null;
 
     try {
-      // Temporary async boundary. Replace this block with an API request later.
-      await new Promise(resolve => setTimeout(resolve, 300));
+      const {data} = await apiClient.patch<UserResponse>('/api/v1/users/me', {
+        name: nameValue.trim(),
+      });
 
-      const name = nameValue.trim();
-
-      if (name.length < MIN_USER_NAME_LENGTH) {
-        throw new Error(`Имя должно содержать минимум ${MIN_USER_NAME_LENGTH} символа`);
-      }
-
-      if (!user.value) {
-        throw new Error('Пользователь не авторизован');
-      }
-
-      user.value = {
-        ...user.value,
-        name,
-      };
-
+      saveUser(data.data);
       return true;
     } catch (error) {
-      errorMessage.value = error instanceof Error
-        ? error.message
-        : 'Не удалось изменить имя';
-
+      errorMessage.value = getApiErrorMessage(error, 'Не удалось изменить имя');
       return false;
     } finally {
       isLoading.value = false;
     }
   }
 
-  const updateAvatar = async (avatar: string): Promise<boolean> => {
+  const requestAvatarUpdate = async (avatar: File): Promise<void> => {
+    const formData = new FormData();
+    formData.append('_method', 'PATCH');
+    formData.append('avatar', avatar);
+
+    const {data} = await apiClient.post<UserResponse>('/api/v1/users/me', formData);
+    saveUser(data.data);
+  }
+
+  const updateAvatar = async (avatar: File): Promise<boolean> => {
     isLoading.value = true;
     errorMessage.value = null;
 
     try {
-      // Temporary async boundary. Replace this block with an API request later.
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      if (!avatar.startsWith('data:image/')) {
-        throw new Error('Выберите корректное изображение');
-      }
-
-      if (!user.value) {
-        throw new Error('Пользователь не авторизован');
-      }
-
-      user.value = {
-        ...user.value,
-        avatar,
-      };
-
+      await requestAvatarUpdate(avatar);
       return true;
     } catch (error) {
-      errorMessage.value = error instanceof Error
-        ? error.message
-        : 'Не удалось изменить аватар';
-
+      errorMessage.value = getApiErrorMessage(error, 'Не удалось изменить аватар');
       return false;
     } finally {
       isLoading.value = false;
@@ -264,27 +255,11 @@ export const useUserStore = defineStore('user', () => {
     errorMessage.value = null;
 
     try {
-      // Temporary async boundary. Replace this block with an API request later.
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      if (!new RegExp(`^\\d{${PIN_CODE_LENGTH}}$`).test(pinCodeData.pinCode)) {
-        throw new Error(`ПИН-код должен содержать ${PIN_CODE_LENGTH} цифры`);
-      }
-
-      if (pinCodeData.pinCode !== pinCodeData.pinCodeConfirmation) {
-        throw new Error('ПИН-коды не совпадают');
-      }
-
-      if (!user.value) {
-        throw new Error('Пользователь не авторизован');
-      }
-
+      await apiClient.put('/api/v1/users/me/pin', pinCodeData);
+      clearAuthorization();
       return true;
     } catch (error) {
-      errorMessage.value = error instanceof Error
-        ? error.message
-        : 'Не удалось изменить ПИН-код';
-
+      errorMessage.value = getApiErrorMessage(error, 'Не удалось изменить PIN-код');
       return false;
     } finally {
       isLoading.value = false;
@@ -299,8 +274,10 @@ export const useUserStore = defineStore('user', () => {
     user,
     savedPhone,
     isLoading,
+    isInitialized,
     errorMessage,
     isAuthenticated,
+    restoreSession,
     authorize,
     register,
     updateName,

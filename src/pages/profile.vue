@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue';
 import {storeToRefs} from 'pinia';
+import {useRouter} from 'vue-router';
 import IPinCodeInput from '@/components/IPinCodeInput.vue';
 import {
   MIN_USER_NAME_LENGTH,
@@ -9,9 +10,11 @@ import {
 } from '@/stores/userStore';
 
 const userStore = useUserStore();
+const router = useRouter();
 const {user, isLoading, errorMessage} = storeToRefs(userStore);
 
 const name = ref(user.value?.name ?? '');
+const currentPin = ref('');
 const pinCode = ref('');
 const pinCodeConfirmation = ref('');
 const successMessage = ref('');
@@ -82,8 +85,9 @@ const selectAvatar = (value: File | File[] | null) => {
 const saveAvatar = async () => {
   successMessage.value = '';
 
-  if (await userStore.updateAvatar(avatarPreview.value)) {
+  if (avatarFile.value && await userStore.updateAvatar(avatarFile.value)) {
     avatarFile.value = null;
+    avatarPreview.value = user.value?.avatar ?? '';
     successMessage.value = 'Аватар изменён';
   }
 }
@@ -92,13 +96,16 @@ const savePinCode = async () => {
   successMessage.value = '';
 
   const isUpdated = await userStore.updatePinCode({
+    currentPin: currentPin.value,
     pinCode: pinCode.value,
     pinCodeConfirmation: pinCodeConfirmation.value,
   });
 
   if (isUpdated) {
+    currentPin.value = '';
     pinCode.value = '';
     pinCodeConfirmation.value = '';
+    await router.replace('/login');
     successMessage.value = 'ПИН-код изменён';
   }
 }
@@ -136,11 +143,16 @@ const savePinCode = async () => {
 
         <div class="d-flex justify-center mb-6">
           <v-avatar
+            :key="avatarPreview"
             color="primary"
-            :image="avatarPreview || undefined"
             size="112"
           >
-            <span v-if="!avatarPreview" class="text-h3">{{ userInitial }}</span>
+            <v-img
+              v-if="avatarPreview"
+              :src="avatarPreview"
+              cover
+            ></v-img>
+            <span v-else class="text-h3">{{ userInitial }}</span>
           </v-avatar>
         </div>
 
@@ -202,6 +214,13 @@ const savePinCode = async () => {
       <v-divider class="mb-8"></v-divider>
 
       <v-form @submit.prevent="savePinCode">
+        <div class="text-h6 mb-4">Текущий ПИН-код</div>
+
+        <IPinCodeInput
+          v-model="currentPin"
+          class="mb-6"
+        ></IPinCodeInput>
+
         <div class="text-h6 mb-4">Новый ПИН-код</div>
 
         <IPinCodeInput
@@ -229,7 +248,7 @@ const savePinCode = async () => {
 
         <div class="d-flex justify-end">
           <v-btn
-            :disabled="!isPinCodeConfirmed || isLoading"
+            :disabled="currentPin.length !== PIN_CODE_LENGTH || !isPinCodeConfirmed || isLoading"
             :loading="isLoading"
             color="primary"
             type="submit"

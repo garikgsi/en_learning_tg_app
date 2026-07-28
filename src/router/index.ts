@@ -20,8 +20,10 @@ const router = createRouter({
   routes: [...routes, ...advancedRoutes],
 })
 
-router.beforeEach(to => {
+router.beforeEach(async to => {
   const userStore = useUserStore()
+
+  await userStore.restoreSession()
 
   if (!isPublicRoute(to.path) && !userStore.isAuthenticated) {
     return {

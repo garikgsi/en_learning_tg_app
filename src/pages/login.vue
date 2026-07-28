@@ -14,6 +14,10 @@ type AuthorizationForm = {
   validate: () => Promise<{valid: boolean}>
 }
 
+type PinCodeInputExpose = {
+  clearAndFocus: () => Promise<void>
+}
+
 const userStore = useUserStore();
 const router = useRouter();
 const {
@@ -25,6 +29,7 @@ const {
 } = storeToRefs(userStore);
 
 const form = ref<AuthorizationForm | null>(null);
+const pinCodeInput = ref<PinCodeInputExpose | null>(null);
 const authorizationData = reactive({
   phone: normalizeRussianPhone(savedPhone.value),
   pinCode: '',
@@ -50,6 +55,10 @@ const updatePhone = (value: string) => {
 }
 
 const authorize = async () => {
+  if (isLoading.value || !isAuthorizationDataValid.value) {
+    return;
+  }
+
   const validationResult = await form.value?.validate();
 
   if (!validationResult?.valid) {
@@ -60,7 +69,11 @@ const authorize = async () => {
 
   if (isAuthorized) {
     await router.replace('/exercises');
+    return;
   }
+
+  authorizationData.pinCode = '';
+  await pinCodeInput.value?.clearAndFocus();
 }
 </script>
 
@@ -76,10 +89,15 @@ const authorize = async () => {
         >
           <template #prepend>
             <v-avatar
+              :key="user.avatar"
               color="primary"
-              :image="user.avatar || undefined"
             >
-              <span v-if="!user.avatar">
+              <v-img
+                v-if="user.avatar"
+                :src="user.avatar"
+                cover
+              ></v-img>
+              <span v-else>
                 {{ user.name.trim().charAt(0).toUpperCase() }}
               </span>
             </v-avatar>
@@ -137,10 +155,12 @@ const authorize = async () => {
           ></v-text-field>
 
           <IPinCodeInput
+            ref="pinCodeInput"
             v-model="authorizationData.pinCode"
             :autofocus="Boolean(savedPhone)"
             :loading="isLoading"
             class="mb-4"
+            @finish="authorize"
           ></IPinCodeInput>
 
           <div class="d-flex ga-3">
