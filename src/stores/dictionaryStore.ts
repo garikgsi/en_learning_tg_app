@@ -151,7 +151,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       void loadDictionary(1);
-    }, 500);
+    }, 1000);
   }
 
   const loadNextPage = (): void => {

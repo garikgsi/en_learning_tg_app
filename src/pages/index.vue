@@ -16,7 +16,7 @@ type Props = {
 const props = defineProps<Props>()
 
 const translateStore = useTranslateStore();
-const {enList, isLoading} = storeToRefs(translateStore);
+const {enList, isLoading, errorMessage} = storeToRefs(translateStore);
 
 onMounted(async () => {
   await translateStore.loadWords(props.code);
@@ -25,9 +25,29 @@ onMounted(async () => {
 </script>
 
 <template>
-  <ITranslateTask v-if="!isLoading && enList.length > 0"
-                  @finish="translateStore.taskCompleted"></ITranslateTask>
-  <template v-else>Идет загрузка задания...</template>
+  <v-progress-linear
+    v-if="isLoading"
+    indeterminate
+  />
+
+  <v-alert
+    v-else-if="errorMessage"
+    :text="errorMessage"
+    title="Не удалось загрузить задание"
+    type="error"
+  />
+
+  <ITranslateTask
+    v-else-if="enList.length > 0"
+    @finish="translateStore.taskCompleted"
+  />
+
+  <v-alert
+    v-else
+    text="На текущий момент активных заданий нет"
+    title="Нет заданий"
+    type="info"
+  />
 </template>
 
 

@@ -1,6 +1,8 @@
-import {computed, ref} from 'vue'
-import {defineStore} from 'pinia'
-import type {Task} from '@/components/ITranslateTask.vue'
+import {computed, ref} from 'vue';
+import {defineStore} from 'pinia';
+import {apiClient} from '@/api/client';
+import {getApiErrorMessage} from '@/api/errors';
+import type {Task} from '@/components/ITranslateTask.vue';
 
 export type Word = {
   id: number
@@ -8,48 +10,89 @@ export type Word = {
   translate: string
 }
 
+type ApiExerciseWord = {
+  id: number
+  ru: string
+  en: string
+  grade: number
+}
+
+type ApiExercise = {
+  id: number
+  userId: string
+  type: {
+    id: number
+    name: string
+    title: string
+  }
+  dueDate: string
+  items: {
+    id: number
+    word: ApiExerciseWord
+  }[]
+  createdAt: string
+}
+
+type ExercisesResponse = {
+  items: ApiExercise[]
+}
+
 export const useTranslateStore = defineStore('translate', () => {
-  const enList = ref<Word[]>([])
-  const isLoading = ref(false)
+  const enList = ref<Word[]>([]);
+  const isLoading = ref(false);
+  const errorMessage = ref<string | null>(null);
 
   const ruList = computed<Word[]>(() => {
     return enList.value.map(word => ({
       id: word.id,
       word: word.translate,
-      translate: word.word
-    }))
-  })
+      translate: word.word,
+    }));
+  });
 
-  const loadWords = async (code?: string) => {
-    console.log('loading words list with code', code)
-
-    isLoading.value = true
+  const loadWords = async (_code?: string): Promise<void> => {
+    isLoading.value = true;
+    errorMessage.value = null;
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 10))
+      const {data} = await apiClient.get<ExercisesResponse>(
+        '/api/v1/exercises/current',
+      );
 
-      enList.value = [
-        {id: 1, word: 'птица', translate: 'bird'},
-        {id: 2, word: 'кошка', translate: 'cat'},
-        {id: 3, word: 'школа', translate: 'school'},
-        {id: 4, word: 'дом', translate: 'home'},
-        {id: 5, word: 'сегодня', translate: 'today'},
-        {id: 6, word: 'завтра', translate: 'tomorrow'}
-      ]
+      enList.value = data.items.flatMap(exercise => {
+        return exercise.items.map(({word}) => ({
+          id: word.id,
+          word: word.ru,
+          translate: word.en,
+        }));
+      });
+    } catch (error) {
+      enList.value = [];
+      errorMessage.value = getApiErrorMessage(
+        error,
+        'Не удалось загрузить упражнение',
+      );
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
   }
 
   const taskCompleted = async (tasks: Task[]): Promise<void> => {
-    console.log('taskCompleted', tasks)
+    // TODO: Send the results when the exercise completion endpoint is ready.
+    void tasks;
+  }
+
+  const clearError = (): void => {
+    errorMessage.value = null;
   }
 
   return {
     enList,
     ruList,
     isLoading,
+    errorMessage,
     loadWords,
-    taskCompleted
-  }
-})
+    taskCompleted,
+    clearError,
+  };
+});

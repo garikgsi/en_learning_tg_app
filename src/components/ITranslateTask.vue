@@ -5,7 +5,7 @@ import {storeToRefs} from "pinia";
 import IWord from "@/components/IWord.vue";
 import type {WordResult} from "@/components/IWord.vue";
 import type {Word} from "@/stores/translateStore";
-import {useDictionaryStore} from "@/stores/dictionaryStore";
+import {useTranslateStore} from "@/stores/translateStore";
 
 // import random from "@/libs/random.ts";
 
@@ -35,23 +35,7 @@ type Emits = {
 }
 
 const emits = defineEmits<Emits>();
-const {wordsForRepetition} = storeToRefs(useDictionaryStore());
-
-const enList = computed<Word[]>(() => {
-  return wordsForRepetition.value.map(word => ({
-    id: word.id,
-    word: word.russian,
-    translate: word.english,
-  }));
-});
-
-const ruList = computed<Word[]>(() => {
-  return wordsForRepetition.value.map(word => ({
-    id: word.id,
-    word: word.english,
-    translate: word.russian,
-  }));
-});
+const {enList, ruList} = storeToRefs(useTranslateStore());
 
 const wordCompleteSuccessfully = ref(false);
 
