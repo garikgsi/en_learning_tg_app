@@ -1,11 +1,22 @@
 <script setup lang="ts">
 
-import {computed, type ComputedRef, onMounted, ref, watch} from "vue";
+import {
+  computed,
+  type ComputedRef,
+  nextTick,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
 import {storeToRefs} from "pinia";
 import IWord from "@/components/IWord.vue";
-import type {WordResult} from "@/components/IWord.vue";
+import type {
+  WordMistake,
+  WordResult,
+} from "@/components/IWord.vue";
 import type {Word} from "@/stores/translateStore";
 import {useTranslateStore} from "@/stores/translateStore";
+import {MAX_HINTS_ON_WORD} from '@/libs/exerciseRules';
 
 // import random from "@/libs/random.ts";
 
@@ -21,8 +32,6 @@ export type WordStat = {
 }
 
 export type Lang = 'en' | 'ru';
-
-export type CreateWordResult = Partial<Omit<WordStat, 'id'>> & Pick<WordStat, 'id'>
 
 export type Task = {
   lang: Lang,
@@ -57,8 +66,6 @@ const answer = ref('');
 const errorsOnCurrentAttempt = ref(0);
 
 const otp = ref<InstanceType<typeof IWord> | null>(null);
-
-const maxHintsOnWord = 2;
 
 const sleep = (pauseSec: number) => {
   return new Promise((resolve) => {
@@ -105,10 +112,11 @@ const onFinish = async (wordId: number, result: WordResult) => {
   const word = words.value.find(w => w.id === wordId);
 
   if (word) {
-    const res = getWordResult(word.id);
+    const res = getOrCreateWordResult(word.id);
 
     if (result.isOk) {
-      const shouldRepeatWord = errorsOnCurrentAttempt.value > word.translate.length / 2;
+      const shouldRepeatWord = errorsOnCurrentAttempt.value
+        > word.checkWord.length / 2;
 
       await changeWordPause(pauseOnWordsChangeSec);
 
@@ -116,19 +124,8 @@ const onFinish = async (wordId: number, result: WordResult) => {
 
       answer.value = ''
 
-      if (res) {
-        res.retries += 1;
-        res.isOk = !shouldRepeatWord;
-        res.variants.push(result.answer);
-
-      } else {
-        await createWordResult({
-          id: wordId,
-          retries: 1,
-          isOk: !shouldRepeatWord,
-          variants: [result.answer]
-        });
-      }
+      res.retries += 1;
+      res.isOk = !shouldRepeatWord;
 
       if (shouldRepeatWord) {
         startNewWord(currentWordIndex.value);
@@ -274,7 +271,7 @@ watch(isTimeout, (isTimedOut) => {
 
 });
 
-const startNewWord = (exclude?: number) => {
+const startNewWord = async (exclude?: number) => {
 
   if (words.value.length > 0) {
 
@@ -288,7 +285,8 @@ const startNewWord = (exclude?: number) => {
     errorsOnCurrentAttempt.value = 0;
 
     // otp.value?.reset();
-    otp.value?.focus();
+    await nextTick();
+    await otp.value?.focus(0);
 
   }
 
@@ -298,16 +296,8 @@ const progressValue = computed(() => wordTimer.value);
 
 
 const skipWord = async () => {
-  const res = getWordResult(currentWord.value.id);
-
-  if (res) {
-    res.skipTimes += 1;
-  } else {
-    await createWordResult({
-      id: currentWord.value.id,
-      skipTimes: 1
-    });
-  }
+  const res = getOrCreateWordResult(currentWord.value.id);
+  res.skipTimes += 1;
 
   startNewWord(currentWordIndex.value);
 }
@@ -328,18 +318,45 @@ const getWordResult = (id: number) => {
   return currentLangResults.value.find(r => r.id === id);
 }
 
-const addMistakes = async (count: number) => {
-  errorsOnCurrentAttempt.value += count;
+const getOrCreateWordResult = (id: number): WordStat => {
+  const existingResult = getWordResult(id);
 
-  const res = getWordResult(currentWord.value.id);
+  if (existingResult) {
+    return existingResult;
+  }
 
-  if (res) {
-    res.errorTimes += count;
-  } else {
-    await createWordResult({
-      id: currentWord.value.id,
-      errorTimes: count
-    });
+  const result: WordStat = {
+    id,
+    retries: 0,
+    isOk: false,
+    variants: [],
+    skipTimes: 0,
+    hintTimes: 0,
+    errorTimes: 0,
+  };
+
+  currentLangResults.value.push(result);
+
+  return result;
+}
+
+const addMistakes = async (mistake: WordMistake) => {
+  errorsOnCurrentAttempt.value += mistake.count;
+
+  const res = getOrCreateWordResult(currentWord.value.id);
+  const enteredLettersCount = Array.from(
+    mistake.answer.replace(/\s/g, ''),
+  ).length;
+  const shouldSaveVariant = mistake.answer.length > 0
+    && enteredLettersCount >= MAX_HINTS_ON_WORD;
+
+  res.errorTimes += mistake.count;
+
+  if (
+    shouldSaveVariant
+    && !res.variants.includes(mistake.answer)
+  ) {
+    res.variants.push(mistake.answer);
   }
 }
 
@@ -347,22 +364,15 @@ const getHint = async () => {
 
   if (isHintsAvailable.value) {
 
-    const res = getWordResult(currentWord.value.id);
-
-    if (res) {
-      res.hintTimes += 1;
-
-    } else {
-      await createWordResult({
-        id: currentWord.value.id,
-        hintTimes: 1,
-      });
-    }
+    const res = getOrCreateWordResult(currentWord.value.id);
+    res.hintTimes += 1;
 
     if (wrongAnswerPos.value === null || wrongAnswerPos.value === undefined) {
-      answer.value = answer.value + currentWord.value.translate[answer.value.length].toUpperCase()
+      answer.value = answer.value
+        + currentWord.value.checkWord[answer.value.length].toUpperCase()
     } else {
-      answer.value = answer.value.substring(0, wrongAnswerPos.value) + currentWord.value.translate[wrongAnswerPos.value].toUpperCase()
+      answer.value = answer.value.substring(0, wrongAnswerPos.value)
+        + currentWord.value.checkWord[wrongAnswerPos.value].toUpperCase()
     }
 
     otp.value?.focus(answer.value.length);
@@ -380,12 +390,12 @@ const isHintsAvailable = computed(() => {
     return false;
   }
 
-  if (answer.value.length === currentWord.value.translate.length - 1) {
+  if (answer.value.length === currentWord.value.checkWord.length - 1) {
     return false;
   }
 
   if (currentWordResult.value) {
-    return (currentWordResult.value?.hintTimes || 0) < maxHintsOnWord;
+    return (currentWordResult.value?.hintTimes || 0) < MAX_HINTS_ON_WORD;
   }
 
   if (wordCompleteSuccessfully.value) {
@@ -427,12 +437,12 @@ const wrongAnswerPos = computed(() => {
     return null;
   }
 
-  if (currentWord.value.translate.substring(0, answer.value.length).toLowerCase() === answer.value.toLowerCase()) {
+  if (currentWord.value.checkWord.substring(0, answer.value.length).toLowerCase() === answer.value.toLowerCase()) {
     return null;
   }
 
   for (let i = 1; i < answer.value.length + 1; i++) {
-    if (currentWord.value.translate.substring(0, i).toLowerCase() !== answer.value.substring(0, i).toLowerCase()) {
+    if (currentWord.value.checkWord.substring(0, i).toLowerCase() !== answer.value.substring(0, i).toLowerCase()) {
       return i - 1;
     }
   }
@@ -442,7 +452,8 @@ const wrongAnswerPos = computed(() => {
 const isWordCompleted = computed(() => {
   if (currentWord.value) {
 
-    return answer.value.length === currentWord.value.translate.length && wrongAnswerPos.value === null
+    return answer.value.length === currentWord.value.checkWord.length
+      && wrongAnswerPos.value === null
 
   }
 
@@ -460,29 +471,20 @@ const otpColor = computed(() => {
 
 })
 
-const createWordResult = async (result: CreateWordResult) => {
+const selectLanguage = async (selectedLanguage: Lang) => {
+  lang.value = selectedLanguage;
+  currentWordIndex.value = -1;
 
-  const results = tasks.value.find(t => t.lang === lang.value)?.results;
-
-  if (results) {
-    results.push({
-      id: result.id,
-      retries: result.retries || 0,
-      isOk: result.isOk || false,
-      variants: result.variants || [],
-      skipTimes: result.skipTimes || 0,
-      hintTimes: result.hintTimes || 0,
-      errorTimes: result.errorTimes || 0
-    });
-  }
-
+  await nextTick();
+  await startNewWord();
 }
 
-const selectEnglish = () => {
-  lang.value = 'en';
+const selectEnglish = async () => {
+  await selectLanguage('en');
 }
-const selectRussian = () => {
-  lang.value = 'ru';
+
+const selectRussian = async () => {
+  await selectLanguage('ru');
 }
 
 const completeBoxData: ComputedRef<{ title: string, type: 'warning' | 'success', icon: string }> = computed(() => {
@@ -581,7 +583,9 @@ const isTasksUncompletedTotally = computed(() => {
                    ref="otp"
                    v-model="answer"
                    :word="currentWord.word"
-                   :translate="currentWord.translate"
+                   :translate="currentWord.checkWord"
+                   :other-words="currentWord.otherCheckWords"
+                   :lang="lang"
                    :disabled="timerPaused"
                     :color="otpColor"
                     @finish="(res: WordResult) => onFinish(currentWord.id, res)"
@@ -673,7 +677,7 @@ const isTasksUncompletedTotally = computed(() => {
 
             <v-col class="text-right">
 
-              <v-btn class="d-none d-sm-inline" :disabled="!isSkipAvailable" color="warning" @click="getHint">
+              <v-btn class="d-none d-sm-inline" :disabled="!isHintsAvailable" color="warning" @click="getHint">
                 Подсказка
               </v-btn>
 

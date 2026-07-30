@@ -12,6 +12,7 @@ export type DictionaryWord = {
   repeatCount: number
   successfulRepeatCount: number
   failedRepeatCount: number
+  isSelectedForRepetition: boolean
 }
 
 type ApiDictionaryWord = {
@@ -22,6 +23,7 @@ type ApiDictionaryWord = {
   repeatCount: number
   successfulRepeatCount: number
   failedRepeatCount: number
+  is_active: boolean
 }
 
 type DictionaryPageResponse = {
@@ -46,6 +48,7 @@ const toDictionaryWord = (word: ApiDictionaryWord): DictionaryWord => ({
   repeatCount: word.repeatCount,
   successfulRepeatCount: word.successfulRepeatCount,
   failedRepeatCount: word.failedRepeatCount,
+  isSelectedForRepetition: word.is_active,
 });
 
 export const useDictionaryStore = defineStore('dictionary', () => {
@@ -128,9 +131,19 @@ export const useDictionaryStore = defineStore('dictionary', () => {
       lastPage.value = data.lastPage;
       availableGrade.value = data.availableGrade;
 
+      const selectedWordIds = new Set(repetitionWordIds.value);
+
       for (const word of loadedItems) {
         knownWords.value[word.id] = word;
+
+        if (word.isSelectedForRepetition) {
+          selectedWordIds.add(word.id);
+        } else {
+          selectedWordIds.delete(word.id);
+        }
       }
+
+      repetitionWordIds.value = [...selectedWordIds];
     } catch (error) {
       if (currentRequestId === requestId) {
         errorMessage.value = getApiErrorMessage(
@@ -167,11 +180,27 @@ export const useDictionaryStore = defineStore('dictionary', () => {
   }
 
   const addWordToRepetition = async (wordId: number): Promise<void> => {
-    // TODO: Replace this local selection with the repetition-list API.
-    await Promise.resolve();
+    errorMessage.value = null;
 
-    if (knownWords.value[wordId] && !repetitionWordIds.value.includes(wordId)) {
-      repetitionWordIds.value.push(wordId);
+    try {
+      await apiClient.post('/api/v1/repetition-list/words', {
+        word_id: wordId,
+      });
+
+      const word = knownWords.value[wordId];
+
+      if (word) {
+        word.isSelectedForRepetition = true;
+      }
+
+      if (!repetitionWordIds.value.includes(wordId)) {
+        repetitionWordIds.value.push(wordId);
+      }
+    } catch (error) {
+      errorMessage.value = getApiErrorMessage(
+        error,
+        'Не удалось добавить слово для повторения',
+      );
     }
   }
 

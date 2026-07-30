@@ -24,6 +24,12 @@ export const routes: Record<string, RouteMetadata> = {
     showInSideBar: true,
     isPublic: false,
   },
+  '/statistics': {
+    title: 'Статистика',
+    icon: 'mdi-calendar-check',
+    showInSideBar: true,
+    isPublic: false,
+  },
   '/login': {
     title: 'Авторизация',
     icon: 'mdi-login',

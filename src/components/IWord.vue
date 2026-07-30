@@ -4,11 +4,14 @@ import {computed, nextTick, ref} from 'vue';
 import {normalizeKeyboardInput} from '@/libs/keyboardNormalizer'
 
 export type WordResult = { isOk: boolean, answer: string }
+export type WordMistake = { count: number, answer: string }
 
 interface Props {
   modelValue: string
   word: string
   translate: string
+  lang?: 'en' | 'ru'
+  otherWords?: string[]
   easyMode?: boolean
   disabled?: boolean
   color?: string
@@ -17,7 +20,7 @@ interface Props {
 interface Emits {
   (e: 'finish', result: WordResult): void,
 
-  (e: 'mistake', count: number): void,
+  (e: 'mistake', mistake: WordMistake): void,
 
   (e: 'update:model-value', modelValue: string): void
 }
@@ -25,7 +28,8 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   easyMode: true,
   disabled: false,
-  color: 'primary'
+  color: 'primary',
+  otherWords: () => [],
 })
 
 const emits = defineEmits<Emits>()
@@ -42,10 +46,44 @@ const vDisableAutocomplete = {
   updated: disableOtpAutocomplete,
 }
 
-const translateWords = computed(() => props.translate.trim().split(/\s+/));
+const normalizeLanguageText = (
+  value: string,
+  language: 'en' | 'ru',
+): string => {
+  return language === 'ru'
+    ? value.replace(/[^а-яё ]/giu, '')
+    : value.replace(/[^a-z ]/giu, '');
+}
+
+const answerLanguage = computed<'en' | 'ru'>(() => {
+  return props.lang
+    ?? (/[а-яё]/iu.test(props.translate) ? 'ru' : 'en');
+});
+
+const sourceLanguage = computed<'en' | 'ru'>(() => {
+  return answerLanguage.value === 'ru' ? 'en' : 'ru';
+});
+
+const normalizedWord = computed(() => {
+  return normalizeLanguageText(
+    props.word,
+    sourceLanguage.value,
+  ).trim();
+});
+
+const normalizedTranslate = computed(() => {
+  return normalizeLanguageText(
+    props.translate,
+    answerLanguage.value,
+  ).trim();
+});
+
+const translateWords = computed(() => {
+  return normalizedTranslate.value.split(/\s+/);
+});
 
 const toFieldIndex = (answerIndex: number) => {
-  return Array.from(props.translate.slice(0, answerIndex))
+  return Array.from(normalizedTranslate.value.slice(0, answerIndex))
     .filter(letter => !/\s/.test(letter))
     .length;
 }
@@ -78,12 +116,22 @@ const focusAndSelect = async (index: number) => {
 }
 
 const normalizeAnswer = (value: string) => {
-  return normalizeKeyboardInput(value, props.translate)
+  const lettersOnly = value.replace(/[^a-zа-яё ]/giu, '');
+  const keyboardNormalized = normalizeKeyboardInput(
+    lettersOnly,
+    normalizedTranslate.value,
+  );
+
+  return normalizeLanguageText(
+    keyboardNormalized,
+    answerLanguage.value,
+  );
 }
 
 const getWrongAnswerIndex = (value: string) => {
   return Array.from(value).findIndex((letter, index) => {
-    return letter.toLowerCase() !== props.translate[index]?.toLowerCase()
+    return letter.toLowerCase()
+      !== normalizedTranslate.value[index]?.toLowerCase()
   })
 }
 
@@ -94,7 +142,8 @@ const answer = computed({
     const wrongAnswerIndex = getWrongAnswerIndex(normalizedAnswer)
     const mistakesCount = Array.from(normalizedAnswer).filter((letter, index) => {
       const isChanged = letter !== props.modelValue[index]
-      const isWrong = letter.toLowerCase() !== props.translate[index]?.toLowerCase()
+      const isWrong = letter.toLowerCase()
+        !== normalizedTranslate.value[index]?.toLowerCase()
 
       return isChanged && isWrong
     }).length
@@ -102,7 +151,10 @@ const answer = computed({
     emits('update:model-value', normalizedAnswer)
 
     if (mistakesCount > 0) {
-      emits('mistake', mistakesCount)
+      emits('mistake', {
+        count: mistakesCount,
+        answer: normalizedAnswer,
+      })
     }
 
     if (wrongAnswerIndex >= 0) {
@@ -152,7 +204,9 @@ const updateWordAnswer = (index: number, value: string) => {
   return normalizeAnswer(nextAnswer);
 }
 
-const isFullFilled = computed(() => answer.value.length === props.translate.length)
+const isFullFilled = computed(() => {
+  return answer.value.length === normalizedTranslate.value.length;
+});
 
 // const color = computed(() => {
 //
@@ -189,7 +243,8 @@ const onWordFinish = async (wordIndex: number, wordAnswer: string) => {
   }
 
   emits('finish', {
-    isOk: normalizedAnswer.toLowerCase() === props.translate.toLowerCase(),
+    isOk: normalizedAnswer.toLowerCase()
+      === normalizedTranslate.value.toLowerCase(),
     answer: normalizedAnswer
   });
 }
@@ -214,10 +269,13 @@ defineExpose({
     </slot>
 
     <div class="text-h2 text-center">
-      {{ word }}
+      {{ normalizedWord }}
     </div>
 
-    <div class="phrase-input mb-8">
+    <div
+      class="phrase-input"
+      :class="otherWords.length > 0 ? 'mb-2' : 'mb-8'"
+    >
       <template
         v-for="(translateWord, wordIndex) in translateWords"
         :key="`${translateWord}-${wordIndex}`"
@@ -248,6 +306,12 @@ defineExpose({
       </template>
     </div>
 
+    <div
+      v-if="otherWords.length > 0"
+      class="mb-8 text-body-2 text-medium-emphasis text-center"
+    >
+      ({{ otherWords.join(', ') }})
+    </div>
 
   </div>
 </template>
