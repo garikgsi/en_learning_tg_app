@@ -51,7 +51,7 @@ export const routes: Record<string, RouteMetadata> = {
   '/settings': {
     title: 'Настройки',
     icon: 'mdi-cog',
-    showInSideBar: true,
+    showInSideBar: false,
     isPublic: false,
   },
 };
@@ -61,5 +61,9 @@ export const isPublicRoute = (path: string): boolean => {
 }
 
 export const getRouteTitle = (path: string): string => {
+  if (/^\/exercises\/\d+$/.test(path)) {
+    return routes['/exercises'].title;
+  }
+
   return routes[path]?.title ?? routes['/'].title;
 }

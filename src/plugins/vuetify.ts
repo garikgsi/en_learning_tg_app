@@ -30,6 +30,11 @@ export default createVuetify({
       ru,
     },
   },
+  date: {
+    locale: {
+      ru: 'ru-RU',
+    },
+  },
   theme: {
     defaultTheme: 'dark',
   },

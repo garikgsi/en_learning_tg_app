@@ -8,10 +8,16 @@
 import {createRouter, createWebHistory} from 'vue-router/auto'
 import {routes} from 'vue-router/auto-routes'
 import index from '@/pages/index.vue'
+import exercises from '@/pages/exercises.vue'
 import {isPublicRoute} from '@/router/routeAccess'
 import {useUserStore} from '@/stores/userStore'
 
 const advancedRoutes = [
+  {
+    path: '/exercises/:exerciseId(\\d+)',
+    component: exercises,
+    props: true,
+  },
   {path: '/:code?', component: index, props: true},
 ]
 

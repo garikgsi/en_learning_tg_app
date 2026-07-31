@@ -4,6 +4,7 @@ import {
   computed,
   type ComputedRef,
   nextTick,
+  onBeforeUnmount,
   onMounted,
   ref,
   watch,
@@ -55,14 +56,18 @@ const intervalTimer = ref();
 const timerStep = 100;
 
 const timerPaused = ref(false);
+const isUserPaused = ref(false);
 
 const wordTimer = ref(0);
 
 const secOnWord = ref(100);
 
 const currentWordIndex = ref(0);
+const currentWordId = ref<number | null>(null);
 
 const answer = ref('');
+const isChangingWord = ref(false);
+const wordInstanceKey = ref(0);
 const errorsOnCurrentAttempt = ref(0);
 
 const otp = ref<InstanceType<typeof IWord> | null>(null);
@@ -108,6 +113,9 @@ const enUncompletedWords = computed(() => {
 })
 
 const onFinish = async (wordId: number, result: WordResult) => {
+  if (isChangingWord.value) {
+    return;
+  }
 
   const word = words.value.find(w => w.id === wordId);
 
@@ -115,6 +123,7 @@ const onFinish = async (wordId: number, result: WordResult) => {
     const res = getOrCreateWordResult(word.id);
 
     if (result.isOk) {
+      isChangingWord.value = true;
       const shouldRepeatWord = errorsOnCurrentAttempt.value
         > word.checkWord.length / 2;
 
@@ -128,26 +137,48 @@ const onFinish = async (wordId: number, result: WordResult) => {
       res.isOk = !shouldRepeatWord;
 
       if (shouldRepeatWord) {
-        startNewWord(currentWordIndex.value);
+        await startNewWord(currentWordIndex.value);
         return;
       }
 
+      currentWordId.value = null;
+
       if (lang.value === 'ru' && ruUncompletedWords.value !== null && ruUncompletedWords.value > 0) {
 
-        startNewWord();
+        await startNewWord();
         return;
 
       }
 
       if (lang.value === 'en' && enUncompletedWords.value !== null && enUncompletedWords.value > 0) {
 
-        startNewWord();
+        await startNewWord();
         return;
 
       }
 
       if (ruUncompletedWords.value === 0 && enUncompletedWords.value === 0) {
         emits('finish', tasks.value);
+        return;
+      }
+
+      if (
+        lang.value === 'ru'
+        && ruUncompletedWords.value === 0
+        && enUncompletedWords.value !== null
+        && enUncompletedWords.value > 0
+      ) {
+        waitForLanguageSelection();
+        return;
+      }
+
+      if (
+        lang.value === 'en'
+        && enUncompletedWords.value === 0
+        && ruUncompletedWords.value !== null
+        && ruUncompletedWords.value > 0
+      ) {
+        waitForLanguageSelection();
         return;
       }
 
@@ -211,6 +242,16 @@ const wordsCount = computed(() => {
 const isTimeout = computed(() => wordTimer.value >= secOnWord.value * 1000)
 
 const currentWord = computed(() => {
+  if (currentWordId.value !== null) {
+    const selectedWord = words.value.find(
+      word => word.id === currentWordId.value,
+    );
+
+    if (selectedWord) {
+      return selectedWord;
+    }
+  }
+
   return words.value[currentWordIndex.value];
 })
 
@@ -248,12 +289,13 @@ const startTimer = () => {
 
 }
 
-const isPaused = computed(() => timerPaused.value);
+const isPaused = computed(() => isUserPaused.value);
 
 const playPauseIcon = computed(() => isPaused.value ? 'mdi-play' : 'mdi-pause');
 
 const playPause = () => {
-  timerPaused.value = !timerPaused.value
+  isUserPaused.value = !isUserPaused.value;
+  timerPaused.value = isUserPaused.value;
 }
 
 
@@ -272,24 +314,42 @@ watch(isTimeout, (isTimedOut) => {
 });
 
 const startNewWord = async (exclude?: number) => {
+  isChangingWord.value = true;
+  wordInstanceKey.value += 1;
+  answer.value = '';
+  errorsOnCurrentAttempt.value = 0;
 
   if (words.value.length > 0) {
 
     currentWordIndex.value = getNextWordIndex(exclude);
+    currentWordId.value = words.value[currentWordIndex.value]?.id ?? null;
 
     wordCompleteSuccessfully.value = false;
 
     startTimer();
 
-    answer.value = '';
-    errorsOnCurrentAttempt.value = 0;
-
     // otp.value?.reset();
+    await nextTick();
+    isChangingWord.value = false;
     await nextTick();
     await otp.value?.focus(0);
 
   }
 
+}
+
+const updateAnswer = (value: string): void => {
+  if (!isChangingWord.value) {
+    answer.value = value;
+  }
+}
+
+const waitForLanguageSelection = (): void => {
+  lang.value = undefined;
+  currentWordIndex.value = -1;
+  currentWordId.value = null;
+  answer.value = '';
+  isChangingWord.value = false;
 }
 
 const progressValue = computed(() => wordTimer.value);
@@ -337,12 +397,10 @@ const getOrCreateWordResult = (id: number): WordStat => {
 
   currentLangResults.value.push(result);
 
-  return result;
+  return currentLangResults.value[currentLangResults.value.length - 1];
 }
 
 const addMistakes = async (mistake: WordMistake) => {
-  errorsOnCurrentAttempt.value += mistake.count;
-
   const res = getOrCreateWordResult(currentWord.value.id);
   const enteredLettersCount = Array.from(
     mistake.answer.replace(/\s/g, ''),
@@ -350,6 +408,7 @@ const addMistakes = async (mistake: WordMistake) => {
   const shouldSaveVariant = mistake.answer.length > 0
     && enteredLettersCount >= MAX_HINTS_ON_WORD;
 
+  errorsOnCurrentAttempt.value += mistake.count;
   res.errorTimes += mistake.count;
 
   if (
@@ -390,10 +449,6 @@ const isHintsAvailable = computed(() => {
     return false;
   }
 
-  if (answer.value.length === currentWord.value.checkWord.length - 1) {
-    return false;
-  }
-
   if (currentWordResult.value) {
     return (currentWordResult.value?.hintTimes || 0) < MAX_HINTS_ON_WORD;
   }
@@ -422,6 +477,10 @@ const countHintsOnCurrentWord = computed(() => {
 
 const countErrorsOnCurrentWord = computed(() => {
   return currentWordResult.value?.errorTimes || 0;
+});
+
+onBeforeUnmount(() => {
+  clearInterval(intervalTimer.value);
 });
 
 const countErrorsOnExercise = computed(() => {
@@ -474,6 +533,7 @@ const otpColor = computed(() => {
 const selectLanguage = async (selectedLanguage: Lang) => {
   lang.value = selectedLanguage;
   currentWordIndex.value = -1;
+  currentWordId.value = null;
 
   await nextTick();
   await startNewWord();
@@ -510,7 +570,7 @@ const showCompleteBox = computed(() => wordCompleteSuccessfully.value);
 const pauseText = computed(() => lang.value === 'ru' ? 'Похоже, время сделать паузу' : 'Let\'s get a pause');
 
 const isShownPause = computed(() => {
-  return timerPaused.value === true && isWordCompleted.value === false
+  return isUserPaused.value;
 })
 
 const isTasksUncompletedTotally = computed(() => {
@@ -580,14 +640,16 @@ const isTasksUncompletedTotally = computed(() => {
           <template v-else>
 
             <IWord v-if="currentWord"
+                   :key="`${lang}-${currentWord.id}-${currentWord.checkWord}-${wordInstanceKey}`"
                    ref="otp"
-                   v-model="answer"
+                   :model-value="answer"
                    :word="currentWord.word"
                    :translate="currentWord.checkWord"
                    :other-words="currentWord.otherCheckWords"
                    :lang="lang"
-                   :disabled="timerPaused"
+                   :disabled="timerPaused || isChangingWord"
                     :color="otpColor"
+                    @update:model-value="updateAnswer"
                     @finish="(res: WordResult) => onFinish(currentWord.id, res)"
                     @mistake="addMistakes"
             >

@@ -6,7 +6,7 @@ import ViteFonts from 'unplugin-fonts/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 
 // Utilities
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
@@ -68,6 +68,16 @@ export default defineConfig({
       },
       scss: {
         api: 'modern-compiler',
+      },
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    clearMocks: true,
+    server: {
+      deps: {
+        inline: ['vuetify'],
       },
     },
   },

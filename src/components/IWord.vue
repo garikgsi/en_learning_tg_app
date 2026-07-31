@@ -2,6 +2,7 @@
 
 import {computed, nextTick, ref} from 'vue';
 import {normalizeKeyboardInput} from '@/libs/keyboardNormalizer'
+import {vDisableOtpAutocomplete} from '@/directives/disableOtpAutocomplete';
 
 export type WordResult = { isOk: boolean, answer: string }
 export type WordMistake = { count: number, answer: string }
@@ -35,24 +36,13 @@ const props = withDefaults(defineProps<Props>(), {
 const emits = defineEmits<Emits>()
 const root = ref<HTMLElement | null>(null);
 
-const disableOtpAutocomplete = (element: HTMLElement) => {
-  element
-    .querySelectorAll<HTMLInputElement>('.v-otp-input__field')
-    .forEach(field => field.setAttribute('autocomplete', 'off'));
-}
-
-const vDisableAutocomplete = {
-  mounted: disableOtpAutocomplete,
-  updated: disableOtpAutocomplete,
-}
-
 const normalizeLanguageText = (
   value: string,
   language: 'en' | 'ru',
 ): string => {
   return language === 'ru'
-    ? value.replace(/[^а-яё ]/giu, '')
-    : value.replace(/[^a-z ]/giu, '');
+    ? value.replace(/[^а-яё -]/giu, '')
+    : value.replace(/[^a-z -]/giu, '');
 }
 
 const answerLanguage = computed<'en' | 'ru'>(() => {
@@ -79,12 +69,29 @@ const normalizedTranslate = computed(() => {
 });
 
 const translateWords = computed(() => {
-  return normalizedTranslate.value.split(/\s+/);
+  return normalizedTranslate.value
+    .split(/[\s-]+/)
+    .filter(Boolean);
+});
+
+const translateSeparators = computed(() => {
+  return normalizedTranslate.value.match(/[\s-]+/g) ?? [];
+});
+
+const wordStartIndexes = computed(() => {
+  let startIndex = 0;
+
+  return translateWords.value.map((word, index) => {
+    const currentStartIndex = startIndex;
+    startIndex += word.length + (translateSeparators.value[index]?.length ?? 0);
+
+    return currentStartIndex;
+  });
 });
 
 const toFieldIndex = (answerIndex: number) => {
   return Array.from(normalizedTranslate.value.slice(0, answerIndex))
-    .filter(letter => !/\s/.test(letter))
+    .filter(letter => !/[\s-]/.test(letter))
     .length;
 }
 
@@ -116,7 +123,7 @@ const focusAndSelect = async (index: number) => {
 }
 
 const normalizeAnswer = (value: string) => {
-  const lettersOnly = value.replace(/[^a-zа-яё ]/giu, '');
+  const lettersOnly = value.replace(/[^a-zа-яё -]/giu, '');
   const keyboardNormalized = normalizeKeyboardInput(
     lettersOnly,
     normalizedTranslate.value,
@@ -164,9 +171,14 @@ const answer = computed({
 })
 
 const getAnswerWords = (value = answer.value) => {
-  const words = value.split(' ');
+  return translateWords.value.map((word, index) => {
+    const wordStartIndex = wordStartIndexes.value[index];
 
-  return translateWords.value.map((_, index) => words[index] ?? '');
+    return value.slice(
+      wordStartIndex,
+      wordStartIndex + word.length,
+    );
+  });
 }
 
 const getWordAnswer = (index: number) => {
@@ -185,18 +197,23 @@ const updateWordAnswer = (index: number, value: string) => {
     }
   });
 
-  let nextAnswer = lastEnteredWordIndex >= 0
-    ? words.slice(0, lastEnteredWordIndex + 1).join(' ')
-    : '';
-
   const isCurrentWordComplete = value.length === translateWords.value[index].length;
+  let nextAnswer = '';
 
-  if (
-    isCurrentWordComplete
-    && index === lastEnteredWordIndex
-    && index < translateWords.value.length - 1
-  ) {
-    nextAnswer += ' ';
+  for (let wordIndex = 0; wordIndex <= lastEnteredWordIndex; wordIndex++) {
+    nextAnswer += words[wordIndex];
+
+    const shouldAppendSeparator = wordIndex < lastEnteredWordIndex
+      || (
+        wordIndex === lastEnteredWordIndex
+        && wordIndex === index
+        && isCurrentWordComplete
+        && wordIndex < translateWords.value.length - 1
+      );
+
+    if (shouldAppendSeparator) {
+      nextAnswer += translateSeparators.value[wordIndex] ?? '';
+    }
   }
 
   answer.value = nextAnswer;
@@ -236,16 +253,32 @@ const onWordFinish = async (wordIndex: number, wordAnswer: string) => {
   if (!isEveryWordComplete) {
     const nextWordStart = translateWords.value
       .slice(0, wordIndex + 1)
-      .reduce((length, word) => length + word.length + 1, 0);
+      .reduce((length, word, index) => {
+        return length
+          + word.length
+          + (translateSeparators.value[index]?.length ?? 0);
+      }, 0);
 
     await focus(nextWordStart);
     return;
   }
 
+  const isCorrect = normalizedAnswer.toLowerCase()
+    === normalizedTranslate.value.toLowerCase();
+
+  if (!isCorrect) {
+    const wrongAnswerIndex = getWrongAnswerIndex(normalizedAnswer);
+
+    if (wrongAnswerIndex >= 0) {
+      await focusAndSelect(wrongAnswerIndex);
+    }
+
+    return;
+  }
+
   emits('finish', {
-    isOk: normalizedAnswer.toLowerCase()
-      === normalizedTranslate.value.toLowerCase(),
-    answer: normalizedAnswer
+    isOk: true,
+    answer: normalizedAnswer,
   });
 }
 
@@ -261,7 +294,7 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="root">
+  <div ref="root" v-disable-otp-autocomplete>
     <slot name="header">
       <div class="text-body-2 text-center">
         Напишите перевод слова<br>
@@ -281,7 +314,6 @@ defineExpose({
         :key="`${translateWord}-${wordIndex}`"
       >
         <v-otp-input
-          v-disable-autocomplete
           :model-value="getWordAnswer(wordIndex)"
           :disabled="disabled"
           :autofocus="wordIndex === 0"
@@ -296,8 +328,15 @@ defineExpose({
           @finish="onWordFinish(wordIndex, $event)"
         ></v-otp-input>
 
+        <span
+          v-if="translateSeparators[wordIndex]?.includes('-')"
+          aria-label="Дефис"
+          class="hyphen-separator"
+          title="Дефис"
+        >-</span>
+
         <v-icon
-          v-if="wordIndex < translateWords.length - 1"
+          v-else-if="wordIndex < translateWords.length - 1"
           aria-label="Пробел"
           class="space-icon"
           icon="mdi-keyboard-space"
@@ -334,6 +373,12 @@ defineExpose({
 
 .space-icon {
   flex: 0 0 auto;
+}
+
+.hyphen-separator {
+  flex: 0 0 auto;
+  font-size: 32px;
+  line-height: 1;
 }
 
 </style>

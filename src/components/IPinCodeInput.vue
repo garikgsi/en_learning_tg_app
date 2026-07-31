@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {nextTick, onBeforeUnmount, ref} from 'vue';
 import {PIN_CODE_LENGTH} from '@/stores/userStore';
+import {vDisableOtpAutocomplete} from '@/directives/disableOtpAutocomplete';
 
 type Props = {
   autofocus?: boolean
@@ -81,7 +82,10 @@ onBeforeUnmount(maskRevealedInput);
 </script>
 
 <template>
-  <div @input.capture="revealEnteredDigit">
+  <div
+    v-disable-otp-autocomplete
+    @input.capture="revealEnteredDigit"
+  >
   <v-otp-input
     ref="otpInput"
     :autofocus="autofocus"

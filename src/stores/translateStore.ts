@@ -43,6 +43,10 @@ type ExercisesResponse = {
   items: ApiExercise[]
 }
 
+type ExerciseResponse = {
+  item: ApiExercise
+}
+
 type ExerciseItemResultPayload = {
   exercise_item_id: number
   errors_count: number
@@ -61,21 +65,14 @@ const langIds = {
   ru: 2,
 } as const;
 
-const selectCheckWord = (
+export const selectCheckWord = (
   value: string,
-  lang: 'en' | 'ru',
 ): Pick<Word, 'checkWord' | 'otherCheckWords'> => {
   const variants = [...new Set(
     value
-    .split(',')
-    .map(variant => {
-      const normalized = lang === 'ru'
-        ? variant.replace(/[^а-яё ]/giu, '')
-        : variant.replace(/[^a-z ]/giu, '');
-
-      return normalized.trim();
-    })
-    .filter(Boolean),
+      .split(',')
+      .map(variant => variant.trim())
+      .filter(Boolean),
   )];
 
   if (variants.length === 0) {
@@ -100,7 +97,7 @@ export const useTranslateStore = defineStore('translate', () => {
 
   const ruList = computed<Word[]>(() => {
     return enList.value.map(word => {
-      const checkWord = selectCheckWord(word.word, 'ru');
+      const checkWord = selectCheckWord(word.word);
 
       return {
         ...word,
@@ -111,6 +108,29 @@ export const useTranslateStore = defineStore('translate', () => {
     });
   });
 
+  const clearWords = (): void => {
+    enList.value = [];
+    errorMessage.value = null;
+  }
+
+  const setExercises = (exercises: ApiExercise[]): void => {
+    enList.value = exercises.flatMap(exercise => {
+      return exercise.items.map(({id, word}) => {
+        const checkWord = selectCheckWord(word.en);
+
+        return {
+          id,
+          exerciseId: exercise.id,
+          exerciseItemId: id,
+          wordId: word.id,
+          word: word.ru,
+          translate: word.en,
+          ...checkWord,
+        };
+      });
+    });
+  }
+
   const loadWords = async (_code?: string): Promise<void> => {
     isLoading.value = true;
     errorMessage.value = null;
@@ -120,26 +140,33 @@ export const useTranslateStore = defineStore('translate', () => {
         '/api/v1/exercises/current',
       );
 
-      enList.value = data.items.flatMap(exercise => {
-        return exercise.items.map(({id, word}) => {
-          const checkWord = selectCheckWord(word.en, 'en');
-
-          return {
-            id,
-            exerciseId: exercise.id,
-            exerciseItemId: id,
-            wordId: word.id,
-            word: word.ru,
-            translate: word.en,
-            ...checkWord,
-          };
-        });
-      });
+      setExercises(data.items);
     } catch (error) {
       enList.value = [];
       errorMessage.value = getApiErrorMessage(
         error,
         'Не удалось загрузить упражнение',
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  const loadExercise = async (exerciseId: number): Promise<void> => {
+    isLoading.value = true;
+    errorMessage.value = null;
+
+    try {
+      const {data} = await apiClient.get<ExerciseResponse>(
+        `/api/v1/exercises/${exerciseId}`,
+      );
+
+      setExercises([data.item]);
+    } catch (error) {
+      enList.value = [];
+      errorMessage.value = getApiErrorMessage(
+        error,
+        'Не удалось загрузить выбранное упражнение',
       );
     } finally {
       isLoading.value = false;
@@ -215,6 +242,8 @@ export const useTranslateStore = defineStore('translate', () => {
     isLoading,
     errorMessage,
     loadWords,
+    loadExercise,
+    clearWords,
     taskCompleted,
     clearError,
   };
