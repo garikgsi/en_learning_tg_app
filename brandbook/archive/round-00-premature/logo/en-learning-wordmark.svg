@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 480" role="img" aria-labelledby="title desc">
+  <title id="title">EN Learning</title>
+  <desc id="desc">EN Learning horizontal logo</desc>
+  <g transform="translate(24 24) scale(.421875)">
+    <rect width="1024" height="1024" rx="224" fill="#2B1F32"/>
+    <path fill="#FFF7ED" d="M256 176h512c88.4 0 160 71.6 160 160v352c0 88.4-71.6 160-160 160H604L512 948l-92-100H256c-88.4 0-160-71.6-160-160V336c0-88.4 71.6-160 160-160Z"/>
+    <path fill="#E85D75" d="M321 349 205 465l116 116 51-51-32-32h377v-98H340l32-32-51-19Z"/>
+    <path fill="#66C7A5" d="m703 675 116-116-116-116-51 51 32 32H307v98h377l-32 32 51 19Z"/>
+    <circle cx="775" cy="275" r="38" fill="#E85D75"/>
+  </g>
+  <text x="520" y="300" fill="#2B1F32" font-family="Inter, Arial, sans-serif" font-size="190" font-weight="800" letter-spacing="-7">EN</text>
+  <text x="790" y="300" fill="#453A49" font-family="Inter, Arial, sans-serif" font-size="190" font-weight="500" letter-spacing="-7">Learning</text>
+</svg>

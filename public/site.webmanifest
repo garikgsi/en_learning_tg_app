@@ -1,0 +1,11 @@
+{
+  "name": "English Learning",
+  "short_name": "English",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#4B2142",
+  "background_color": "#FFF2F8",
+  "display": "standalone"
+}

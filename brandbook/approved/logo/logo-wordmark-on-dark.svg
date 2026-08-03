@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 520" role="img" aria-label="English Learning">
+  <g transform="translate(20 20) scale(.46875)">
+    <rect width="1024" height="1024" rx="224" fill="#FFF2F8"/>
+    <path fill="#4B2142" d="M320 192h408c53 0 96 43 96 96v370c0 53-43 96-96 96H576l-64 78-64-78H296c-53 0-96-43-96-96V312c0-66 54-120 120-120Z"/>
+    <circle cx="746" cy="270" r="108" fill="#FFF2F8"/>
+    <path transform="translate(18)" fill="#E85D9E" d="M382 264c14-11 24-3 24 16v50h146c32 0 58 26 58 58v40c0 32-26 58-58 58H406v14c0 20-11 26-25 14L260 408c-14-12-14-28 0-40l122-104Z"/>
+    <path transform="translate(-18)" fill="#9B8AFB" d="M634 459c-14-11-24-3-24 16v15H464c-32 0-58 26-58 58v36c0 32 26 58 58 58h146v48c0 20 11 26 25 14l117-108c14-12 14-28 0-40L634 459Z"/>
+    <rect x="408" y="420" width="202" height="134" rx="48" fill="#FFF2F8"/>
+    <circle cx="746" cy="270" r="72" fill="#9B8AFB"/>
+    <path d="m713 303 67-67m-45 0h45v45" fill="none" stroke="#FFF2F8" stroke-linecap="round" stroke-linejoin="round" stroke-width="28"/>
+  </g>
+  <text x="570" y="270" fill="#FFF2F8" font-family="Inter, Arial, sans-serif" font-size="172" font-weight="800" letter-spacing="-6">English</text>
+  <text x="570" y="414" fill="#FFF2F8" font-family="Inter, Arial, sans-serif" font-size="132" font-weight="500" letter-spacing="-4">Learning</text>
+</svg>

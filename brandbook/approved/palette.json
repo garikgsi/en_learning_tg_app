@@ -1,0 +1,13 @@
+{
+  "name": "Berry Cloud",
+  "substrate": "#FFF2F8",
+  "container": "#4B2142",
+  "arrowPrimary": "#E85D9E",
+  "arrowSecondary": "#9B8AFB",
+  "themes": {
+    "lightBackground": "#FFFFFF",
+    "lightWordmark": "#4B2142",
+    "darkBackground": "#2B1227",
+    "darkWordmark": "#FFF2F8"
+  }
+}

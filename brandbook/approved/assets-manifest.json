@@ -1,0 +1,44 @@
+{
+  "palette": {
+    "substrate": "#FFF2F8",
+    "container": "#4B2142",
+    "primary": "#E85D9E",
+    "secondary": "#9B8AFB"
+  },
+  "vectorMasters": [
+    "logo/logo-mark.svg",
+    "logo/logo-mark-mono.svg",
+    "logo/logo-wordmark.svg",
+    "logo/logo-wordmark-on-dark.svg"
+  ],
+  "generated": [
+    "exports/icons/logo-mark-1024.png",
+    "exports/icons/logo-mark-128.png",
+    "exports/icons/logo-mark-16.png",
+    "exports/icons/logo-mark-192.png",
+    "exports/icons/logo-mark-24.png",
+    "exports/icons/logo-mark-256.png",
+    "exports/icons/logo-mark-32.png",
+    "exports/icons/logo-mark-48.png",
+    "exports/icons/logo-mark-512.png",
+    "exports/icons/logo-mark-64.png",
+    "exports/icons/logo-mark-96.png",
+    "exports/promo/open-graph-1200x630.png",
+    "exports/promo/play-store-feature-1024x500.png",
+    "exports/promo/play-store-icon-1024.png",
+    "exports/promo/telegram-avatar-512.png",
+    "exports/splash/splash-master-2732.png"
+  ],
+  "projectTargets": [
+    "src/assets/logo.png",
+    "public/favicon.ico",
+    "public/favicon-16.png",
+    "public/favicon-32.png",
+    "public/apple-touch-icon.png",
+    "public/icon-192.png",
+    "public/icon-512.png",
+    "public/og-image.png",
+    "android/app/src/main/res/mipmap-*/ic_launcher*.png",
+    "android/app/src/main/res/drawable*/splash.png"
+  ]
+}
