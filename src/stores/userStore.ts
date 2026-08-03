@@ -69,7 +69,7 @@ const toApiPhone = (phone: string): string => {
 export const useUserStore = defineStore('user', () => {
   const user = ref<UserInfo | null>(null);
   const savedPhone = ref(getSavedPhone());
-  const isLoading = ref(false);
+
   const isInitialized = ref(false);
   const errorMessage = ref<string | null>(null);
   let restoreRequest: Promise<void> | null = null;
@@ -129,7 +129,7 @@ export const useUserStore = defineStore('user', () => {
   const authorize = async (
     authorizationData: AuthorizationData,
   ): Promise<boolean> => {
-    isLoading.value = true;
+
     errorMessage.value = null;
 
     try {
@@ -146,8 +146,6 @@ export const useUserStore = defineStore('user', () => {
         'Не удалось выполнить авторизацию',
       );
       return false;
-    } finally {
-      isLoading.value = false;
     }
   }
 
@@ -155,7 +153,7 @@ export const useUserStore = defineStore('user', () => {
     registrationData: RegistrationData,
     avatar?: File | null,
   ): Promise<boolean> => {
-    isLoading.value = true;
+
     errorMessage.value = null;
 
     try {
@@ -186,13 +184,11 @@ export const useUserStore = defineStore('user', () => {
         'Не удалось выполнить регистрацию',
       );
       return false;
-    } finally {
-      isLoading.value = false;
     }
   }
 
   const logout = async (): Promise<void> => {
-    isLoading.value = true;
+
     errorMessage.value = null;
 
     try {
@@ -203,12 +199,12 @@ export const useUserStore = defineStore('user', () => {
       errorMessage.value = getApiErrorMessage(error, 'Не удалось завершить сессию');
     } finally {
       clearAuthorization();
-      isLoading.value = false;
+
     }
   }
 
   const updateName = async (nameValue: string): Promise<boolean> => {
-    isLoading.value = true;
+
     errorMessage.value = null;
 
     try {
@@ -221,8 +217,6 @@ export const useUserStore = defineStore('user', () => {
     } catch (error) {
       errorMessage.value = getApiErrorMessage(error, 'Не удалось изменить имя');
       return false;
-    } finally {
-      isLoading.value = false;
     }
   }
 
@@ -236,7 +230,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const updateAvatar = async (avatar: File): Promise<boolean> => {
-    isLoading.value = true;
+
     errorMessage.value = null;
 
     try {
@@ -245,15 +239,13 @@ export const useUserStore = defineStore('user', () => {
     } catch (error) {
       errorMessage.value = getApiErrorMessage(error, 'Не удалось изменить аватар');
       return false;
-    } finally {
-      isLoading.value = false;
     }
   }
 
   const updatePinCode = async (
     pinCodeData: PinCodeChangeData,
   ): Promise<boolean> => {
-    isLoading.value = true;
+
     errorMessage.value = null;
 
     try {
@@ -263,8 +255,6 @@ export const useUserStore = defineStore('user', () => {
     } catch (error) {
       errorMessage.value = getApiErrorMessage(error, 'Не удалось изменить PIN-код');
       return false;
-    } finally {
-      isLoading.value = false;
     }
   }
 
@@ -275,7 +265,7 @@ export const useUserStore = defineStore('user', () => {
   return {
     user,
     savedPhone,
-    isLoading,
+
     isInitialized,
     errorMessage,
     isAuthenticated,

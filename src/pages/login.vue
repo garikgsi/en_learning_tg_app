@@ -9,6 +9,9 @@ import {
   RUSSIAN_PHONE_LENGTH,
   useUserStore,
 } from '@/stores/userStore';
+import useLoading from '@/use/loading';
+
+const {isLoading} = useLoading();
 
 type AuthorizationForm = {
   validate: () => Promise<{valid: boolean}>
@@ -23,7 +26,6 @@ const router = useRouter();
 const {
   user,
   savedPhone,
-  isLoading,
   errorMessage,
   isAuthenticated,
 } = storeToRefs(userStore);
@@ -81,13 +83,6 @@ const authorize = async () => {
   <v-card class="mx-auto" max-width="520">
     <template v-if="isAuthenticated && user">
       <v-card-title>Профиль</v-card-title>
-
-<!--      <v-progress-linear-->
-<!--        :active="isLoading"-->
-<!--        :indeterminate="isLoading"-->
-<!--        color="primary"-->
-<!--        height="3"-->
-<!--      ></v-progress-linear>-->
 
       <v-card-text>
         <v-list-item
