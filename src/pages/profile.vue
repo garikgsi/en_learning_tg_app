@@ -129,12 +129,12 @@ const logout = async () => {
     <v-card-title>Профиль</v-card-title>
     <v-card-subtitle>{{ user?.phone }}</v-card-subtitle>
 
-    <v-progress-linear
-      :active="isLoading"
-      :indeterminate="isLoading"
-      color="primary"
-      height="3"
-    ></v-progress-linear>
+<!--    <v-progress-linear-->
+<!--      :active="isLoading"-->
+<!--      :indeterminate="isLoading"-->
+<!--      color="primary"-->
+<!--      height="3"-->
+<!--    ></v-progress-linear>-->
 
     <v-card-text>
       <v-alert

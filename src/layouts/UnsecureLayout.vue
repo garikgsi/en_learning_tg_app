@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import IThemeToggle from '@/components/IThemeToggle.vue';
 
+
+import useLoading from '@/use/loading';
+
+const {isLoading} = useLoading();
+
 type Props = {
   title?: string
 }
@@ -21,6 +26,15 @@ const currentYear = new Date().getFullYear();
     <template #append>
       <IThemeToggle></IThemeToggle>
     </template>
+
+    <v-progress-linear
+      :active="isLoading"
+      :indeterminate="isLoading"
+      color="primary"
+      location="bottom"
+      absolute
+    ></v-progress-linear>
+
   </v-app-bar>
 
   <v-main>

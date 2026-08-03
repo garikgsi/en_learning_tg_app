@@ -5,6 +5,9 @@ import {useDisplay} from 'vuetify';
 import {routes} from '@/router/routeAccess';
 import {useUserStore} from '@/stores/userStore';
 import IThemeToggle from '@/components/IThemeToggle.vue';
+import useLoading from '@/use/loading';
+
+const {isLoading} = useLoading();
 
 type Props = {
   title?: string
@@ -73,6 +76,15 @@ const closeMenuOnSmallScreen = () => {
     <template #append>
       <IThemeToggle></IThemeToggle>
     </template>
+
+    <v-progress-linear
+      :active="isLoading"
+      :indeterminate="isLoading"
+      color="primary"
+      location="bottom"
+      absolute
+    ></v-progress-linear>
+
   </v-app-bar>
 
   <v-navigation-drawer

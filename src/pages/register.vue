@@ -150,12 +150,12 @@ const register = async () => {
       Создайте профиль за три шага
     </v-card-subtitle>
 
-    <v-progress-linear
-      :active="isLoading"
-      :indeterminate="isLoading"
-      color="primary"
-      height="3"
-    ></v-progress-linear>
+<!--    <v-progress-linear-->
+<!--      :active="isLoading"-->
+<!--      :indeterminate="isLoading"-->
+<!--      color="primary"-->
+<!--      height="3"-->
+<!--    ></v-progress-linear>-->
 
     <v-card-text>
       <v-alert

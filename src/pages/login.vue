@@ -82,12 +82,12 @@ const authorize = async () => {
     <template v-if="isAuthenticated && user">
       <v-card-title>Профиль</v-card-title>
 
-      <v-progress-linear
-        :active="isLoading"
-        :indeterminate="isLoading"
-        color="primary"
-        height="3"
-      ></v-progress-linear>
+<!--      <v-progress-linear-->
+<!--        :active="isLoading"-->
+<!--        :indeterminate="isLoading"-->
+<!--        color="primary"-->
+<!--        height="3"-->
+<!--      ></v-progress-linear>-->
 
       <v-card-text>
         <v-list-item
@@ -130,12 +130,12 @@ const authorize = async () => {
         Введите номер телефона и ПИН-код
       </v-card-subtitle>
 
-      <v-progress-linear
-        :active="isLoading"
-        :indeterminate="isLoading"
-        color="primary"
-        height="3"
-      ></v-progress-linear>
+<!--      <v-progress-linear-->
+<!--        :active="isLoading"-->
+<!--        :indeterminate="isLoading"-->
+<!--        color="primary"-->
+<!--        height="3"-->
+<!--      ></v-progress-linear>-->
 
       <v-card-text>
         <v-alert
