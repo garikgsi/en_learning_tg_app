@@ -233,6 +233,20 @@ const monthChartOption = computed<EChartsOption>(() => {
   return buildChartOption(charts.value?.month);
 });
 
+const hasCompletedExercises = (
+  period?: ExerciseStatisticsChartPeriod,
+): boolean => {
+  return period?.users.some(user => user.completedExercises > 0) ?? false;
+}
+
+const hasWeekExercises = computed(() => {
+  return hasCompletedExercises(charts.value?.week);
+});
+
+const hasMonthExercises = computed(() => {
+  return hasCompletedExercises(charts.value?.month);
+});
+
 const achievement = computed(() => {
   return findStatisticsAchievement(charts.value, userStore.user?.id);
 });
@@ -478,8 +492,11 @@ onMounted(async () => {
     {{ achievementMessage }}
   </v-alert>
 
-  <div class="statistics-charts">
-    <v-card>
+  <div
+    v-if="isLoading || hasWeekExercises || hasMonthExercises"
+    class="statistics-charts"
+  >
+    <v-card v-if="isLoading || hasWeekExercises">
       <v-card-title>Текущая неделя</v-card-title>
       <v-card-subtitle>
         {{ formatChartPeriod(charts?.week) }}
@@ -499,7 +516,7 @@ onMounted(async () => {
       </v-card-text>
     </v-card>
 
-    <v-card>
+    <v-card v-if="isLoading || hasMonthExercises">
       <v-card-title>Текущий месяц</v-card-title>
       <v-card-subtitle>
         {{ formatChartPeriod(charts?.month) }}
@@ -520,7 +537,10 @@ onMounted(async () => {
     </v-card>
   </div>
 
-  <v-card class="attention-card">
+  <v-card
+    v-if="isLoading || attentionWords.length"
+    class="attention-card"
+  >
     <v-card-title class="text-error">
       Слова, на которые стоит обратить внимание
     </v-card-title>
@@ -606,12 +626,6 @@ onMounted(async () => {
       </v-list-item>
     </v-list>
 
-    <v-card-text
-      v-else
-      class="text-medium-emphasis"
-    >
-      За текущий месяц таких слов нет.
-    </v-card-text>
   </v-card>
 
   <IConfirmDialog

@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import {nextTick, onBeforeUnmount, ref} from 'vue';
+import {
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  onUpdated,
+  ref,
+} from 'vue';
 import {PIN_CODE_LENGTH} from '@/stores/userStore';
 import {vDisableOtpAutocomplete} from '@/directives/disableOtpAutocomplete';
 
@@ -23,8 +29,18 @@ type OtpInputExpose = {
 }
 
 const otpInput = ref<OtpInputExpose | null>(null);
+const pinInputRoot = ref<HTMLElement | null>(null);
 let revealedInput: HTMLInputElement | null = null;
 let maskTimer: ReturnType<typeof setTimeout> | null = null;
+
+const enableNumericKeyboard = (): void => {
+  pinInputRoot.value
+    ?.querySelectorAll<HTMLInputElement>('.v-otp-input__field')
+    .forEach(input => {
+      input.inputMode = 'numeric';
+      input.pattern = '[0-9]*';
+    });
+}
 
 const maskRevealedInput = (): void => {
   if (maskTimer) {
@@ -79,24 +95,27 @@ defineExpose({
 });
 
 onBeforeUnmount(maskRevealedInput);
+onMounted(enableNumericKeyboard);
+onUpdated(enableNumericKeyboard);
 </script>
 
 <template>
   <div
+    ref="pinInputRoot"
     v-disable-otp-autocomplete
     @input.capture="revealEnteredDigit"
   >
-  <v-otp-input
-    ref="otpInput"
-    :autofocus="autofocus"
-    :length="PIN_CODE_LENGTH"
-    :model-value="model"
-    class="pin-code-input"
-    divider="-"
-    label="Цифра ПИН-кода"
-    type="password"
-    @update:model-value="updatePinCode"
-  ></v-otp-input>
+    <v-otp-input
+      ref="otpInput"
+      :autofocus="autofocus"
+      :length="PIN_CODE_LENGTH"
+      :model-value="model"
+      class="pin-code-input"
+      divider="-"
+      label="Цифра ПИН-кода"
+      type="password"
+      @update:model-value="updatePinCode"
+    ></v-otp-input>
   </div>
 </template>
 

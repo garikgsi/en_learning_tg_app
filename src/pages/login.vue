@@ -160,6 +160,7 @@ const authorize = async () => {
             inputmode="numeric"
             label="Телефон"
             maxlength="10"
+            pattern="[0-9]*"
             prefix="+7"
             prepend-inner-icon="mdi-phone-outline"
             type="tel"

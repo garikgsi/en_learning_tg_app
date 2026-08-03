@@ -60,6 +60,25 @@ describe('OTP autocomplete', () => {
 
     await flushPromises();
     expectAutocompleteDisabled(wrapper.element);
+
+    const fields = wrapper.findAll<HTMLInputElement>(
+      '.v-otp-input__field',
+    );
+
+    fields.forEach(field => {
+      expect(field.element.inputMode).toBe('numeric');
+      expect(field.attributes('pattern')).toBe('[0-9]*');
+    });
+
+    await fields[0].trigger('focus');
+    await fields[0].setValue('1');
+    await nextTick();
+    await flushPromises();
+
+    wrapper.findAll<HTMLInputElement>('.v-otp-input__field')
+      .forEach(field => {
+        expect(field.element.inputMode).toBe('numeric');
+      });
     wrapper.unmount();
   });
 });

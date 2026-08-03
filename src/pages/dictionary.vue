@@ -131,6 +131,7 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
       </v-alert>
 
       <v-text-field
+        v-if="isLoading || totalItems > 0 || search"
         :model-value="search"
         clearable
         density="compact"
@@ -142,7 +143,23 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
       ></v-text-field>
     </v-card-text>
 
+    <div
+      v-if="!isLoading && !errorMessage && totalItems === 0 && !search"
+      class="dictionary-empty"
+    >
+      <v-icon
+        color="medium-emphasis"
+        icon="mdi-book-open-page-variant-outline"
+        size="48"
+      ></v-icon>
+      <div class="text-h6">Слова ещё не загружены</div>
+      <div class="text-body-2 text-medium-emphasis">
+        В словаре пока нет доступных слов.
+      </div>
+    </div>
+
     <v-data-table-server
+      v-else
       :headers="headers"
       :items="items"
       :items-per-page="dictionaryWordsPerPage"
@@ -215,5 +232,14 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
 
 .lazy-load-sentinel {
   height: 1px;
+}
+
+.dictionary-empty {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 48px 16px;
+  text-align: center;
 }
 </style>
