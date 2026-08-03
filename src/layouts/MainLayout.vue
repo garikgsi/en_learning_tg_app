@@ -4,6 +4,7 @@ import {storeToRefs} from 'pinia';
 import {useDisplay} from 'vuetify';
 import {routes} from '@/router/routeAccess';
 import {useUserStore} from '@/stores/userStore';
+import IThemeToggle from '@/components/IThemeToggle.vue';
 
 type Props = {
   title?: string
@@ -68,6 +69,10 @@ const closeMenuOnSmallScreen = () => {
     <v-app-bar-title>
       <slot name="title">{{ title }}</slot>
     </v-app-bar-title>
+
+    <template #append>
+      <IThemeToggle></IThemeToggle>
+    </template>
   </v-app-bar>
 
   <v-navigation-drawer

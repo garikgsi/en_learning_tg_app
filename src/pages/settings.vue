@@ -3,7 +3,7 @@ import {storeToRefs} from 'pinia';
 import {useSettingsStore} from '@/stores/settingsStore';
 
 const settingsStore = useSettingsStore();
-const {dictionaryWordsPerPage} = storeToRefs(settingsStore);
+const {dictionaryWordsPerPage, isDarkTheme} = storeToRefs(settingsStore);
 
 const dictionaryPageSizeOptions = [10, 20, 30, 50, 100];
 </script>
@@ -13,6 +13,13 @@ const dictionaryPageSizeOptions = [10, 20, 30, 50, 100];
     <v-card-title>Настройки</v-card-title>
 
     <v-card-text>
+      <v-switch
+        v-model="isDarkTheme"
+        color="primary"
+        inset
+        label="Тёмная тема"
+      ></v-switch>
+
       <v-select
         v-model="dictionaryWordsPerPage"
         :items="dictionaryPageSizeOptions"

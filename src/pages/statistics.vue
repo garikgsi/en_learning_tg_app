@@ -2,6 +2,7 @@
 import {computed, onMounted, ref, watch} from 'vue';
 import {storeToRefs} from 'pinia';
 import {useRouter} from 'vue-router';
+import {useTheme} from 'vuetify';
 import {use} from 'echarts/core';
 import {CanvasRenderer} from 'echarts/renderers';
 import {BarChart} from 'echarts/charts';
@@ -52,6 +53,7 @@ const {
   errorMessage,
 } = storeToRefs(statisticsStore);
 const router = useRouter();
+const theme = useTheme();
 
 const calendarDate = ref<Date[]>([new Date()]);
 const selectedEvent = ref<StatisticsCalendarEvent | null>(null);
@@ -142,10 +144,11 @@ const buildChartOption = (
 ): EChartsOption => {
   const users = period?.users ?? [];
   const shouldZoom = users.length > 6;
+  const themeColors = theme.current.value.colors;
 
   return {
     backgroundColor: 'transparent',
-    color: ['#66bb6a', '#ffa726', '#42a5f5'],
+    color: [themeColors.success, themeColors.warning, themeColors.secondary],
     tooltip: {
       trigger: 'axis',
       axisPointer: {
@@ -155,7 +158,7 @@ const buildChartOption = (
     legend: {
       top: 0,
       textStyle: {
-        color: '#ffffff',
+        color: themeColors['on-surface'],
       },
     },
     grid: {
@@ -168,13 +171,13 @@ const buildChartOption = (
       type: 'category',
       data: users.map(user => user.userName),
       axisLabel: {
-        color: '#ffffff',
+        color: themeColors['on-surface'],
         interval: 0,
         rotate: users.length > 4 ? 30 : 0,
       },
       axisLine: {
         lineStyle: {
-          color: '#757575',
+          color: themeColors['surface-variant'],
         },
       },
     },
@@ -182,11 +185,11 @@ const buildChartOption = (
       type: 'value',
       minInterval: 1,
       axisLabel: {
-        color: '#ffffff',
+        color: themeColors['on-surface'],
       },
       splitLine: {
         lineStyle: {
-          color: '#424242',
+          color: themeColors['surface-variant'],
         },
       },
     },

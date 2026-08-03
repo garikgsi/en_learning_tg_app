@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import IThemeToggle from '@/components/IThemeToggle.vue';
+
 type Props = {
   title?: string
 }
@@ -15,6 +17,10 @@ const currentYear = new Date().getFullYear();
     <v-app-bar-title>
       <slot name="title">{{ title }}</slot>
     </v-app-bar-title>
+
+    <template #append>
+      <IThemeToggle></IThemeToggle>
+    </template>
   </v-app-bar>
 
   <v-main>
