@@ -44,13 +44,9 @@ const completeExercise = async (tasks: Task[]): Promise<void> => {
 </script>
 
 <template>
-  <v-progress-linear
-    v-if="isLoading"
-    indeterminate
-  />
 
   <v-alert
-    v-else-if="errorMessage"
+    v-if="errorMessage"
     :text="errorMessage"
     title="Не удалось загрузить задание"
     type="error"
@@ -60,4 +56,5 @@ const completeExercise = async (tasks: Task[]): Promise<void> => {
     v-else-if="enList.length > 0"
     @finish="completeExercise"
   />
+
 </template>

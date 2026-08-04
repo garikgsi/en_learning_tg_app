@@ -377,13 +377,15 @@ onMounted(async () => {
 
   <v-card class="statistics-card">
     <v-card-title class="statistics-card__header">
-      <span>Статистика</span>
+
+      <v-spacer></v-spacer>
 
       <v-btn
         color="primary"
         :disabled="isCreating"
         :loading="isCreating"
         prepend-icon="mdi-plus"
+        variant="text"
         @click="isCreateDialogOpen = true"
       >
         Новое задание

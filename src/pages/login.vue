@@ -76,11 +76,16 @@ const authorize = async () => {
 
   authorizationData.pinCode = '';
   await pinCodeInput.value?.clearAndFocus();
+
 }
+
+const hasSavedPhone = computed(() => !!savedPhone.value);
+
+
 </script>
 
 <template>
-  <v-card class="mx-auto" max-width="520">
+  <v-card class="mx-auto" max-width="520" >
     <template v-if="isAuthenticated && user">
       <v-card-title>Профиль</v-card-title>
 
@@ -120,17 +125,7 @@ const authorize = async () => {
     </template>
 
     <template v-else>
-      <v-card-title>Авторизация</v-card-title>
-      <v-card-subtitle>
-        Введите номер телефона и ПИН-код
-      </v-card-subtitle>
-
-<!--      <v-progress-linear-->
-<!--        :active="isLoading"-->
-<!--        :indeterminate="isLoading"-->
-<!--        color="primary"-->
-<!--        height="3"-->
-<!--      ></v-progress-linear>-->
+      <v-card-title class="pa-8 text-subtitle-1">Введите номер телефона и ПИН-код</v-card-title>
 
       <v-card-text>
         <v-alert
@@ -161,14 +156,16 @@ const authorize = async () => {
             type="tel"
             variant="outlined"
             @update:model-value="updatePhone"
+
           ></v-text-field>
 
           <IPinCodeInput
             ref="pinCodeInput"
             v-model="authorizationData.pinCode"
-            :autofocus="Boolean(savedPhone)"
+            :autofocus="hasSavedPhone"
             class="mb-4"
             @finish="authorize"
+
           ></IPinCodeInput>
 
           <div class="d-flex ga-3">
@@ -183,6 +180,7 @@ const authorize = async () => {
             </v-btn>
 
             <v-btn
+              :disabled="isLoading"
               class="login-action"
               color="secondary"
               size="large"
