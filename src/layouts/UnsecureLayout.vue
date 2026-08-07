@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import IThemeToggle from '@/components/IThemeToggle.vue';
-
-
 import useLoading from '@/use/loading';
+import IMessage from "@/components/IMessage.vue";
 
 const {isLoading} = useLoading();
 
@@ -15,9 +14,13 @@ withDefaults(defineProps<Props>(), {
 });
 
 const currentYear = new Date().getFullYear();
+
 </script>
 
 <template>
+
+  <IMessage/>
+
   <v-app-bar border flat>
     <v-app-bar-title>
       <slot name="title">{{ title }}</slot>
@@ -38,6 +41,7 @@ const currentYear = new Date().getFullYear();
   </v-app-bar>
 
   <v-main>
+
     <v-container class="py-6" fluid>
       <slot></slot>
     </v-container>

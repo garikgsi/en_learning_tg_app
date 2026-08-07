@@ -9,7 +9,9 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     IConfirmDialog: typeof import('./src/components/IConfirmDialog.vue')['default']
+    IMessage: typeof import('./src/components/IMessage.vue')['default']
     IPinCodeInput: typeof import('./src/components/IPinCodeInput.vue')['default']
+    IProfileForm: typeof import('./src/components/IProfileForm.vue')['default']
     IThemeToggle: typeof import('./src/components/IThemeToggle.vue')['default']
     ITranslateTask: typeof import('./src/components/ITranslateTask.vue')['default']
     IWord: typeof import('./src/components/IWord.vue')['default']

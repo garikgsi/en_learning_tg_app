@@ -3,6 +3,7 @@ import {defineStore} from 'pinia';
 import {apiClient} from '@/api/client';
 import {getApiErrorMessage} from '@/api/errors';
 import {useSettingsStore} from '@/stores/settingsStore';
+import useMessages from '@/use/messages';
 
 export type DictionaryWord = {
   id: number
@@ -35,6 +36,8 @@ type DictionaryPageResponse = {
   availableGrade: number
 }
 
+const {addError} = useMessages();
+
 const isWordEligibleForRepetition = (word: DictionaryWord): boolean => {
   return !/\s/.test(word.english.trim())
     && !/\s/.test(word.russian.trim());
@@ -62,8 +65,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
   const lastPage = ref(1);
   const hasMore = computed(() => page.value < lastPage.value);
   const availableGrade = ref(0);
-  const isLoading = ref(false);
-  const errorMessage = ref<string | null>(null);
+  const isDataFetching = ref(false);
   const search = ref('');
 
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -102,8 +104,9 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     append = false,
   ): Promise<void> => {
     const currentRequestId = ++requestId;
-    isLoading.value = true;
-    errorMessage.value = null;
+
+    isDataFetching.value = true;
+
 
     try {
       const {data} = await apiClient.get<DictionaryPageResponse>(
@@ -146,14 +149,11 @@ export const useDictionaryStore = defineStore('dictionary', () => {
       repetitionWordIds.value = [...selectedWordIds];
     } catch (error) {
       if (currentRequestId === requestId) {
-        errorMessage.value = getApiErrorMessage(
-          error,
-          'Не удалось загрузить словарь',
-        );
+        addError(getApiErrorMessage( error, 'Не удалось загрузить словарь'));
       }
     } finally {
       if (currentRequestId === requestId) {
-        isLoading.value = false;
+        isDataFetching.value = false;
       }
     }
   }
@@ -168,7 +168,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
   }
 
   const loadNextPage = (): void => {
-    if (isLoading.value || !hasMore.value) {
+    if (isDataFetching.value || !hasMore.value) {
       return;
     }
 
@@ -180,7 +180,6 @@ export const useDictionaryStore = defineStore('dictionary', () => {
   }
 
   const addWordToRepetition = async (wordId: number): Promise<void> => {
-    errorMessage.value = null;
 
     try {
       await apiClient.post('/api/v1/repetition-list/words', {
@@ -197,10 +196,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
         repetitionWordIds.value.push(wordId);
       }
     } catch (error) {
-      errorMessage.value = getApiErrorMessage(
-        error,
-        'Не удалось добавить слово для повторения',
-      );
+      addError(getApiErrorMessage( error, 'Не удалось добавить слово для повторения'));
     }
   }
 
@@ -208,9 +204,6 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     return repetitionWordIds.value.includes(wordId);
   }
 
-  const clearError = (): void => {
-    errorMessage.value = null;
-  }
 
   return {
     items,
@@ -222,8 +215,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     lastPage,
     hasMore,
     availableGrade,
-    isLoading,
-    errorMessage,
+    isLoading: isDataFetching,
     search,
     loadDictionary,
     searchDictionary,
@@ -231,6 +223,6 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     reloadFromFirstPage,
     addWordToRepetition,
     isWordSelectedForRepetition,
-    clearError,
+
   };
 });

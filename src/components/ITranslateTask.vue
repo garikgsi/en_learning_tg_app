@@ -18,9 +18,7 @@ import type {
 import type {Word} from "@/stores/translateStore";
 import {useTranslateStore} from "@/stores/translateStore";
 import {MAX_HINTS_ON_WORD} from '@/libs/exerciseRules';
-
-// import random from "@/libs/random.ts";
-
+import pause from '@/libs/pause';
 
 export type WordStat = {
   id: number,
@@ -357,9 +355,16 @@ const progressValue = computed(() => wordTimer.value);
 
 const skipWord = async () => {
   const res = getOrCreateWordResult(currentWord.value.id);
+
   res.skipTimes += 1;
 
-  startNewWord(currentWordIndex.value);
+  answer.value = currentWord.value.translate;
+
+  // todo: убрать надпись, что вы отлично справились и почему-то не работает пауза и сбивается таймер следующего слова
+  await pause(5000);
+
+  await startNewWord(currentWordIndex.value);
+
 }
 
 const isSkipAvailable = computed(() => {
@@ -593,11 +598,7 @@ const isTasksUncompletedTotally = computed(() => {
     v-if="!isTasksUncompletedTotally">
 
     <template v-if="wordsCount > 0">
-      <!--
-      wordsCount={{ wordsCount }}
-      wordTimer={{ wordTimer }}
-      currentWord={{ currentWord }} | {{ JSON.stringify(currentWord) }}
-      -->
+
       <v-card>
 
         <template #title>
@@ -648,10 +649,10 @@ const isTasksUncompletedTotally = computed(() => {
                    :other-words="currentWord.otherCheckWords"
                    :lang="lang"
                    :disabled="timerPaused || isChangingWord"
-                    :color="otpColor"
-                    @update:model-value="updateAnswer"
-                    @finish="(res: WordResult) => onFinish(currentWord.id, res)"
-                    @mistake="addMistakes"
+                   :color="otpColor"
+                   @update:model-value="updateAnswer"
+                   @finish="(res: WordResult) => onFinish(currentWord.id, res)"
+                   @mistake="addMistakes"
             >
               <template #header>
                 <div class="d-flex justify-space-between">

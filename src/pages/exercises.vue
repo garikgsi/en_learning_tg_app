@@ -12,13 +12,13 @@ type Props = {
 
 const props = defineProps<Props>();
 const translateStore = useTranslateStore();
-const {enList, isLoading, errorMessage} = storeToRefs(translateStore);
+const {enList} = storeToRefs(translateStore);
 const router = useRouter();
 
 translateStore.clearWords();
 
 const redirectToStatisticsIfCompleted = async (): Promise<void> => {
-  if (!errorMessage.value && enList.value.length === 0) {
+  if (enList.value.length === 0) {
     await router.replace('/statistics');
   }
 }
@@ -45,15 +45,8 @@ const completeExercise = async (tasks: Task[]): Promise<void> => {
 
 <template>
 
-  <v-alert
-    v-if="errorMessage"
-    :text="errorMessage"
-    title="Не удалось загрузить задание"
-    type="error"
-  />
-
   <ITranslateTask
-    v-else-if="enList.length > 0"
+    v-if="enList.length > 0"
     @finish="completeExercise"
   />
 

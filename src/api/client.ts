@@ -71,6 +71,7 @@ apiClient.interceptors.response.use(
           || !refreshToken
           || isAuthRequest
         ) {
+          setLoading(false);
           return Promise.reject(error);
         }
 
@@ -80,6 +81,7 @@ apiClient.interceptors.response.use(
           .post<RefreshResponse>('/api/v1/auth/refresh', {refreshToken})
           .then(({data}) => {
             tokenStorage.save(data);
+            setLoading(false);
             return data.accessToken;
           })
           .catch(refreshError => {
@@ -88,6 +90,7 @@ apiClient.interceptors.response.use(
           })
           .finally(() => {
             refreshRequest = null;
+            setLoading(false);
           });
 
         const accessToken = await refreshRequest;

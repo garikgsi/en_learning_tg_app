@@ -2,6 +2,7 @@ import {ref} from 'vue';
 import {defineStore} from 'pinia';
 import {apiClient} from '@/api/client';
 import {getApiErrorMessage} from '@/api/errors';
+import useMessages from '@/use/messages';
 
 export type ExerciseStatisticsItem = {
   exerciseId: number
@@ -62,6 +63,8 @@ type CreateUserExerciseResponse = {
     id: number
   }
 }
+
+const {addError} = useMessages();
 
 const achievementCriteria: StatisticsAchievement['criterion'][] = [
   'learnedWords',
@@ -143,13 +146,10 @@ export const useStatisticsStore = defineStore('statistics', () => {
   const charts = ref<ExerciseStatisticsCharts | null>(null);
   const attentionWords = ref<AttentionWord[]>([]);
   const addingAttentionWordIds = ref<number[]>([]);
-  const isLoading = ref(false);
   const isCreating = ref(false);
-  const errorMessage = ref<string | null>(null);
+
 
   const loadMonth = async (date: Date): Promise<void> => {
-    isLoading.value = true;
-    errorMessage.value = null;
 
     try {
       const {data} = await apiClient.get<ExerciseStatisticsResponse>(
@@ -166,18 +166,12 @@ export const useStatisticsStore = defineStore('statistics', () => {
       items.value = [];
       charts.value = null;
       attentionWords.value = [];
-      errorMessage.value = getApiErrorMessage(
-        error,
-        'Не удалось загрузить статистику упражнений',
-      );
-    } finally {
-      isLoading.value = false;
+      addError(getApiErrorMessage( error, 'Не удалось загрузить статистику упражнений'));
     }
   }
 
   const createUserExercise = async (): Promise<number> => {
     isCreating.value = true;
-    errorMessage.value = null;
 
     try {
       const {data} = await apiClient.post<CreateUserExerciseResponse>(
@@ -186,10 +180,7 @@ export const useStatisticsStore = defineStore('statistics', () => {
 
       return data.item.id;
     } catch (error) {
-      errorMessage.value = getApiErrorMessage(
-        error,
-        'Не удалось создать пользовательское задание',
-      );
+      addError(getApiErrorMessage(error, 'Не удалось создать пользовательское задание'));
       throw error;
     } finally {
       isCreating.value = false;
@@ -214,7 +205,6 @@ export const useStatisticsStore = defineStore('statistics', () => {
     }
 
     addingAttentionWordIds.value.push(wordId);
-    errorMessage.value = null;
 
     try {
       await apiClient.post('/api/v1/repetition-list/words', {
@@ -223,10 +213,7 @@ export const useStatisticsStore = defineStore('statistics', () => {
 
       word.isSelectedForRepetition = true;
     } catch (error) {
-      errorMessage.value = getApiErrorMessage(
-        error,
-        'Не удалось добавить слово для повторения',
-      );
+      addError(getApiErrorMessage( error, 'Не удалось добавить слово для повторения'));
     } finally {
       addingAttentionWordIds.value = addingAttentionWordIds.value.filter(
         item => item !== wordId,
@@ -234,22 +221,17 @@ export const useStatisticsStore = defineStore('statistics', () => {
     }
   }
 
-  const clearError = (): void => {
-    errorMessage.value = null;
-  }
 
   return {
     items,
     charts,
     attentionWords,
     addingAttentionWordIds,
-    isLoading,
     isCreating,
-    errorMessage,
     loadMonth,
     createUserExercise,
     isAddingAttentionWord,
     addAttentionWordToRepetition,
-    clearError,
+
   };
 });

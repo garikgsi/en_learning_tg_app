@@ -26,7 +26,6 @@ const router = useRouter();
 const {
   user,
   savedPhone,
-  errorMessage,
   isAuthenticated,
 } = storeToRefs(userStore);
 
@@ -85,7 +84,7 @@ const hasSavedPhone = computed(() => !!savedPhone.value);
 </script>
 
 <template>
-  <v-card class="mx-auto" max-width="520" >
+  <v-card class="mx-auto" max-width="520" :disabled="isLoading">
     <template v-if="isAuthenticated && user">
       <v-card-title>Профиль</v-card-title>
 
@@ -128,15 +127,6 @@ const hasSavedPhone = computed(() => !!savedPhone.value);
       <v-card-title class="pa-8 text-subtitle-1">Введите номер телефона и ПИН-код</v-card-title>
 
       <v-card-text>
-        <v-alert
-          v-if="errorMessage"
-          class="mb-4"
-          closable
-          type="error"
-          @click:close="userStore.clearError"
-        >
-          {{ errorMessage }}
-        </v-alert>
 
         <v-form
           ref="form"

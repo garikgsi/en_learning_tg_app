@@ -23,6 +23,7 @@ import {
   useStatisticsStore,
 } from '@/stores/statisticsStore';
 import {useUserStore} from '@/stores/userStore';
+import useLoading from '@/use/loading'
 
 use([
   CanvasRenderer,
@@ -42,16 +43,17 @@ type StatisticsCalendarEvent = ExerciseStatisticsItem & {
   color: string
 }
 
+const {isLoading} = useLoading();
+
 const statisticsStore = useStatisticsStore();
 const userStore = useUserStore();
 const {
   items,
   charts,
   attentionWords,
-  isLoading,
   isCreating,
-  errorMessage,
 } = storeToRefs(statisticsStore);
+
 const router = useRouter();
 const theme = useTheme();
 
@@ -364,16 +366,6 @@ onMounted(async () => {
 </script>
 
 <template>
-  <v-alert
-    v-if="errorMessage"
-    class="mb-4"
-    closable
-    title="Не удалось выполнить действие"
-    type="error"
-    @click:close="statisticsStore.clearError"
-  >
-    {{ errorMessage }}
-  </v-alert>
 
   <v-card class="statistics-card">
     <v-card-title class="statistics-card__header">

@@ -4,6 +4,7 @@ import {apiClient} from '@/api/client';
 import {getApiErrorMessage} from '@/api/errors';
 import type {Task} from '@/components/ITranslateTask.vue';
 import {MAX_HINTS_ON_WORD} from '@/libs/exerciseRules';
+import useMessages from '@/use/messages';
 
 export type Word = {
   id: number
@@ -60,6 +61,8 @@ type CompleteExercisePayload = {
   exercise_items_result: ExerciseItemResultPayload[]
 }
 
+const {addError} = useMessages();
+
 const langIds = {
   en: 1,
   ru: 2,
@@ -92,8 +95,6 @@ export const selectCheckWord = (
 
 export const useTranslateStore = defineStore('translate', () => {
   const enList = ref<Word[]>([]);
-  const isLoading = ref(false);
-  const errorMessage = ref<string | null>(null);
 
   const ruList = computed<Word[]>(() => {
     return enList.value.map(word => {
@@ -110,7 +111,6 @@ export const useTranslateStore = defineStore('translate', () => {
 
   const clearWords = (): void => {
     enList.value = [];
-    errorMessage.value = null;
   }
 
   const setExercises = (exercises: ApiExercise[]): void => {
@@ -132,8 +132,6 @@ export const useTranslateStore = defineStore('translate', () => {
   }
 
   const loadWords = async (_code?: string): Promise<void> => {
-    isLoading.value = true;
-    errorMessage.value = null;
 
     try {
       const {data} = await apiClient.get<ExercisesResponse>(
@@ -143,18 +141,11 @@ export const useTranslateStore = defineStore('translate', () => {
       setExercises(data.items);
     } catch (error) {
       enList.value = [];
-      errorMessage.value = getApiErrorMessage(
-        error,
-        'Не удалось загрузить упражнение',
-      );
-    } finally {
-      isLoading.value = false;
+      addError(getApiErrorMessage( error, 'Не удалось загрузить упражнение', ));
     }
   }
 
   const loadExercise = async (exerciseId: number): Promise<void> => {
-    isLoading.value = true;
-    errorMessage.value = null;
 
     try {
       const {data} = await apiClient.get<ExerciseResponse>(
@@ -164,18 +155,11 @@ export const useTranslateStore = defineStore('translate', () => {
       setExercises([data.item]);
     } catch (error) {
       enList.value = [];
-      errorMessage.value = getApiErrorMessage(
-        error,
-        'Не удалось загрузить выбранное упражнение',
-      );
-    } finally {
-      isLoading.value = false;
+      addError(getApiErrorMessage( error, 'Не удалось загрузить выбранное упражнение'));
     }
   }
 
   const taskCompleted = async (tasks: Task[]): Promise<void> => {
-    isLoading.value = true;
-    errorMessage.value = null;
 
     try {
       const resultsByExercise = new Map<number, ExerciseItemResultPayload[]>();
@@ -223,28 +207,19 @@ export const useTranslateStore = defineStore('translate', () => {
 
       enList.value = [];
     } catch (error) {
-      errorMessage.value = getApiErrorMessage(
-        error,
-        'Не удалось сохранить результаты упражнения',
-      );
-    } finally {
-      isLoading.value = false;
+      addError(getApiErrorMessage( error, 'Не удалось сохранить результаты упражнения'));
     }
   }
 
-  const clearError = (): void => {
-    errorMessage.value = null;
-  }
 
   return {
     enList,
     ruList,
-    isLoading,
-    errorMessage,
+
     loadWords,
     loadExercise,
     clearWords,
     taskCompleted,
-    clearError,
+
   };
 });

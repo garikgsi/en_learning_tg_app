@@ -3,6 +3,7 @@ import {defineStore} from 'pinia';
 import {apiClient} from '@/api/client';
 import {getApiErrorMessage} from '@/api/errors';
 import {tokenStorage, type TokenPair} from '@/api/tokenStorage';
+import useMessages from '@/use/messages';
 
 export type UserInfo = {
   id: string
@@ -44,6 +45,8 @@ export const MIN_USER_NAME_LENGTH = 2;
 
 const savedPhoneStorageKey = 'en-learning:last-login-phone';
 
+const {addError} = useMessages();
+
 const getSavedPhone = (): string => {
   try {
     return localStorage.getItem(savedPhoneStorageKey) ?? '';
@@ -71,7 +74,7 @@ export const useUserStore = defineStore('user', () => {
   const savedPhone = ref(getSavedPhone());
 
   const isInitialized = ref(false);
-  const errorMessage = ref<string | null>(null);
+
   let restoreRequest: Promise<void> | null = null;
 
   const isAuthenticated = computed(() => user.value !== null);
@@ -130,8 +133,6 @@ export const useUserStore = defineStore('user', () => {
     authorizationData: AuthorizationData,
   ): Promise<boolean> => {
 
-    errorMessage.value = null;
-
     try {
       const {data} = await apiClient.post<AuthResponse>('/api/v1/auth/login', {
         phone: toApiPhone(authorizationData.phone),
@@ -141,10 +142,7 @@ export const useUserStore = defineStore('user', () => {
       saveAuthorization(data);
       return true;
     } catch (error) {
-      errorMessage.value = getApiErrorMessage(
-        error,
-        'Не удалось выполнить авторизацию',
-      );
+      addError(getApiErrorMessage(error, 'Не удалось выполнить авторизацию'));
       return false;
     }
   }
@@ -154,15 +152,18 @@ export const useUserStore = defineStore('user', () => {
     avatar?: File | null,
   ): Promise<boolean> => {
 
-    errorMessage.value = null;
-
     try {
-      const {data} = await apiClient.post<AuthResponse>('/api/v1/auth/register', {
-        name: registrationData.name.trim(),
-        phone: toApiPhone(registrationData.phone),
-        pinCode: registrationData.pinCode,
-        firstGradeYear: registrationData.firstGradeYear,
-      });
+      const userFormData = new FormData();
+
+      userFormData.append('name', registrationData.name);
+      userFormData.append('phone', toApiPhone(registrationData.phone));
+      userFormData.append('pinCode', registrationData.pinCode);
+      if (avatar) {
+        userFormData.append('avatar', avatar);
+      }
+      userFormData.append('firstGradeYear', `${registrationData.firstGradeYear}`);
+
+      const {data} = await apiClient.post<AuthResponse>('/api/v1/auth/register', userFormData);
 
       saveAuthorization(data);
 
@@ -170,33 +171,25 @@ export const useUserStore = defineStore('user', () => {
         try {
           await requestAvatarUpdate(avatar);
         } catch (error) {
-          errorMessage.value = getApiErrorMessage(
-            error,
-            'Регистрация завершена, но загрузить аватар не удалось',
-          );
+          addError(getApiErrorMessage(error,'Регистрация завершена, но загрузить аватар не удалось'));
         }
       }
 
       return true;
     } catch (error) {
-      errorMessage.value = getApiErrorMessage(
-        error,
-        'Не удалось выполнить регистрацию',
-      );
+      addError(getApiErrorMessage(error, 'Не удалось выполнить регистрацию'));
       return false;
     }
   }
 
   const logout = async (): Promise<void> => {
 
-    errorMessage.value = null;
-
     try {
       if (tokenStorage.getAccessToken()) {
         await apiClient.post('/api/v1/auth/logout');
       }
     } catch (error) {
-      errorMessage.value = getApiErrorMessage(error, 'Не удалось завершить сессию');
+      addError(getApiErrorMessage(error, 'Не удалось завершить сессию'));
     } finally {
       clearAuthorization();
 
@@ -204,8 +197,6 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const updateName = async (nameValue: string): Promise<boolean> => {
-
-    errorMessage.value = null;
 
     try {
       const {data} = await apiClient.patch<UserResponse>('/api/v1/users/me', {
@@ -215,9 +206,32 @@ export const useUserStore = defineStore('user', () => {
       saveUser(data.data);
       return true;
     } catch (error) {
-      errorMessage.value = getApiErrorMessage(error, 'Не удалось изменить имя');
+      addError(getApiErrorMessage(error, 'Не удалось изменить имя'));
       return false;
     }
+
+  }
+
+  const updateUser = async (user: {name: string, avatar?: File|null}): Promise<boolean> => {
+
+    try {
+      const userFormData = new FormData();
+      userFormData.append('_method', 'PATCH');
+      userFormData.append('name', user.name);
+      if (user.avatar) {
+        userFormData.append('avatar', user.avatar);
+      }
+
+
+      const {data} = await apiClient.patch<UserResponse>('/api/v1/users/me', userFormData);
+
+      saveUser(data.data);
+      return true;
+    } catch (error) {
+      addError(getApiErrorMessage(error, 'Не удалось изменить информацию пользователя'));
+      return false;
+    }
+
   }
 
   const requestAvatarUpdate = async (avatar: File): Promise<void> => {
@@ -231,13 +245,11 @@ export const useUserStore = defineStore('user', () => {
 
   const updateAvatar = async (avatar: File): Promise<boolean> => {
 
-    errorMessage.value = null;
-
     try {
       await requestAvatarUpdate(avatar);
       return true;
     } catch (error) {
-      errorMessage.value = getApiErrorMessage(error, 'Не удалось изменить аватар');
+      addError(getApiErrorMessage(error, 'Не удалось изменить аватар'));
       return false;
     }
   }
@@ -246,28 +258,25 @@ export const useUserStore = defineStore('user', () => {
     pinCodeData: PinCodeChangeData,
   ): Promise<boolean> => {
 
-    errorMessage.value = null;
-
     try {
       await apiClient.put('/api/v1/users/me/pin', pinCodeData);
       clearAuthorization();
       return true;
     } catch (error) {
-      errorMessage.value = getApiErrorMessage(error, 'Не удалось изменить PIN-код');
+      addError(getApiErrorMessage(error, 'Не удалось изменить PIN-код'));
       return false;
     }
   }
 
-  const clearError = (): void => {
-    errorMessage.value = null;
-  }
+  const getUserInitial = (name?:string) => {
+    return (name || 'Гость').split(' ').filter(n => n.length > 0).slice(0, 2).map(n => `${n.slice(0,1).toUpperCase()}`).join(' ');
+  };
 
   return {
     user,
     savedPhone,
 
     isInitialized,
-    errorMessage,
     isAuthenticated,
     restoreSession,
     authorize,
@@ -275,7 +284,8 @@ export const useUserStore = defineStore('user', () => {
     updateName,
     updateAvatar,
     updatePinCode,
+    updateUser,
     logout,
-    clearError,
+    getUserInitial
   };
 });

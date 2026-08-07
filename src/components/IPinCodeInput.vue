@@ -10,6 +10,7 @@ import {PIN_CODE_LENGTH} from '@/stores/userStore';
 import {vDisableOtpAutocomplete} from '@/directives/disableOtpAutocomplete';
 
 type Props = {
+  label?: string,
   autofocus?: boolean
 }
 
@@ -105,6 +106,7 @@ onUpdated(enableNumericKeyboard);
     v-disable-otp-autocomplete
     @input.capture="revealEnteredDigit"
   >
+    <div v-if="!!label" class="font-weight-thin">{{label}}</div>
     <v-otp-input
       ref="otpInput"
       :autofocus="autofocus"

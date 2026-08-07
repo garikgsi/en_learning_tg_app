@@ -6,6 +6,7 @@ import {routes} from '@/router/routeAccess';
 import {useUserStore} from '@/stores/userStore';
 import IThemeToggle from '@/components/IThemeToggle.vue';
 import useLoading from '@/use/loading';
+import IMessage from "@/components/IMessage.vue";
 
 const {isLoading} = useLoading();
 
@@ -61,6 +62,9 @@ const closeMenuOnSmallScreen = () => {
 </script>
 
 <template>
+
+  <IMessage/>
+
   <v-app-bar v-if="smAndDown">
     <template #prepend>
       <v-app-bar-nav-icon
@@ -168,8 +172,13 @@ const closeMenuOnSmallScreen = () => {
   </v-navigation-drawer>
 
   <v-main>
+
+
     <v-container class="py-6" fluid>
+
       <slot></slot>
+
     </v-container>
+
   </v-main>
 </template>

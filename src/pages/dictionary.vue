@@ -120,15 +120,6 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
 <template>
   <v-card>
     <v-card-text class="pb-2">
-      <v-alert
-        v-if="errorMessage"
-        class="mb-4"
-        closable
-        type="error"
-        @click:close="dictionaryStore.clearError"
-      >
-        {{ errorMessage }}
-      </v-alert>
 
       <v-text-field
         v-if="isLoading || totalItems > 0 || search"

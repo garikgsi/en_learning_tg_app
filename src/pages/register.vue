@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {computed, reactive, ref} from 'vue';
-import {storeToRefs} from 'pinia';
 import {useRouter} from 'vue-router';
 import IPinCodeInput from '@/components/IPinCodeInput.vue';
 import {
@@ -13,7 +12,6 @@ import {
 
 const userStore = useUserStore();
 const router = useRouter();
-const {isLoading, errorMessage} = storeToRefs(userStore);
 
 const step = ref(1);
 const currentYear = new Date().getFullYear();
@@ -149,25 +147,7 @@ const register = async () => {
     <v-card-subtitle>
       Создайте профиль за три шага
     </v-card-subtitle>
-
-<!--    <v-progress-linear-->
-<!--      :active="isLoading"-->
-<!--      :indeterminate="isLoading"-->
-<!--      color="primary"-->
-<!--      height="3"-->
-<!--    ></v-progress-linear>-->
-
     <v-card-text>
-      <v-alert
-        v-if="errorMessage"
-        class="mb-4"
-        closable
-        type="error"
-        @click:close="userStore.clearError"
-      >
-        {{ errorMessage }}
-      </v-alert>
-
       <v-stepper
         v-model="step"
         :items="steps"
@@ -303,7 +283,6 @@ const register = async () => {
             </v-btn>
 
             <v-btn
-              :disabled="Boolean(avatarError) || isLoading"
               color="primary"
               @click="register"
             >
