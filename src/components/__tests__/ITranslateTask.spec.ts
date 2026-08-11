@@ -14,6 +14,7 @@ const IWordStub = defineComponent({
     translate: String,
     lang: String,
     disabled: Boolean,
+    readonly: Boolean,
   },
   emits: ['finish', 'mistake', 'update:model-value'],
   setup(_props, {expose}) {
@@ -150,6 +151,63 @@ describe('ITranslateTask word transitions', () => {
     await continueWithRussian(wrapper);
 
     expect(wrapper.findComponent(IWordStub).props('lang')).toBe('ru');
+    wrapper.unmount();
+  });
+
+  it('shows a skipped answer for five seconds without completing it or advancing the next timer', async () => {
+    useTranslateStore().enList = [
+      {...word},
+      {
+        ...word,
+        id: 92,
+        exerciseItemId: 92,
+        wordId: 12,
+        word: 'собака',
+        translate: 'dog',
+        checkWord: 'dog',
+      },
+    ];
+    const wrapper = await mountTask();
+    const skippedInput = wrapper.findComponent(IWordStub);
+    const skipButton = wrapper
+      .findAllComponents({name: 'VBtn'})
+      .find(button => button.text().includes('Пропустить'));
+
+    expect(skipButton).toBeDefined();
+    await skipButton!.trigger('click');
+    await nextTick();
+
+    expect(wrapper.findComponent(IWordStub).props()).toMatchObject({
+      modelValue: 'CAT',
+      word: 'кот',
+      disabled: false,
+      readonly: true,
+    });
+
+    skippedInput.vm.$emit('finish', {isOk: true, answer: 'cat'});
+    await nextTick();
+    expect(wrapper.text()).not.toContain('Вы отлично справились!');
+
+    await vi.advanceTimersByTimeAsync(4900);
+    expect(wrapper.findComponent(IWordStub).props('word')).toBe('кот');
+
+    await vi.advanceTimersByTimeAsync(100);
+    await flushPromises();
+
+    expect(wrapper.findComponent(IWordStub).props()).toMatchObject({
+      modelValue: '',
+      word: 'собака',
+      disabled: false,
+      readonly: false,
+    });
+    expect(wrapper.findComponent({name: 'VProgressLinear'}).props('bufferValue')).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(99900);
+    expect(wrapper.findComponent(IWordStub).props('word')).toBe('собака');
+
+    await vi.advanceTimersByTimeAsync(100);
+    await flushPromises();
+    expect(wrapper.findComponent(IWordStub).props('word')).toBe('кот');
     wrapper.unmount();
   });
 });

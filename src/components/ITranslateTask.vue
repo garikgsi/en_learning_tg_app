@@ -19,6 +19,7 @@ import type {Word} from "@/stores/translateStore";
 import {useTranslateStore} from "@/stores/translateStore";
 import {MAX_HINTS_ON_WORD} from '@/libs/exerciseRules';
 import pause from '@/libs/pause';
+import {useKeyNormalizer} from '@/use/keyNormalizer';
 
 export type WordStat = {
   id: number,
@@ -44,6 +45,7 @@ type Emits = {
 
 const emits = defineEmits<Emits>();
 const {enList, ruList} = storeToRefs(useTranslateStore());
+const {normalizeAnswer} = useKeyNormalizer();
 
 const wordCompleteSuccessfully = ref(false);
 
@@ -65,6 +67,7 @@ const currentWordId = ref<number | null>(null);
 
 const answer = ref('');
 const isChangingWord = ref(false);
+const isShowingSkippedWord = ref(false);
 const wordInstanceKey = ref(0);
 const errorsOnCurrentAttempt = ref(0);
 
@@ -186,8 +189,13 @@ const onFinish = async (wordId: number, result: WordResult) => {
 }
 
 const getNextWordIndex = (exclude?: number) => {
+  const currentIndex = Math.max(currentWordIndex.value, 0);
 
-  return (wordsCount.value - 1) > (currentWordIndex.value + 1) ? currentWordIndex.value + 1 : 0;
+  if (exclude !== undefined || currentWordId.value !== null) {
+    return currentIndex + 1 < wordsCount.value ? currentIndex + 1 : 0;
+  }
+
+  return Math.min(currentIndex, wordsCount.value - 1);
 
   // console.log('currentWord', currentWord.value)
   // console.log('exclude', exclude)
@@ -354,16 +362,35 @@ const progressValue = computed(() => wordTimer.value);
 
 
 const skipWord = async () => {
+  if (!currentWord.value || !lang.value || isChangingWord.value) {
+    return;
+  }
+
+  isChangingWord.value = true;
+  isShowingSkippedWord.value = true;
+  timerPaused.value = true;
+
+  const skippedWordIndex = currentWordIndex.value;
   const res = getOrCreateWordResult(currentWord.value.id);
 
   res.skipTimes += 1;
 
-  answer.value = currentWord.value.translate;
+  answer.value = normalizeAnswer(
+    currentWord.value.translate,
+    currentWord.value.checkWord,
+    lang.value,
+  );
 
-  // todo: убрать надпись, что вы отлично справились и почему-то не работает пауза и сбивается таймер следующего слова
-  await pause(5000);
-
-  await startNewWord(currentWordIndex.value);
+  try {
+    await pause(5000);
+    isShowingSkippedWord.value = false;
+    timerPaused.value = isUserPaused.value;
+    await startNewWord(skippedWordIndex);
+  } finally {
+    isShowingSkippedWord.value = false;
+    timerPaused.value = isUserPaused.value;
+    isChangingWord.value = false;
+  }
 
 }
 
@@ -648,7 +675,8 @@ const isTasksUncompletedTotally = computed(() => {
                    :translate="currentWord.checkWord"
                    :other-words="currentWord.otherCheckWords"
                    :lang="lang"
-                   :disabled="timerPaused || isChangingWord"
+                   :disabled="(timerPaused || isChangingWord) && !isShowingSkippedWord"
+                   :readonly="isShowingSkippedWord"
                    :color="otpColor"
                    @update:model-value="updateAnswer"
                    @finish="(res: WordResult) => onFinish(currentWord.id, res)"

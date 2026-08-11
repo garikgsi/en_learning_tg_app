@@ -38,11 +38,17 @@ const expectAutocompleteDisabled = (element: Element): void => {
 
 describe('OTP autocomplete', () => {
   it('stays disabled in the word input after a rerender', async () => {
-    const wrapper = mountWithVuetify(IWord, {
-      modelValue: '',
-      word: 'кот',
-      translate: 'cat',
-      lang: 'en',
+    const wrapper = mount(IWord, {
+      props: {
+        modelValue: '',
+        word: 'кот',
+        translate: 'cat',
+        lang: 'en',
+      },
+      attachTo: document.body,
+      global: {
+        plugins: [createVuetify()],
+      },
     });
 
     await flushPromises();
@@ -95,7 +101,7 @@ describe('IWord keyboard layout normalization', () => {
             word: 'кот',
             translate: 'cat',
             lang: 'en',
-            'onUpdate:modelValue': value => {
+            'onUpdate:modelValue': (value: string) => {
               answer.value = value;
             },
           }),
@@ -137,7 +143,7 @@ describe('IWord keyboard layout normalization', () => {
             word: 'coke',
             translate: 'кока-кола',
             lang: 'ru',
-            'onUpdate:modelValue': value => {
+            'onUpdate:modelValue': (value: string) => {
               answer.value = value;
             },
           }),

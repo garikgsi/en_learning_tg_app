@@ -49,18 +49,19 @@ const answerNo = (): void => {
         <v-spacer></v-spacer>
 
         <v-btn
+          color="primary"
+          @click="answerYes"
+        >
+          {{ yesButtonText }}
+        </v-btn>
+
+        <v-btn
           color="secondary"
           @click="answerNo"
         >
           {{ noButtonText }}
         </v-btn>
 
-        <v-btn
-          color="primary"
-          @click="answerYes"
-        >
-          {{ yesButtonText }}
-        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

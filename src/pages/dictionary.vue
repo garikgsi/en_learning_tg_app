@@ -18,7 +18,6 @@ const {
   items,
   totalItems,
   isLoading,
-  errorMessage,
   hasMore,
   search,
 } = storeToRefs(dictionaryStore);
@@ -135,7 +134,7 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
     </v-card-text>
 
     <div
-      v-if="!isLoading && !errorMessage && totalItems === 0 && !search"
+      v-if="!isLoading && totalItems === 0 && !search"
       class="dictionary-empty"
     >
       <v-icon

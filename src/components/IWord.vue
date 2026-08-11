@@ -1,8 +1,8 @@
 <script setup lang="ts">
 
 import {computed, nextTick, ref} from 'vue';
-import {normalizeKeyboardInput} from '@/libs/keyboardNormalizer'
 import {vDisableOtpAutocomplete} from '@/directives/disableOtpAutocomplete';
+import {useKeyNormalizer} from '@/use/keyNormalizer';
 
 export type WordResult = { isOk: boolean, answer: string }
 export type WordMistake = { count: number, answer: string }
@@ -15,6 +15,7 @@ interface Props {
   otherWords?: string[]
   easyMode?: boolean
   disabled?: boolean
+  readonly?: boolean
   color?: string
 }
 
@@ -29,21 +30,18 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   easyMode: true,
   disabled: false,
+  readonly: false,
   color: 'primary',
   otherWords: () => [],
 })
 
+const {
+  normalizeAnswer: normalizeKeyAnswer,
+  normalizeLanguageText,
+} = useKeyNormalizer();
+
 const emits = defineEmits<Emits>()
 const root = ref<HTMLElement | null>(null);
-
-const normalizeLanguageText = (
-  value: string,
-  language: 'en' | 'ru',
-): string => {
-  return language === 'ru'
-    ? value.replace(/[^а-яё -]/giu, '')
-    : value.replace(/[^a-z -]/giu, '');
-}
 
 const answerLanguage = computed<'en' | 'ru'>(() => {
   return props.lang
@@ -123,14 +121,9 @@ const focusAndSelect = async (index: number) => {
 }
 
 const normalizeAnswer = (value: string) => {
-  const lettersOnly = value.replace(/[^a-zа-яё -]/giu, '');
-  const keyboardNormalized = normalizeKeyboardInput(
-    lettersOnly,
+  return normalizeKeyAnswer(
+    value,
     normalizedTranslate.value,
-  );
-
-  return normalizeLanguageText(
-    keyboardNormalized,
     answerLanguage.value,
   );
 }
@@ -316,6 +309,7 @@ defineExpose({
         <v-otp-input
           :model-value="getWordAnswer(wordIndex)"
           :disabled="disabled"
+          :readonly="readonly"
           :autofocus="wordIndex === 0"
           :color="color"
           :error="isError"
