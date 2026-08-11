@@ -167,12 +167,12 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     }, 1000);
   }
 
-  const loadNextPage = (): void => {
+  const loadNextPage = async (): Promise<void> => {
     if (isDataFetching.value || !hasMore.value) {
       return;
     }
 
-    void loadDictionary(page.value + 1, true);
+    await loadDictionary(page.value + 1, true);
   }
 
   const reloadFromFirstPage = (): void => {

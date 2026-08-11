@@ -3,6 +3,7 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  ref,
   watch,
 } from 'vue';
 import {storeToRefs} from 'pinia';
@@ -22,6 +23,8 @@ const {
   search,
 } = storeToRefs(dictionaryStore);
 const {dictionaryWordsPerPage} = storeToRefs(settingsStore);
+const isInitialLoading = ref(items.value.length === 0);
+const isLoadingNextPage = ref(false);
 
 watch(dictionaryWordsPerPage, () => {
   dictionaryStore.reloadFromFirstPage();
@@ -30,8 +33,12 @@ watch(dictionaryWordsPerPage, () => {
 const lazyLoadThreshold = 300;
 let scrollFrame: number | null = null;
 
-const loadNextPageIfNeeded = () => {
-  if (!hasMore.value || isLoading.value) {
+const loadNextPageIfNeeded = async (): Promise<void> => {
+  if (
+    !hasMore.value
+    || isLoading.value
+    || isLoadingNextPage.value
+  ) {
     return;
   }
 
@@ -42,7 +49,13 @@ const loadNextPageIfNeeded = () => {
     - window.innerHeight;
 
   if (distanceToBottom <= lazyLoadThreshold) {
-    dictionaryStore.loadNextPage();
+    isLoadingNextPage.value = true;
+
+    try {
+      await dictionaryStore.loadNextPage();
+    } finally {
+      isLoadingNextPage.value = false;
+    }
   }
 }
 
@@ -53,7 +66,7 @@ const handleScroll = () => {
 
   scrollFrame = window.requestAnimationFrame(() => {
     scrollFrame = null;
-    loadNextPageIfNeeded();
+    void loadNextPageIfNeeded();
   });
 }
 
@@ -61,15 +74,21 @@ watch(
   () => items.value.length,
   async () => {
     await nextTick();
-    loadNextPageIfNeeded();
+    await loadNextPageIfNeeded();
   },
 );
 
 onMounted(async () => {
   window.addEventListener('scroll', handleScroll, {passive: true});
-  await dictionaryStore.loadDictionary();
+
+  try {
+    await dictionaryStore.loadDictionary();
+  } finally {
+    isInitialLoading.value = false;
+  }
+
   await nextTick();
-  loadNextPageIfNeeded();
+  await loadNextPageIfNeeded();
 });
 
 onBeforeUnmount(() => {
@@ -125,6 +144,7 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
         :model-value="search"
         clearable
         density="compact"
+        :disabled="isLoading"
         hide-details
         label="Поиск по словарю"
         prepend-inner-icon="mdi-magnify"
@@ -133,8 +153,13 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
       ></v-text-field>
     </v-card-text>
 
+    <v-skeleton-loader
+      v-if="isInitialLoading"
+      type="table"
+    ></v-skeleton-loader>
+
     <div
-      v-if="!isLoading && totalItems === 0 && !search"
+      v-else-if="totalItems === 0 && !search"
       class="dictionary-empty"
     >
       <v-icon
@@ -154,11 +179,9 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
       :items="items"
       :items-per-page="dictionaryWordsPerPage"
       :items-length="totalItems"
-      :loading="isLoading"
       hide-default-header
       hide-default-footer
       item-value="id"
-      loading-text="Загружаем словарь..."
       no-data-text="Слова не найдены"
     >
       <template #item.repeatCount="{item}">
@@ -199,6 +222,12 @@ const getRepetitionButtonTitle = (word: DictionaryWord) => {
         </div>
       </template>
     </v-data-table-server>
+
+    <v-progress-linear
+      v-if="isLoadingNextPage"
+      color="primary"
+      indeterminate
+    ></v-progress-linear>
 
     <div
       v-if="hasMore"
