@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import useMessages from "@/use/messages";
-  import {computed, onMounted, ref, watch} from "vue";
+  import {computed, onBeforeUnmount, ref, watch} from "vue";
   const {hasMessage, last:message, readMessage} = useMessages();
 
 
@@ -21,6 +21,11 @@
 
     timer.value = 0;
 
+    if (value <= 0) {
+      timerInterval.value = undefined;
+      return;
+    }
+
     timerInterval.value = setInterval(() => {
 
       let newTimer = timer.value + timerBuff.value;
@@ -40,6 +45,10 @@
       }, timerBuff.value
     );
 
+  });
+
+  onBeforeUnmount(() => {
+    clearInterval(timerInterval.value);
   });
 
 

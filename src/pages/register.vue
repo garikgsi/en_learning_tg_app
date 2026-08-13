@@ -2,6 +2,8 @@
 import {computed, onBeforeUnmount, reactive, ref} from 'vue';
 import {useRouter} from 'vue-router';
 import IPinCodeInput from '@/components/IPinCodeInput.vue';
+import IAvatarUploadToolbar from '@/components/IAvatarUploadToolbar.vue';
+import useMessages from '@/use/messages';
 import {
   MIN_USER_NAME_LENGTH,
   normalizeRussianPhone,
@@ -13,15 +15,14 @@ import {prepareAvatar} from '@/utils/prepareAvatar';
 
 const userStore = useUserStore();
 const router = useRouter();
+const {addInfo, readMessage} = useMessages();
 
 const step = ref(1);
 const currentYear = new Date().getFullYear();
 const pinCodeConfirmation = ref('');
 const avatarFile = ref<File | null>(null);
 const avatarError = ref('');
-const avatarName = ref('');
-const cameraInput = ref<HTMLInputElement | null>(null);
-const galleryInput = ref<HTMLInputElement | null>(null);
+const isPreparingAvatar = ref(false);
 let avatarPreviewUrl: string | null = null;
 const registrationData = reactive({
   name: '',
@@ -83,31 +84,20 @@ const isPinCodeConfirmed = computed(() => {
     && new RegExp(`^\\d{${PIN_CODE_LENGTH}}$`).test(pinCodeConfirmation.value);
 });
 
-const registrationInitial = computed(() => {
-  return registrationData.name.trim().charAt(0).toUpperCase();
-});
-
 const updatePhone = (value: string) => {
   registrationData.phone = normalizeRussianPhone(value)
     .slice(0, RUSSIAN_PHONE_LENGTH);
 }
 
-const updateAvatar = async (event: Event) => {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-
-  avatarFile.value = null;
+const updateAvatar = async (file: File) => {
   avatarError.value = '';
-  registrationData.avatar = '';
 
-  if (!file) {
-    return;
-  }
+  isPreparingAvatar.value = true;
+  const processingMessage = addInfo('Идёт подготовка изображения…', 3);
 
   try {
     const avatar = await prepareAvatar(file);
     avatarFile.value = avatar;
-    avatarName.value = `${avatar.name} · ${(avatar.size / 1024 / 1024).toFixed(1)} МБ`;
     if (avatarPreviewUrl) {
       URL.revokeObjectURL(avatarPreviewUrl);
     }
@@ -118,7 +108,8 @@ const updateAvatar = async (event: Event) => {
       ? error.message
       : 'Не удалось обработать изображение';
   } finally {
-    input.value = '';
+    isPreparingAvatar.value = false;
+    readMessage(processingMessage.id);
   }
 }
 
@@ -253,54 +244,11 @@ const register = async () => {
 
         <template #item.3>
           <div class="d-flex flex-column align-center mb-4">
-            <v-avatar
-              class="mb-4"
-              color="primary"
-              size="112"
-            >
-              <v-img
-                v-if="registrationData.avatar"
-                :src="registrationData.avatar"
-                cover
-              ></v-img>
-              <span v-else class="text-h3">
-                {{ registrationInitial }}
-              </span>
-            </v-avatar>
-
-            <input
-              ref="cameraInput"
-              accept="image/*"
-              capture="user"
-              class="avatar-input"
-              type="file"
-              @change="updateAvatar"
-            >
-            <input
-              ref="galleryInput"
-              accept="image/*"
-              class="avatar-input"
-              type="file"
-              @change="updateAvatar"
-            >
-
-            <div class="d-flex flex-wrap justify-center ga-2">
-              <v-btn
-                prepend-icon="mdi-camera"
-                variant="outlined"
-                @click="cameraInput?.click()"
-              >
-                Сфотографировать
-              </v-btn>
-              <v-btn
-                prepend-icon="mdi-image-outline"
-                variant="outlined"
-                @click="galleryInput?.click()"
-              >
-                Выбрать из галереи
-              </v-btn>
-            </div>
-            <div v-if="avatarName" class="text-caption mt-2">{{ avatarName }}</div>
+            <IAvatarUploadToolbar
+              :preview="registrationData.avatar"
+              :processing="isPreparingAvatar"
+              @select="updateAvatar"
+            ></IAvatarUploadToolbar>
             <div v-if="avatarError" class="text-error text-caption mt-2">{{ avatarError }}</div>
           </div>
 
@@ -310,6 +258,7 @@ const register = async () => {
             </v-btn>
 
             <v-btn
+              :disabled="isPreparingAvatar"
               color="primary"
               @click="register"
             >
@@ -327,9 +276,3 @@ const register = async () => {
     </v-card-actions>
   </v-card>
 </template>
-
-<style scoped>
-.avatar-input {
-  display: none;
-}
-</style>

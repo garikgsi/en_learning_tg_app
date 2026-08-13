@@ -18,7 +18,8 @@ const loadImage = (file: File): Promise<HTMLImageElement> => new Promise((resolv
 });
 
 export const prepareAvatar = async (source: File): Promise<File> => {
-  if (!source.type.startsWith('image/')) {
+  // Android camera intents may return a valid image with an empty MIME type.
+  if (source.type && !source.type.startsWith('image/')) {
     throw new Error('Выберите изображение');
   }
 

@@ -8,6 +8,8 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    IAvatarPicker: typeof import('./src/components/IAvatarPicker.vue')['default']
+    IAvatarUploadToolbar: typeof import('./src/components/IAvatarUploadToolbar.vue')['default']
     IConfirmDialog: typeof import('./src/components/IConfirmDialog.vue')['default']
     IMessage: typeof import('./src/components/IMessage.vue')['default']
     IPinCodeInput: typeof import('./src/components/IPinCodeInput.vue')['default']
