@@ -223,7 +223,9 @@ export const useUserStore = defineStore('user', () => {
       }
 
 
-      const {data} = await apiClient.patch<UserResponse>('/api/v1/users/me', userFormData);
+      // PHP does not parse multipart request bodies sent with PATCH under the
+      // usual FPM setup. Send POST and let Laravel apply the method override.
+      const {data} = await apiClient.post<UserResponse>('/api/v1/users/me', userFormData);
 
       saveUser(data.data);
       return true;

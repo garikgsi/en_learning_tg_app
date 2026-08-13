@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, reactive, ref} from 'vue';
+import {computed, onBeforeUnmount, reactive, ref} from 'vue';
 import {useRouter} from 'vue-router';
 import IPinCodeInput from '@/components/IPinCodeInput.vue';
 import {
@@ -9,6 +9,7 @@ import {
   RUSSIAN_PHONE_LENGTH,
   useUserStore,
 } from '@/stores/userStore';
+import {prepareAvatar} from '@/utils/prepareAvatar';
 
 const userStore = useUserStore();
 const router = useRouter();
@@ -18,6 +19,10 @@ const currentYear = new Date().getFullYear();
 const pinCodeConfirmation = ref('');
 const avatarFile = ref<File | null>(null);
 const avatarError = ref('');
+const avatarName = ref('');
+const cameraInput = ref<HTMLInputElement | null>(null);
+const galleryInput = ref<HTMLInputElement | null>(null);
+let avatarPreviewUrl: string | null = null;
 const registrationData = reactive({
   name: '',
   phone: '',
@@ -87,10 +92,11 @@ const updatePhone = (value: string) => {
     .slice(0, RUSSIAN_PHONE_LENGTH);
 }
 
-const updateAvatar = (value: File | File[] | null) => {
-  const file = Array.isArray(value) ? value[0] : value;
+const updateAvatar = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
 
-  avatarFile.value = file ?? null;
+  avatarFile.value = null;
   avatarError.value = '';
   registrationData.avatar = '';
 
@@ -98,30 +104,29 @@ const updateAvatar = (value: File | File[] | null) => {
     return;
   }
 
-  if (!file.type.startsWith('image/')) {
-    avatarError.value = 'Выберите изображение';
-    avatarFile.value = null;
-    return;
+  try {
+    const avatar = await prepareAvatar(file);
+    avatarFile.value = avatar;
+    avatarName.value = `${avatar.name} · ${(avatar.size / 1024 / 1024).toFixed(1)} МБ`;
+    if (avatarPreviewUrl) {
+      URL.revokeObjectURL(avatarPreviewUrl);
+    }
+    avatarPreviewUrl = URL.createObjectURL(avatar);
+    registrationData.avatar = avatarPreviewUrl;
+  } catch (error) {
+    avatarError.value = error instanceof Error
+      ? error.message
+      : 'Не удалось обработать изображение';
+  } finally {
+    input.value = '';
   }
-
-  if (file.size > 2 * 1024 * 1024) {
-    avatarError.value = 'Размер изображения не должен превышать 2 МБ';
-    avatarFile.value = null;
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    registrationData.avatar = typeof reader.result === 'string'
-      ? reader.result
-      : '';
-  };
-  reader.onerror = () => {
-    avatarError.value = 'Не удалось прочитать изображение';
-    avatarFile.value = null;
-  };
-  reader.readAsDataURL(file);
 }
+
+onBeforeUnmount(() => {
+  if (avatarPreviewUrl) {
+    URL.revokeObjectURL(avatarPreviewUrl);
+  }
+});
 
 const register = async () => {
   if (!isPersonalDataValid.value || !isPinCodeValid.value || !isPinCodeConfirmed.value) {
@@ -263,18 +268,40 @@ const register = async () => {
               </span>
             </v-avatar>
 
-            <v-file-input
-              :error-messages="avatarError"
-              :model-value="avatarFile"
+            <input
+              ref="cameraInput"
               accept="image/*"
-              class="w-100"
-              label="Выберите изображение"
-              prepend-icon=""
-              prepend-inner-icon="mdi-camera"
-              show-size
-              variant="outlined"
-              @update:model-value="updateAvatar"
-            ></v-file-input>
+              capture="environment"
+              class="avatar-input"
+              type="file"
+              @change="updateAvatar"
+            >
+            <input
+              ref="galleryInput"
+              accept="image/*"
+              class="avatar-input"
+              type="file"
+              @change="updateAvatar"
+            >
+
+            <div class="d-flex flex-wrap justify-center ga-2">
+              <v-btn
+                prepend-icon="mdi-camera"
+                variant="outlined"
+                @click="cameraInput?.click()"
+              >
+                Сфотографировать
+              </v-btn>
+              <v-btn
+                prepend-icon="mdi-image-outline"
+                variant="outlined"
+                @click="galleryInput?.click()"
+              >
+                Выбрать из галереи
+              </v-btn>
+            </div>
+            <div v-if="avatarName" class="text-caption mt-2">{{ avatarName }}</div>
+            <div v-if="avatarError" class="text-error text-caption mt-2">{{ avatarError }}</div>
           </div>
 
           <div class="d-flex justify-space-between">
@@ -300,3 +327,9 @@ const register = async () => {
     </v-card-actions>
   </v-card>
 </template>
+
+<style scoped>
+.avatar-input {
+  display: none;
+}
+</style>

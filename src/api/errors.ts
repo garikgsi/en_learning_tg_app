@@ -18,6 +18,14 @@ export const getApiErrorMessage = (
     ? Object.values(errors).flat().find(Boolean)
     : undefined;
 
+  if (error.response?.status === 413) {
+    return 'Размер файла превышает допустимые 10 МБ';
+  }
+
+  if (!error.response) {
+    return 'Нет соединения с сервером. Проверьте интернет и повторите попытку';
+  }
+
   return validationMessage
     ?? error.response?.data?.message
     ?? fallback;
