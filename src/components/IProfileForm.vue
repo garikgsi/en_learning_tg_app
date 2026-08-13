@@ -123,7 +123,7 @@
     <input
       ref="cameraInput"
       accept="image/*"
-      capture="environment"
+      capture="user"
       class="avatar-input"
       type="file"
       @change="selectAvatar"
