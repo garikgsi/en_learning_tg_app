@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {ref} from 'vue';
-import {takeFrontCameraPhoto} from '@/api/frontCamera';
+import {takeCameraPhoto} from '@/api/camera';
 
 type Props = {
   src?: string
@@ -19,7 +19,7 @@ const galleryInput = ref<HTMLInputElement | null>(null);
 
 const openCamera = async () => {
   try {
-    const file = await takeFrontCameraPhoto();
+    const file = await takeCameraPhoto();
     if (file) {
       emit('select', file);
       return;

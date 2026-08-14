@@ -12,6 +12,11 @@ project setting.
 - On this workstation, use the Android Studio JBR at
   `C:\Program Files\Android\Android Studio\jbr` for Gradle builds. If
   `JAVA_HOME` is missing, set it to this path for the build command only.
+- Never connect to backend or production servers, including over SSH.
+- Never perform deployments. When the user asks about deployment, provide the
+  required steps and commands for the user to run themselves.
+- Do not inspect or modify the backend repository unless the user explicitly
+  asks for backend work.
 
 ## Responsive UI
 
