@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {ref} from 'vue';
+import {takeFrontCameraPhoto} from '@/api/frontCamera';
+import {useDisplay} from 'vuetify';
 
 type Props = {
   preview?: string
@@ -8,12 +10,28 @@ type Props = {
 
 defineProps<Props>();
 
+const {smAndUp} = useDisplay();
+
 const emit = defineEmits<{
   select: [file: File]
 }>();
 
 const cameraInput = ref<HTMLInputElement | null>(null);
 const galleryInput = ref<HTMLInputElement | null>(null);
+
+const openCamera = async () => {
+  try {
+    const file = await takeFrontCameraPhoto();
+    if (file) {
+      emit('select', file);
+      return;
+    }
+  } catch {
+    return;
+  }
+
+  cameraInput.value?.click();
+};
 
 const selectFile = (event: Event) => {
   const input = event.target as HTMLInputElement;
@@ -45,16 +63,15 @@ const selectFile = (event: Event) => {
   >
 
   <v-toolbar
-    class="avatar-toolbar"
-    color="surface-variant"
-    density="compact"
-    rounded="lg"
+    class="avatar-toolbar mt-2 mb-8"
+    color="transparent"
+    height="70"
   >
     <v-avatar
       v-if="preview || processing"
-      class="ml-2 mr-1"
+      class="ma-4"
       color="primary"
-      size="36"
+      size="60"
     >
       <v-img v-if="preview" :src="preview" cover></v-img>
       <div v-if="processing" class="avatar-toolbar__progress">
@@ -67,27 +84,40 @@ const selectFile = (event: Event) => {
       </div>
     </v-avatar>
 
+    <v-list-item
+      v-else
+      class="avatar-toolbar__prompt"
+      subtitle="Загрузите аватар"
+      title="Аватар"
+    ></v-list-item>
+
     <v-spacer></v-spacer>
 
     <v-btn
+      aria-label="Камера"
       :disabled="processing"
-      prepend-icon="mdi-camera"
-      size="small"
+      :icon="!smAndUp"
+      :prepend-icon="smAndUp ? 'mdi-camera' : undefined"
+      size="x-large"
       type="button"
-      variant="text"
-      @click="cameraInput?.click()"
+      variant="plain"
+      @click="openCamera"
     >
-      Камера
+      <v-icon v-if="!smAndUp" icon="mdi-camera"></v-icon>
+      <span v-if="smAndUp">Камера</span>
     </v-btn>
     <v-btn
+      aria-label="Галерея"
       :disabled="processing"
-      prepend-icon="mdi-image-outline"
-      size="small"
+      :icon="!smAndUp"
+      :prepend-icon="smAndUp ? 'mdi-image-outline' : undefined"
+      size="x-large"
       type="button"
-      variant="text"
+      variant="plain"
       @click="galleryInput?.click()"
     >
-      Галерея
+      <v-icon v-if="!smAndUp" icon="mdi-image-outline"></v-icon>
+      <span v-if="smAndUp">Галерея</span>
     </v-btn>
 
   </v-toolbar>
@@ -100,6 +130,10 @@ const selectFile = (event: Event) => {
 
 .avatar-toolbar {
   width: 100%;
+}
+
+.avatar-toolbar__prompt {
+  min-width: 0;
 }
 
 .avatar-toolbar__progress {

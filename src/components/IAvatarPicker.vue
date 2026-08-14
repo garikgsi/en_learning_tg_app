@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {ref} from 'vue';
+import {takeFrontCameraPhoto} from '@/api/frontCamera';
 
 type Props = {
   src?: string
@@ -15,6 +16,20 @@ const emit = defineEmits<{
 
 const cameraInput = ref<HTMLInputElement | null>(null);
 const galleryInput = ref<HTMLInputElement | null>(null);
+
+const openCamera = async () => {
+  try {
+    const file = await takeFrontCameraPhoto();
+    if (file) {
+      emit('select', file);
+      return;
+    }
+  } catch {
+    return;
+  }
+
+  cameraInput.value?.click();
+};
 
 const selectFile = (event: Event) => {
   const input = event.target as HTMLInputElement;
@@ -92,7 +107,7 @@ const selectFile = (event: Event) => {
           :disabled="processing"
           prepend-icon="mdi-camera"
           title="Камера"
-          @click="cameraInput?.click()"
+          @click="openCamera"
         ></v-list-item>
         <v-list-item
           :disabled="processing"

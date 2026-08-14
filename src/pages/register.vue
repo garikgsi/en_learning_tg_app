@@ -228,7 +228,7 @@ const register = async () => {
           </v-alert>
 
           <div class="d-flex justify-space-between">
-            <v-btn @click="step = 2">
+            <v-btn @click="step = 1" variant="text">
               Назад
             </v-btn>
 
@@ -253,7 +253,7 @@ const register = async () => {
           </div>
 
           <div class="d-flex justify-space-between">
-            <v-btn @click="step = 2">
+            <v-btn variant="text" @click="step = 2">
               Назад
             </v-btn>
 
@@ -262,7 +262,7 @@ const register = async () => {
               color="primary"
               @click="register"
             >
-              {{ registrationData.avatar ? 'Закончить регистрацию' : 'Пропустить' }}
+              Зарегистрироваться
             </v-btn>
           </div>
         </template>
@@ -270,7 +270,7 @@ const register = async () => {
     </v-card-text>
 
     <v-card-actions>
-      <v-btn prepend-icon="mdi-login" to="/login">
+      <v-btn prepend-icon="mdi-login" variant="text" to="/login">
         Уже есть аккаунт
       </v-btn>
     </v-card-actions>
