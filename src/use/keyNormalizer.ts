@@ -45,9 +45,8 @@ export const useKeyNormalizer = () => {
     expectedValue: string,
     language: KeyNormalizerLanguage,
   ): string => {
-    const lettersOnly = value.replace(/[^a-zа-яё -]/giu, '');
     const keyboardNormalized = normalizeKeyboardInput(
-      lettersOnly,
+      value,
       expectedValue,
     );
 

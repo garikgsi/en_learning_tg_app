@@ -176,6 +176,37 @@ describe('IWord keyboard layout normalization', () => {
     wrapper.unmount();
   });
 
+  it('converts a semicolon key to the Russian letter ж', async () => {
+    const answer = ref('');
+    const TestHost = defineComponent({
+      setup() {
+        return () => h(IWord, {
+          modelValue: answer.value,
+          word: 'heat',
+          translate: 'жар',
+          lang: 'ru',
+          'onUpdate:modelValue': (value: string) => {
+            answer.value = value;
+          },
+        });
+      },
+    });
+    const wrapper = mountWithVuetify(TestHost);
+
+    await flushPromises();
+    const firstField = wrapper.findAll<HTMLInputElement>(
+      '.v-otp-input__field',
+    )[0];
+
+    await firstField.trigger('focus');
+    await firstField.setValue(';');
+    await flushPromises();
+
+    expect(answer.value).toBe('Ж');
+    expect(firstField.element.value).toBe('Ж');
+    wrapper.unmount();
+  });
+
   it('keeps only the first wrong letter from fast input and vibrates', async () => {
     const vibrate = vi.fn();
     Object.defineProperty(navigator, 'vibrate', {
@@ -205,7 +236,7 @@ describe('IWord keyboard layout normalization', () => {
 
     expect(answer.value).toBe('CX');
     expect(vibrate).toHaveBeenCalledOnce();
-    expect(vibrate).toHaveBeenCalledWith(50);
+    expect(vibrate).toHaveBeenCalledWith(200);
     wrapper.unmount();
   });
 });

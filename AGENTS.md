@@ -9,6 +9,14 @@ project setting.
 - Do not build or rebuild the Android APK during routine development.
 - Build the Android APK only after the user explicitly says the project is
   ready for release or directly requests an APK build.
+- When the user asks to build an APK or publish a production release, commit
+  all current project changes on `master`, run the relevant checks, build the
+  APK, push `master` and the release tag, and publish the APK in a GitHub
+  Release with release notes.
+- Keep release notes user-facing and concise. When a release only changes UI,
+  colors, or internal algorithms, avoid technical implementation details and
+  use a short general description such as improved interface, minor fixes,
+  and increased stability.
 - On this workstation, use the Android Studio JBR at
   `C:\Program Files\Android\Android Studio\jbr` for Gradle builds. If
   `JAVA_HOME` is missing, set it to this path for the build command only.

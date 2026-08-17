@@ -34,6 +34,7 @@ const {normalizeAnswer} = useKeyNormalizer();
 const wordCompleteSuccessfully = ref(false);
 
 const pauseOnWordsChangeSec = 1;
+const skippedWordDisplayMs = 5000;
 
 const intervalTimer = ref();
 
@@ -54,6 +55,8 @@ const isChangingWord = ref(false);
 const isShowingSkippedWord = ref(false);
 const wordInstanceKey = ref(0);
 const errorsOnCurrentAttempt = ref(0);
+const hintUsageByWord = ref<Record<number, number>>({});
+const visitedWordIdsInCycle = ref<Set<number>>(new Set());
 
 const otp = ref<InstanceType<typeof IWord> | null>(null);
 
@@ -229,7 +232,16 @@ const remainingWordsCount = computed(() => {
   return remainingWords.value.length;
 })
 
-const isTimeout = computed(() => wordTimer.value >= secOnWord.value * 1000)
+const timerDurationMs = computed(() => {
+  return isShowingSkippedWord.value
+    ? skippedWordDisplayMs
+    : secOnWord.value * 1000;
+});
+
+const isTimeout = computed(() => {
+  return !isShowingSkippedWord.value
+    && wordTimer.value >= timerDurationMs.value;
+});
 
 const currentWord = computed(() => {
   if (currentWordId.value !== null) {
@@ -250,7 +262,7 @@ const taskTitle = computed(() => {
 })
 
 const wordProgressColor = computed(() => {
-  const progress = wordTimer.value / (secOnWord.value * 1000);
+  const progress = wordTimer.value / timerDurationMs.value;
 
   if (progress > 0.9) {
     return 'error';
@@ -310,9 +322,21 @@ const startNewWord = async (exclude?: number) => {
   errorsOnCurrentAttempt.value = 0;
 
   if (remainingWords.value.length > 0) {
+    const isCycleComplete = remainingWords.value.every(word => {
+      return visitedWordIdsInCycle.value.has(word.id);
+    });
+
+    if (isCycleComplete) {
+      hintUsageByWord.value = {};
+      visitedWordIdsInCycle.value = new Set();
+    }
 
     currentWordIndex.value = getNextWordIndex(exclude);
     currentWordId.value = remainingWords.value[currentWordIndex.value]?.id ?? null;
+
+    if (currentWordId.value !== null) {
+      visitedWordIdsInCycle.value.add(currentWordId.value);
+    }
 
     wordCompleteSuccessfully.value = false;
 
@@ -343,6 +367,11 @@ const waitForLanguageSelection = (): void => {
 }
 
 const progressValue = computed(() => wordTimer.value);
+const timerText = computed(() => {
+  return isShowingSkippedWord.value
+    ? 'Запомните перевод слова'
+    : 'Напишите перевод слова';
+});
 
 
 const skipWord = async () => {
@@ -352,12 +381,14 @@ const skipWord = async () => {
 
   isChangingWord.value = true;
   isShowingSkippedWord.value = true;
-  timerPaused.value = true;
+  timerPaused.value = false;
+  wordTimer.value = 0;
 
   const skippedWordIndex = currentWordIndex.value;
   const res = getOrCreateWordResult(currentWord.value.id);
 
   res.skipTimes += 1;
+  hintUsageByWord.value[currentWord.value.id] = 0;
 
   answer.value = normalizeAnswer(
     currentWord.value.translate,
@@ -366,7 +397,7 @@ const skipWord = async () => {
   );
 
   try {
-    await pause(5000);
+    await pause(skippedWordDisplayMs);
     isShowingSkippedWord.value = false;
     timerPaused.value = isUserPaused.value;
     await startNewWord(skippedWordIndex);
@@ -379,6 +410,10 @@ const skipWord = async () => {
 }
 
 const isSkipAvailable = computed(() => {
+  if (isChangingWord.value || isShowingSkippedWord.value || isUserPaused.value) {
+    return false;
+  }
+
   if (isWordCompleted.value) {
     return false;
   }
@@ -441,6 +476,8 @@ const getHint = async () => {
 
     const res = getOrCreateWordResult(currentWord.value.id);
     res.hintTimes += 1;
+    hintUsageByWord.value[currentWord.value.id]
+      = (hintUsageByWord.value[currentWord.value.id] ?? 0) + 1;
 
     if (wrongAnswerPos.value === null || wrongAnswerPos.value === undefined) {
       answer.value = answer.value
@@ -461,25 +498,30 @@ const currentWordResult = computed(() => {
 })
 
 const isHintsAvailable = computed(() => {
-  if (!currentWord.value) {
+  if (
+    !currentWord.value
+    || isShowingSkippedWord.value
+    || isChangingWord.value
+  ) {
     return false;
-  }
-
-  if (currentWordResult.value) {
-    return (currentWordResult.value?.hintTimes || 0) < MAX_HINTS_ON_WORD;
   }
 
   if (wordCompleteSuccessfully.value) {
     return false;
   }
 
-  return true;
+  return (hintUsageByWord.value[currentWord.value.id] ?? 0)
+    < MAX_HINTS_ON_WORD;
 
 })
 
 const isPauseAvailable = computed(() => {
 
-  if (wordCompleteSuccessfully.value) {
+  if (
+    wordCompleteSuccessfully.value
+    || isShowingSkippedWord.value
+    || isChangingWord.value
+  ) {
     return false;
   }
 
@@ -550,6 +592,8 @@ const selectLanguage = async (selectedLanguage: TranslationLanguage) => {
   currentLanguage.value = selectedLanguage;
   currentWordIndex.value = -1;
   currentWordId.value = null;
+  hintUsageByWord.value = {};
+  visitedWordIdsInCycle.value = new Set();
 
   await nextTick();
   await startNewWord();
@@ -679,15 +723,20 @@ const areAllTasksCompleted = computed(() => {
 
                   </div>
                   <v-sheet class="ma-1 flex-grow-1 flex-shrink-0">
-                    <v-progress-linear v-if="!showCompleteBox"
-                                       :buffer-value="progressValue"
-                                       :color="wordProgressColor"
-                                       :max="secOnWord*1000"
-                                       :height="48"
-                                       rounded="sm"
+                    <div
+                      v-if="!showCompleteBox"
+                      :aria-label="timerText"
+                      class="word-timer"
                     >
-                      напишите перевод слова
-                    </v-progress-linear>
+                      <v-progress-linear
+                        :buffer-value="progressValue"
+                        :color="wordProgressColor"
+                        :max="timerDurationMs"
+                        :height="48"
+                        rounded="sm"
+                      ></v-progress-linear>
+                      <span class="word-timer__label">{{ timerText }}</span>
+                    </div>
                   </v-sheet>
                   <div class="ma-1 flex-grow-0 flex-shrink-1">
                     <v-btn icon="mdi-help"
@@ -837,6 +886,27 @@ const areAllTasksCompleted = computed(() => {
   grid-column: 3;
   justify-self: end;
   flex-shrink: 0;
+}
+
+.word-timer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+}
+
+.word-timer :deep(.v-progress-linear) {
+  position: absolute;
+  inset: 0;
+}
+
+.word-timer__label {
+  position: relative;
+  z-index: 1;
+  padding: 0 8px;
+  text-align: center;
+  pointer-events: none;
 }
 
 </style>

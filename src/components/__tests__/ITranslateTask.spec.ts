@@ -18,13 +18,13 @@ const IWordStub = defineComponent({
     readonly: Boolean,
   },
   emits: ['finish', 'mistake', 'update:model-value'],
-  setup(_props, {expose}) {
+  setup(_props, {expose, slots}) {
     expose({
       focus: vi.fn(),
       reset: vi.fn(),
     });
 
-    return () => h('div', {class: 'i-word-stub'});
+    return () => h('div', {class: 'i-word-stub'}, slots.header?.());
   },
 });
 
@@ -184,6 +184,20 @@ describe('ITranslateTask word transitions', () => {
       disabled: false,
       readonly: true,
     });
+    const skippedProgress = wrapper.get('.word-timer')
+      .findComponent({name: 'VProgressLinear'});
+    const hintButtons = wrapper
+      .findAllComponents({name: 'VBtn'})
+      .filter(button => button.props('icon') === 'mdi-help');
+    const pauseButtons = wrapper
+      .findAllComponents({name: 'VBtn'})
+      .filter(button => button.text().includes('Пауза')
+        || button.props('title') === 'Пауза');
+
+    expect(wrapper.get('.word-timer__label').text()).toBe('Запомните перевод слова');
+    expect(skippedProgress.props('max')).toBe(5000);
+    expect(hintButtons.every(button => button.props('disabled'))).toBe(true);
+    expect(pauseButtons.every(button => button.props('disabled'))).toBe(true);
 
     skippedInput.vm.$emit('finish', {isOk: true, answer: 'cat'});
     await nextTick();
@@ -191,6 +205,8 @@ describe('ITranslateTask word transitions', () => {
 
     await vi.advanceTimersByTimeAsync(4900);
     expect(wrapper.findComponent(IWordStub).props('word')).toBe('кот');
+    expect(wrapper.get('.word-timer').findComponent({name: 'VProgressLinear'})
+      .props('bufferValue')).toBe(4900);
 
     await vi.advanceTimersByTimeAsync(100);
     await flushPromises();
@@ -201,7 +217,11 @@ describe('ITranslateTask word transitions', () => {
       disabled: false,
       readonly: false,
     });
-    expect(wrapper.findComponent({name: 'VProgressLinear'}).props('bufferValue')).toBe(0);
+    expect(wrapper.get('.word-timer').findComponent({name: 'VProgressLinear'})
+      .props('bufferValue')).toBe(0);
+    expect(wrapper.get('.word-timer__label').text()).toBe('Напишите перевод слова');
+    expect(wrapper.get('.word-timer').findComponent({name: 'VProgressLinear'})
+      .props('max')).toBe(100000);
 
     await vi.advanceTimersByTimeAsync(99900);
     expect(wrapper.findComponent(IWordStub).props('word')).toBe('собака');
@@ -209,6 +229,44 @@ describe('ITranslateTask word transitions', () => {
     await vi.advanceTimersByTimeAsync(100);
     await flushPromises();
     expect(wrapper.findComponent(IWordStub).props('word')).toBe('кот');
+    wrapper.unmount();
+  });
+
+  it('resets hint limits after every complete pass through the word list', async () => {
+    useTranslateStore().wordList = [
+      {...word},
+      {
+        ...word,
+        id: 92,
+        exerciseItemId: 92,
+        wordId: 12,
+        word: 'собака',
+        translate: 'dog',
+        checkWord: 'dog',
+      },
+    ];
+    const wrapper = await mountTask();
+    const getHeaderHintButton = () => wrapper
+      .findAllComponents({name: 'VBtn'})
+      .find(button => button.props('icon') === 'mdi-help');
+
+    await getHeaderHintButton()!.trigger('click');
+    await getHeaderHintButton()!.trigger('click');
+    expect(getHeaderHintButton()!.props('disabled')).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(100000);
+    await flushPromises();
+    expect(wrapper.findComponent(IWordStub).props('word')).toBe('собака');
+
+    await getHeaderHintButton()!.trigger('click');
+    await getHeaderHintButton()!.trigger('click');
+    expect(getHeaderHintButton()!.props('disabled')).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(100000);
+    await flushPromises();
+
+    expect(wrapper.findComponent(IWordStub).props('word')).toBe('кот');
+    expect(getHeaderHintButton()!.props('disabled')).toBe(false);
     wrapper.unmount();
   });
 });

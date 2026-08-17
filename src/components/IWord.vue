@@ -29,7 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
   easyMode: true,
   disabled: false,
   readonly: false,
-  color: 'primary',
+  color: 'answer',
   otherWords: () => [],
 })
 
@@ -152,7 +152,7 @@ const answer = computed({
     emits('update:model-value', sanitizedAnswer)
 
     if (mistakesCount > 0) {
-      navigator.vibrate?.(50)
+      navigator.vibrate?.(200)
       emits('mistake', {
         count: mistakesCount,
         answer: sanitizedAnswer,
@@ -362,9 +362,33 @@ defineExpose({
 }
 
 .word-otp {
-  flex: 0 1 calc(var(--word-length) * 48px);
-  min-width: 0;
+  --letter-gap: 8px;
+  --letter-width: 35px;
+
+  flex: 0 0 min(
+    100%,
+    calc(
+      var(--word-length) * var(--letter-width)
+      + (var(--word-length) - 1) * var(--letter-gap)
+      + 16px
+    )
+  );
   max-width: 100%;
+}
+
+.word-otp :deep(.v-otp-input__content) {
+  flex-wrap: wrap;
+  gap: var(--letter-gap);
+  width: 100%;
+  height: auto;
+  min-height: 64px;
+  max-width: none;
+}
+
+.word-otp :deep(.v-field) {
+  flex: 0 0 var(--letter-width);
+  width: var(--letter-width);
+  height: 48px;
 }
 
 .space-icon {
