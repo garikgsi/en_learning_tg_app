@@ -4,6 +4,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createVuetify} from 'vuetify';
 import IPinCodeInput from '@/components/IPinCodeInput.vue';
 import IWord from '@/components/IWord.vue';
+import {getWrappedLineEndIndexes} from '@/libs/wrappedLines';
 
 const hapticsMocks = vi.hoisted(() => ({
   vibrate: vi.fn(() => Promise.resolve()),
@@ -45,6 +46,13 @@ const expectAutocompleteDisabled = (element: Element): void => {
     expect(field.getAttribute('spellcheck')).toBe('false');
   });
 };
+
+describe('wrapped word line markers', () => {
+  it('marks every wrapped line except the last one', () => {
+    expect(getWrappedLineEndIndexes([0, 0, 56, 56, 112])).toEqual([1, 3]);
+    expect(getWrappedLineEndIndexes([0, 0, 0])).toEqual([]);
+  });
+});
 
 describe('OTP autocomplete', () => {
   it('stays disabled in the word input after a rerender', async () => {

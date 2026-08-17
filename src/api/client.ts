@@ -40,8 +40,6 @@ let refreshRequest: Promise<string> | null = null;
 apiClient.interceptors.request.use(config => {
 
   setLoading(true);
-  console.log('apiClient.interceptors.request', isLoading.value);
-
 
   const accessToken = tokenStorage.getAccessToken();
 
@@ -54,7 +52,7 @@ apiClient.interceptors.request.use(config => {
 
 apiClient.interceptors.response.use(
   (response) => {
-    console.log('apiClient.interceptors.response', isLoading.value);
+
     setLoading(false);
 
     return response;

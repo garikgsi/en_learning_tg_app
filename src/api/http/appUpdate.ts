@@ -6,9 +6,12 @@ type LatestAppReleaseResponse = {
 }
 
 export const httpAppUpdateDriver = {
-  async getLatest(): Promise<AppRelease | null> {
+  async getLatest(forceRefresh = false): Promise<AppRelease | null> {
     const response = await http.get<LatestAppReleaseResponse>(
       '/app-updates/latest',
+      forceRefresh
+        ? {params: {refresh: 1}}
+        : undefined,
     );
 
     return response.data;

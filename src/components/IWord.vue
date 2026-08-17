@@ -1,8 +1,9 @@
 <script setup lang="ts">
 
-import {computed, nextTick, ref} from 'vue';
+import {computed, nextTick, onBeforeUnmount, onMounted, ref} from 'vue';
 import {Haptics} from '@capacitor/haptics';
 import {vDisableOtpAutocomplete} from '@/directives/disableOtpAutocomplete';
+import {getWrappedLineEndIndexes} from '@/libs/wrappedLines';
 import {useKeyNormalizer} from '@/use/keyNormalizer';
 import type {WordMistake, WordResult} from '@/types/translation';
 
@@ -41,6 +42,7 @@ const {
 
 const emits = defineEmits<Emits>()
 const root = ref<HTMLElement | null>(null);
+let resizeObserver: ResizeObserver | null = null;
 const mistakeVibrationDurationMs = 300;
 
 const vibrateOnMistake = (): void => {
@@ -50,6 +52,38 @@ const vibrateOnMistake = (): void => {
     navigator.vibrate?.(mistakeVibrationDurationMs);
   });
 };
+
+const updateWrappedLineHyphens = (): void => {
+  const wordInputs = root.value?.querySelectorAll<HTMLElement>('.word-otp');
+
+  wordInputs?.forEach(wordInput => {
+    const fields = Array.from(
+      wordInput.querySelectorAll<HTMLElement>('.v-field'),
+    );
+
+    fields.forEach(field => field.classList.remove('word-line-end'));
+    getWrappedLineEndIndexes(fields.map(field => field.offsetTop))
+      .forEach(index => fields[index]?.classList.add('word-line-end'));
+  });
+};
+
+const scheduleWrappedLineHyphensUpdate = (): void => {
+  void nextTick(() => requestAnimationFrame(updateWrappedLineHyphens));
+};
+
+onMounted(() => {
+  if (root.value) {
+    resizeObserver = new ResizeObserver(scheduleWrappedLineHyphensUpdate);
+    resizeObserver.observe(root.value);
+  }
+
+  scheduleWrappedLineHyphensUpdate();
+});
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+});
 
 const answerLanguage = computed<'en' | 'ru'>(() => {
   return props.lang
@@ -396,9 +430,23 @@ defineExpose({
 }
 
 .word-otp :deep(.v-field) {
+  position: relative;
   flex: 0 0 var(--letter-width);
   width: var(--letter-width);
   height: 48px;
+}
+
+.word-otp :deep(.v-field.word-line-end::after) {
+  position: absolute;
+  top: 50%;
+  right: calc(var(--letter-gap) * -0.5);
+  z-index: 2;
+  color: currentColor;
+  font-size: 24px;
+  line-height: 1;
+  content: '-';
+  transform: translate(50%, -55%);
+  pointer-events: none;
 }
 
 .space-icon {
