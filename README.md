@@ -139,6 +139,26 @@ npm run android:sync
 Для этой части разработки дополнительно потребуются Android Studio, Android SDK
 и настроенный JDK. APK собирайте только в рамках подготовки релиза.
 
+## Манифест обновления Android
+
+После сборки и копирования версионного APK выполните:
+
+```bash
+npm run release:manifest
+```
+
+Команда читает `versionCode` и `versionName` из Android-конфигурации, вычисляет
+размер и SHA-256 APK и создаёт `update-manifest.json`. APK и манифест необходимо
+загрузить как assets одного GitHub Release. Backend автоматически находит
+последний release с валидным манифестом, поэтому изменение production `.env`
+для каждой версии не требуется.
+
+Для обязательного обновления используйте:
+
+```bash
+npm run release:manifest -- --mandatory
+```
+
 ## Обновление IndexedDB
 
 Миграции схемы находятся в `src/api/indexedDb/migrations`, а порядок их

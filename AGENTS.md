@@ -12,7 +12,9 @@ project setting.
 - When the user asks to build an APK or publish a production release, commit
   all current project changes on `master`, run the relevant checks, build the
   APK, push `master` and the release tag, and publish the APK in a GitHub
-  Release with release notes.
+  Release with release notes. Generate `update-manifest.json` with
+  `npm run release:manifest` after copying the versioned APK, and upload both
+  the APK and manifest as assets of the same GitHub Release.
 - Keep release notes user-facing and concise. When a release only changes UI,
   colors, or internal algorithms, avoid technical implementation details and
   use a short general description such as improved interface, minor fixes,

@@ -12,7 +12,8 @@
     "test": "vitest run",
     "lint": "eslint . --fix",
     "android:sync": "npm run build-only && cap sync android",
-    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug"
+    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
+    "release:manifest": "node scripts/create-update-manifest.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.0",
