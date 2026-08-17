@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import useMessages from "@/use/messages";
   import {computed, onBeforeUnmount, ref, watch} from "vue";
+  import type {Message} from '@/use/types/messages';
   const {hasMessage, last:message, readMessage} = useMessages();
 
 
@@ -12,10 +13,32 @@
 
   const timerBuff = computed(() => timeout.value / 100);
   const closeMsg = (id: number) => readMessage(id);
+  const actionMessageId = ref<number | null>(null);
+
+  const runAction = async (targetMessage: Message): Promise<void> => {
+    if (!targetMessage.action || actionMessageId.value !== null) {
+      return;
+    }
+
+    actionMessageId.value = targetMessage.id;
+    const actionRevision = targetMessage.revision;
+
+    try {
+      await targetMessage.action.handler();
+    } finally {
+      if (targetMessage.revision === actionRevision) {
+        closeMsg(targetMessage.id);
+      }
+
+      actionMessageId.value = null;
+    }
+  };
 
   const timerInterval = ref();
 
-  watch(timeout, (value) => {
+  watch(
+    () => [message.value?.id, timeout.value] as const,
+    ([, value]) => {
 
     clearInterval(timerInterval.value);
 
@@ -45,7 +68,8 @@
       }, timerBuff.value
     );
 
-  });
+    },
+  );
 
   onBeforeUnmount(() => {
     clearInterval(timerInterval.value);
@@ -67,6 +91,15 @@
     >
 
       {{ message.text }}
+
+      <template #append>
+        <slot
+          name="append"
+          :is-action-loading="actionMessageId === message.id"
+          :message="message"
+          :run-action="runAction"
+        ></slot>
+      </template>
 
     </v-alert>
 

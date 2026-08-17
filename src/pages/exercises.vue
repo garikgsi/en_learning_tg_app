@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import {onMounted} from 'vue';
+import {onMounted, watch} from 'vue';
 import {storeToRefs} from 'pinia';
 import {useRouter} from 'vue-router';
 import ITranslateTask from '@/components/ITranslateTask.vue';
-import type {Task} from '@/components/ITranslateTask.vue';
+import type {TranslationTask} from '@/types/translation';
 import {useTranslateStore} from '@/stores/translateStore';
+import {useNetwork} from '@/use/network';
 
 type Props = {
   exerciseId?: string
@@ -12,32 +13,47 @@ type Props = {
 
 const props = defineProps<Props>();
 const translateStore = useTranslateStore();
-const {enList} = storeToRefs(translateStore);
+const {wordList} = storeToRefs(translateStore);
+const {isConnected} = useNetwork();
 const router = useRouter();
 
 translateStore.clearWords();
 
 const redirectToStatisticsIfCompleted = async (): Promise<void> => {
-  if (enList.value.length === 0) {
+  if (wordList.value.length === 0) {
     await router.replace('/statistics');
   }
 }
 
-onMounted(async () => {
+const loadExercise = async (): Promise<void> => {
   const exerciseId = props.exerciseId
     ? Number(props.exerciseId)
     : Number.NaN;
 
+  let wasLoaded: boolean;
+
   if (Number.isInteger(exerciseId) && exerciseId > 0) {
-    await translateStore.loadExercise(exerciseId);
+    wasLoaded = await translateStore.loadExercise(exerciseId);
   } else {
-    await translateStore.loadWords();
+    wasLoaded = await translateStore.loadWords();
   }
 
-  await redirectToStatisticsIfCompleted();
+  if (wasLoaded) {
+    await redirectToStatisticsIfCompleted();
+  }
+};
+
+onMounted(async () => {
+  await loadExercise();
 });
 
-const completeExercise = async (tasks: Task[]): Promise<void> => {
+watch(isConnected, async (connected, wasConnected) => {
+  if (connected && wasConnected === false) {
+    await loadExercise();
+  }
+});
+
+const completeExercise = async (tasks: TranslationTask[]): Promise<void> => {
   await translateStore.taskCompleted(tasks);
   await redirectToStatisticsIfCompleted();
 }
@@ -46,7 +62,7 @@ const completeExercise = async (tasks: Task[]): Promise<void> => {
 <template>
 
   <ITranslateTask
-    v-if="enList.length > 0"
+    v-if="wordList.length > 0"
     @finish="completeExercise"
   />
 

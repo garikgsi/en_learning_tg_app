@@ -1,6 +1,6 @@
 import {flushPromises, mount} from '@vue/test-utils';
 import {defineComponent, h, nextTick, ref} from 'vue';
-import {describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createVuetify} from 'vuetify';
 import IPinCodeInput from '@/components/IPinCodeInput.vue';
 import IWord from '@/components/IWord.vue';
@@ -90,6 +90,10 @@ describe('OTP autocomplete', () => {
 });
 
 describe('IWord keyboard layout normalization', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'vibrate');
+  });
+
   it('converts Russian-layout keystrokes to the expected English letters', async () => {
     const TestHost = defineComponent({
       setup() {
@@ -169,6 +173,39 @@ describe('IWord keyboard layout normalization', () => {
     }
 
     expect(wrapper.find('.normalized-answer').text()).toBe('КОКА-КОЛА');
+    wrapper.unmount();
+  });
+
+  it('keeps only the first wrong letter from fast input and vibrates', async () => {
+    const vibrate = vi.fn();
+    Object.defineProperty(navigator, 'vibrate', {
+      configurable: true,
+      value: vibrate,
+    });
+    const answer = ref('');
+    const TestHost = defineComponent({
+      setup() {
+        return () => h(IWord, {
+          modelValue: answer.value,
+          word: 'кот',
+          translate: 'cat',
+          lang: 'en',
+          'onUpdate:modelValue': (value: string) => {
+            answer.value = value;
+          },
+        });
+      },
+    });
+    const wrapper = mountWithVuetify(TestHost);
+
+    await flushPromises();
+    wrapper.findComponent({name: 'VOtpInput'}).vm
+      .$emit('update:modelValue', 'cxy');
+    await flushPromises();
+
+    expect(answer.value).toBe('CX');
+    expect(vibrate).toHaveBeenCalledOnce();
+    expect(vibrate).toHaveBeenCalledWith(50);
     wrapper.unmount();
   });
 });

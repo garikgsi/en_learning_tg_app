@@ -4,7 +4,8 @@ import {defineComponent, h, nextTick} from 'vue';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {createVuetify} from 'vuetify';
 import ITranslateTask from '@/components/ITranslateTask.vue';
-import {useTranslateStore, type Word} from '@/stores/translateStore';
+import {useTranslateStore} from '@/stores/translateStore';
+import type {TranslationWord} from '@/types/translation';
 
 const IWordStub = defineComponent({
   name: 'IWord',
@@ -27,7 +28,7 @@ const IWordStub = defineComponent({
   },
 });
 
-const word: Word = {
+const word: TranslationWord = {
   id: 91,
   exerciseId: 7,
   exerciseItemId: 91,
@@ -98,7 +99,7 @@ describe('ITranslateTask word transitions', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     setActivePinia(createPinia());
-    useTranslateStore().enList = [{...word}];
+    useTranslateStore().wordList = [{...word}];
   });
 
   afterEach(() => {
@@ -155,7 +156,7 @@ describe('ITranslateTask word transitions', () => {
   });
 
   it('shows a skipped answer for five seconds without completing it or advancing the next timer', async () => {
-    useTranslateStore().enList = [
+    useTranslateStore().wordList = [
       {...word},
       {
         ...word,

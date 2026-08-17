@@ -1,70 +1,27 @@
 import {ref} from 'vue';
 import {defineStore} from 'pinia';
-import {apiClient} from '@/api/client';
 import {getApiErrorMessage} from '@/api/errors';
 import useMessages from '@/use/messages';
+import {useStatisticsRepository} from '@/use/statisticsRepository';
+import {useExerciseRepository} from '@/use/exerciseRepository';
+import {useUserStore} from '@/stores/userStore';
+import {useDictionaryRepository} from '@/use/dictionaryRepository';
+import {messageKeys} from '@/use/messageKeys';
+import type {
+  AttentionWord,
+  ExerciseStatisticsChartPeriod,
+  ExerciseStatisticsCharts,
+  ExerciseStatisticsItem,
+  UserExerciseStatistics,
+} from '@/api/types/statistics';
 
-export type ExerciseStatisticsItem = {
-  exerciseId: number
-  completionId: number | null
-  status: 'completed' | 'uncompleted'
-  date: string
-  type: {
-    id: number
-    name: string
-    title: string
-  }
-  wordsCount: number
-  wordsWithErrors: number
-  successPercentage: number
-}
-
-export type UserExerciseStatistics = {
-  userId: string
-  userName: string
-  learnedWords: number
-  wordsToRepeat: number
-  completedExercises: number
-}
-
-export type ExerciseStatisticsChartPeriod = {
-  dateFrom: string
-  dateTo: string
-  users: UserExerciseStatistics[]
-}
-
-export type ExerciseStatisticsCharts = {
-  week: ExerciseStatisticsChartPeriod
-  month: ExerciseStatisticsChartPeriod
-}
-
-export type AttentionWord = {
-  wordId: number
-  russian: string
-  english: string
-  errorPercentage: number
-  isSelectedForRepetition: boolean
-}
-
-export type StatisticsAchievement = {
+type StatisticsAchievement = {
   place: 1 | 2 | 3
   period: 'week' | 'month'
   criterion: 'learnedWords' | 'wordsToRepeat' | 'completedExercises'
 }
 
-type ExerciseStatisticsResponse = {
-  items: ExerciseStatisticsItem[]
-  charts: ExerciseStatisticsCharts
-  attentionWords: AttentionWord[]
-}
-
-type CreateUserExerciseResponse = {
-  item: {
-    id: number
-  }
-}
-
-const {addError} = useMessages();
+const {addError, addWarning, readMessageByKey} = useMessages();
 
 const achievementCriteria: StatisticsAchievement['criterion'][] = [
   'learnedWords',
@@ -147,26 +104,81 @@ export const useStatisticsStore = defineStore('statistics', () => {
   const attentionWords = ref<AttentionWord[]>([]);
   const addingAttentionWordIds = ref<number[]>([]);
   const isCreating = ref(false);
+  const statisticsRepository = useStatisticsRepository();
+  const exerciseRepository = useExerciseRepository();
+  const dictionaryRepository = useDictionaryRepository();
+  const userStore = useUserStore();
 
 
   const loadMonth = async (date: Date): Promise<void> => {
 
     try {
-      const {data} = await apiClient.get<ExerciseStatisticsResponse>(
-        '/api/v1/exercises/statistics',
-        {
-          params: monthPeriod(date),
-        },
+      const userId = userStore.user?.id;
+
+      if (!userId) {
+        throw new Error('Пользователь не авторизован');
+      }
+
+      const period = monthPeriod(date);
+      const periodKey = `${date.getFullYear()}-${String(
+        date.getMonth() + 1,
+      ).padStart(2, '0')}`;
+      const result = await statisticsRepository.getForPeriod(
+        userId,
+        periodKey,
+        period.dateFrom,
+        period.dateTo,
       );
 
-      items.value = data.items;
-      charts.value = data.charts;
-      attentionWords.value = data.attentionWords ?? [];
+      items.value = result.data.items;
+      charts.value = result.data.charts;
+      attentionWords.value = result.data.attentionWords ?? [];
+      if (result.source === 'indexedDb') {
+        const formatted = new Intl.DateTimeFormat('ru-RU', {
+          day: 'numeric',
+          month: 'long',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(new Date(result.fetchedAt));
+
+        const warning = result.fallbackReason === 'server'
+          ? `Ошибка сервера. Показаны сохранённые данные на ${formatted}.`
+          : `Нет подключения к интернету. Показаны данные на ${formatted}.`;
+
+        addWarning(
+          warning,
+          0,
+          {
+            key: messageKeys.cachedStatistics,
+            action: {
+              title: 'Обновить',
+              handler: async () => {
+                await loadMonth(date);
+              },
+            },
+          },
+        );
+      } else {
+        readMessageByKey(messageKeys.cachedStatistics);
+        readMessageByKey(messageKeys.statisticsLoadError);
+      }
     } catch (error) {
       items.value = [];
       charts.value = null;
       attentionWords.value = [];
-      addError(getApiErrorMessage( error, 'Не удалось загрузить статистику упражнений'));
+      addError(
+        getApiErrorMessage(error, 'Не удалось загрузить статистику упражнений'),
+        0,
+        {
+          key: messageKeys.statisticsLoadError,
+          action: {
+            title: 'Обновить',
+            handler: async () => {
+              await loadMonth(date);
+            },
+          },
+        },
+      );
     }
   }
 
@@ -174,11 +186,7 @@ export const useStatisticsStore = defineStore('statistics', () => {
     isCreating.value = true;
 
     try {
-      const {data} = await apiClient.post<CreateUserExerciseResponse>(
-        '/api/v1/exercises',
-      );
-
-      return data.item.id;
+      return await exerciseRepository.createUserExercise();
     } catch (error) {
       addError(getApiErrorMessage(error, 'Не удалось создать пользовательское задание'));
       throw error;
@@ -207,9 +215,13 @@ export const useStatisticsStore = defineStore('statistics', () => {
     addingAttentionWordIds.value.push(wordId);
 
     try {
-      await apiClient.post('/api/v1/repetition-list/words', {
-        word_id: wordId,
-      });
+      const userId = userStore.user?.id;
+
+      if (!userId) {
+        throw new Error('Пользователь не авторизован');
+      }
+
+      await dictionaryRepository.addWord(userId, wordId);
 
       word.isSelectedForRepetition = true;
     } catch (error) {

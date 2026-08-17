@@ -1,30 +1,42 @@
 import {ref, computed, type Ref} from "vue";
-
-export type MessageType = 'success'|'error'|'info';
-
-export type Message = {
-  id: number,
-  text: string,
-  type: MessageType,
-  isActive: Boolean,
-  timeout: number,
-}
+import type {
+  Message,
+  MessageOptions,
+  MessageType,
+} from '@/use/types/messages';
 
 const messages:Ref<Message[]> = ref([]);
+let nextMessageId = 1;
 
 export default function useMessages() {
 
   const addMessage  = (text: string,
                        type: MessageType,
-                       timeout: number):Message => {
-    const id= Date.now();
+                       timeout: number,
+                       options: MessageOptions = {}):Message => {
+    const existing = options.key
+      ? messages.value.find(message => message.key === options.key)
+      : undefined;
+
+    if (existing) {
+      existing.revision++;
+      existing.text = text;
+      existing.type = type;
+      existing.timeout = timeout;
+      existing.action = options.action;
+      existing.isActive = true;
+
+      return existing;
+    }
 
     const newMessage = {
-      id,
+      id: nextMessageId++,
+      revision: 0,
       text,
       type,
       isActive: true,
-      timeout
+      timeout,
+      ...options,
     }
 
     messages.value.push(newMessage);
@@ -33,8 +45,12 @@ export default function useMessages() {
 
   }
 
-  const addError = (text:string, timeout: number = 0):Message => {
-    return addMessage(text, 'error', timeout);
+  const addError = (
+    text: string,
+    timeout = 0,
+    options: MessageOptions = {},
+  ): Message => {
+    return addMessage(text, 'error', timeout, options);
   }
 
   const add = (text:string, timeout: number = 5):Message => {
@@ -43,6 +59,14 @@ export default function useMessages() {
 
   const addInfo = (text:string, timeout: number = 5):Message => {
     return addMessage(text, 'info', timeout);
+  }
+
+  const addWarning = (
+    text: string,
+    timeout = 0,
+    options: MessageOptions = {},
+  ): Message => {
+    return addMessage(text, 'warning', timeout, options);
   }
 
   const readMessage = (id: number) => {
@@ -61,6 +85,16 @@ export default function useMessages() {
     })
   }
 
+  const readMessageByKey = (key: string) => {
+    messages.value = messages.value.map(message => {
+      if (message.key === key) {
+        message.isActive = false;
+      }
+
+      return message;
+    });
+  }
+
   const unreadMessages = computed(() => messages.value.filter(m => m.isActive === true));
 
   const unreadMessagesCount = computed(() => unreadMessages.value.length);
@@ -73,9 +107,11 @@ export default function useMessages() {
     addMessage,
     addError,
     addInfo,
+    addWarning,
     add,
     readAllMessages,
     readMessage,
+    readMessageByKey,
     messages: unreadMessages,
     count: unreadMessagesCount,
     hasMessage,

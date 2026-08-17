@@ -7,8 +7,60 @@ import {useUserStore} from '@/stores/userStore';
 import IThemeToggle from '@/components/IThemeToggle.vue';
 import useLoading from '@/use/loading';
 import IMessage from "@/components/IMessage.vue";
+import {useOfflineManager} from '@/use/offlineManager';
+import useMessages from '@/use/messages';
+import {messageKeys} from '@/use/messageKeys';
+import type {Message} from '@/use/types/messages';
 
 const {isLoading} = useLoading();
+const userStore = useUserStore();
+const {user} = storeToRefs(userStore);
+const offlineManager = useOfflineManager();
+const {pendingResults, failedResults} = offlineManager;
+const {addError, addWarning, readMessageByKey} = useMessages();
+
+const runMessageAction = (
+  message: Message,
+  runAction: (message: Message) => Promise<void>,
+): void => {
+  void runAction(message);
+};
+
+watch(
+  () => [pendingResults.value, failedResults.value] as const,
+  ([pending, failed]) => {
+    if (failed > 0) {
+      addError(
+        `${failed} результатов не удалось отправить автоматически.`,
+        0,
+        {key: messageKeys.failedResults},
+      );
+    } else {
+      readMessageByKey(messageKeys.failedResults);
+    }
+
+    if (pending > 0) {
+      addWarning(
+        `${pending} результатов ожидают отправки.`,
+        0,
+        {
+          key: messageKeys.pendingResults,
+          action: {
+            title: 'Обновить',
+            handler: async () => {
+              if (user.value?.id) {
+                await offlineManager.sync(user.value.id);
+              }
+            },
+          },
+        },
+      );
+    } else {
+      readMessageByKey(messageKeys.pendingResults);
+    }
+  },
+  {immediate: true},
+);
 
 type Props = {
   title?: string
@@ -19,8 +71,6 @@ withDefaults(defineProps<Props>(), {
 });
 
 const {smAndDown} = useDisplay();
-const userStore = useUserStore();
-const {user} = storeToRefs(userStore);
 
 const drawer = ref(true);
 const rail = ref(true);
@@ -63,7 +113,19 @@ const closeMenuOnSmallScreen = () => {
 
 <template>
 
-  <IMessage/>
+  <IMessage>
+    <template #append="{message, runAction, isActionLoading}">
+      <v-btn
+        v-if="message.action"
+        :loading="isActionLoading"
+        :title="message.action.title"
+        variant="text"
+        @click="runMessageAction(message, runAction)"
+      >
+        {{ message.action.title }}
+      </v-btn>
+    </template>
+  </IMessage>
 
   <v-app-bar v-if="smAndDown">
     <template #prepend>

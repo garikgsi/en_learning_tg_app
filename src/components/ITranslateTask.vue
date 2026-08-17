@@ -12,39 +12,23 @@ import {
 import {storeToRefs} from "pinia";
 import IWord from "@/components/IWord.vue";
 import type {
+  TranslationLanguage,
+  TranslationTask,
   WordMistake,
   WordResult,
-} from "@/components/IWord.vue";
-import type {Word} from "@/stores/translateStore";
+  WordStatistics,
+} from '@/types/translation';
 import {useTranslateStore} from "@/stores/translateStore";
 import {MAX_HINTS_ON_WORD} from '@/libs/exerciseRules';
 import pause from '@/libs/pause';
 import {useKeyNormalizer} from '@/use/keyNormalizer';
 
-export type WordStat = {
-  id: number,
-  retries: number,
-  isOk: boolean,
-  variants: string[],
-  skipTimes: number,
-  hintTimes: number,
-  errorTimes: number
-}
-
-export type Lang = 'en' | 'ru';
-
-export type Task = {
-  lang: Lang,
-  list: Word[],
-  results: WordStat[]
-}
-
 type Emits = {
-  (e: 'finish', taskResult: Task[]): void
+  (e: 'finish', taskResult: TranslationTask[]): void
 }
 
 const emits = defineEmits<Emits>();
-const {enList, ruList} = storeToRefs(useTranslateStore());
+const {wordList, reversedWordList} = storeToRefs(useTranslateStore());
 const {normalizeAnswer} = useKeyNormalizer();
 
 const wordCompleteSuccessfully = ref(false);
@@ -93,21 +77,23 @@ const changeWordPause = async (pauseSec: number) => {
 
 }
 
-const ruUncompletedWords = computed(() => {
-  const ruTask = tasks.value.find(t => t.lang === 'ru');
+const russianRemainingWordCount = computed(() => {
+  const russianTask = tasks.value.find(task => task.lang === 'ru');
 
-  if (ruTask) {
-    return ruTask.list.length - ruTask.results.filter(r => r.isOk).length;
+  if (russianTask) {
+    return russianTask.list.length
+      - russianTask.results.filter(result => result.isOk).length;
   }
 
   return null;
 })
 
-const enUncompletedWords = computed(() => {
-  const enTask = tasks.value.find(t => t.lang === 'en');
+const englishRemainingWordCount = computed(() => {
+  const englishTask = tasks.value.find(task => task.lang === 'en');
 
-  if (enTask) {
-    return enTask.list.length - enTask.results.filter(r => r.isOk).length;
+  if (englishTask) {
+    return englishTask.list.length
+      - englishTask.results.filter(result => result.isOk).length;
   }
 
   return null;
@@ -118,7 +104,7 @@ const onFinish = async (wordId: number, result: WordResult) => {
     return;
   }
 
-  const word = words.value.find(w => w.id === wordId);
+  const word = remainingWords.value.find(item => item.id === wordId);
 
   if (word) {
     const res = getOrCreateWordResult(word.id);
@@ -144,40 +130,40 @@ const onFinish = async (wordId: number, result: WordResult) => {
 
       currentWordId.value = null;
 
-      if (lang.value === 'ru' && ruUncompletedWords.value !== null && ruUncompletedWords.value > 0) {
+      if (currentLanguage.value === 'ru' && russianRemainingWordCount.value !== null && russianRemainingWordCount.value > 0) {
 
         await startNewWord();
         return;
 
       }
 
-      if (lang.value === 'en' && enUncompletedWords.value !== null && enUncompletedWords.value > 0) {
+      if (currentLanguage.value === 'en' && englishRemainingWordCount.value !== null && englishRemainingWordCount.value > 0) {
 
         await startNewWord();
         return;
 
       }
 
-      if (ruUncompletedWords.value === 0 && enUncompletedWords.value === 0) {
+      if (russianRemainingWordCount.value === 0 && englishRemainingWordCount.value === 0) {
         emits('finish', tasks.value);
         return;
       }
 
       if (
-        lang.value === 'ru'
-        && ruUncompletedWords.value === 0
-        && enUncompletedWords.value !== null
-        && enUncompletedWords.value > 0
+        currentLanguage.value === 'ru'
+        && russianRemainingWordCount.value === 0
+        && englishRemainingWordCount.value !== null
+        && englishRemainingWordCount.value > 0
       ) {
         waitForLanguageSelection();
         return;
       }
 
       if (
-        lang.value === 'en'
-        && enUncompletedWords.value === 0
-        && ruUncompletedWords.value !== null
-        && ruUncompletedWords.value > 0
+        currentLanguage.value === 'en'
+        && englishRemainingWordCount.value === 0
+        && russianRemainingWordCount.value !== null
+        && russianRemainingWordCount.value > 0
       ) {
         waitForLanguageSelection();
         return;
@@ -192,64 +178,62 @@ const getNextWordIndex = (exclude?: number) => {
   const currentIndex = Math.max(currentWordIndex.value, 0);
 
   if (exclude !== undefined || currentWordId.value !== null) {
-    return currentIndex + 1 < wordsCount.value ? currentIndex + 1 : 0;
+    return currentIndex + 1 < remainingWordsCount.value ? currentIndex + 1 : 0;
   }
 
-  return Math.min(currentIndex, wordsCount.value - 1);
+  return Math.min(currentIndex, remainingWordsCount.value - 1);
 
-  // console.log('currentWord', currentWord.value)
-  // console.log('exclude', exclude)
-  // console.log('wordsCount', wordsCount.value)
-  // console.log('words.length', words.value.length)
-  //
-  // const nextIndex = wordsCount.value < 2 ? 0 : random(0, wordsCount.value - 1, exclude);
-  //
-  // console.log('nextIndex', nextIndex, words.value[nextIndex])
-  //
-  // return nextIndex;
 }
 
-const ruResults = ref<WordStat[]>([]);
-const enResults = ref<WordStat[]>([]);
+const russianResults = ref<WordStatistics[]>([]);
+const englishResults = ref<WordStatistics[]>([]);
 
-const lang = ref<Lang>();
+const currentLanguage = ref<TranslationLanguage>();
 
-const tasks = computed<Task[]>(() => {
+const tasks = computed<TranslationTask[]>(() => {
   return [
-    {lang: 'ru', list: ruList.value, results: ruResults.value},
-    {lang: 'en', list: enList.value, results: enResults.value},
+    {lang: 'ru', list: reversedWordList.value, results: russianResults.value},
+    {lang: 'en', list: wordList.value, results: englishResults.value},
   ];
 });
 
-const currentLangResults = computed<WordStat[]>(() => {
-  if (lang.value && tasks.value) {
-    return tasks.value.find(t => t.lang === lang.value)?.results || [];
+const currentResults = computed<WordStatistics[]>(() => {
+  if (currentLanguage.value && tasks.value) {
+    return tasks.value.find(
+      task => task.lang === currentLanguage.value,
+    )?.results || [];
   }
 
   return [];
 })
 
 const finishedWords = computed(() => {
-  return currentLangResults.value.filter(w => w.isOk).map(w => w.id);
+  return currentResults.value
+    .filter(result => result.isOk)
+    .map(result => result.id);
 });
 
-const currentLangList = computed(() => {
-  return tasks.value.find(t => t.lang === lang.value)?.list || [];
+const currentWordList = computed(() => {
+  return tasks.value.find(
+    task => task.lang === currentLanguage.value,
+  )?.list || [];
 });
 
-const words = computed(() => {
-  return currentLangList.value.filter(w => !finishedWords.value.includes(w.id));
+const remainingWords = computed(() => {
+  return currentWordList.value.filter(word => {
+    return !finishedWords.value.includes(word.id);
+  });
 });
 
-const wordsCount = computed(() => {
-  return words.value.length;
+const remainingWordsCount = computed(() => {
+  return remainingWords.value.length;
 })
 
 const isTimeout = computed(() => wordTimer.value >= secOnWord.value * 1000)
 
 const currentWord = computed(() => {
   if (currentWordId.value !== null) {
-    const selectedWord = words.value.find(
+    const selectedWord = remainingWords.value.find(
       word => word.id === currentWordId.value,
     );
 
@@ -258,11 +242,11 @@ const currentWord = computed(() => {
     }
   }
 
-  return words.value[currentWordIndex.value];
+  return remainingWords.value[currentWordIndex.value];
 })
 
 const taskTitle = computed(() => {
-  return `Осталось слов: ${wordsCount.value} из ${currentLangList.value.length}`
+  return `Осталось слов: ${remainingWordsCount.value} из ${currentWordList.value.length}`
 })
 
 const wordProgressColor = computed(() => {
@@ -287,7 +271,7 @@ const startTimer = () => {
 
   intervalTimer.value = setInterval(() => {
 
-    if (!timerPaused.value && wordsCount.value > 0) {
+    if (!timerPaused.value && remainingWordsCount.value > 0) {
       wordTimer.value = wordTimer.value + timerStep;
     }
 
@@ -325,10 +309,10 @@ const startNewWord = async (exclude?: number) => {
   answer.value = '';
   errorsOnCurrentAttempt.value = 0;
 
-  if (words.value.length > 0) {
+  if (remainingWords.value.length > 0) {
 
     currentWordIndex.value = getNextWordIndex(exclude);
-    currentWordId.value = words.value[currentWordIndex.value]?.id ?? null;
+    currentWordId.value = remainingWords.value[currentWordIndex.value]?.id ?? null;
 
     wordCompleteSuccessfully.value = false;
 
@@ -351,7 +335,7 @@ const updateAnswer = (value: string): void => {
 }
 
 const waitForLanguageSelection = (): void => {
-  lang.value = undefined;
+  currentLanguage.value = undefined;
   currentWordIndex.value = -1;
   currentWordId.value = null;
   answer.value = '';
@@ -362,7 +346,7 @@ const progressValue = computed(() => wordTimer.value);
 
 
 const skipWord = async () => {
-  if (!currentWord.value || !lang.value || isChangingWord.value) {
+  if (!currentWord.value || !currentLanguage.value || isChangingWord.value) {
     return;
   }
 
@@ -378,7 +362,7 @@ const skipWord = async () => {
   answer.value = normalizeAnswer(
     currentWord.value.translate,
     currentWord.value.checkWord,
-    lang.value,
+    currentLanguage.value,
   );
 
   try {
@@ -399,7 +383,7 @@ const isSkipAvailable = computed(() => {
     return false;
   }
 
-  if (wordsCount.value === 1) {
+  if (remainingWordsCount.value === 1) {
     return false;
   }
 
@@ -407,17 +391,17 @@ const isSkipAvailable = computed(() => {
 })
 
 const getWordResult = (id: number) => {
-  return currentLangResults.value.find(r => r.id === id);
+  return currentResults.value.find(result => result.id === id);
 }
 
-const getOrCreateWordResult = (id: number): WordStat => {
+const getOrCreateWordResult = (id: number): WordStatistics => {
   const existingResult = getWordResult(id);
 
   if (existingResult) {
     return existingResult;
   }
 
-  const result: WordStat = {
+  const result: WordStatistics = {
     id,
     retries: 0,
     isOk: false,
@@ -427,9 +411,9 @@ const getOrCreateWordResult = (id: number): WordStat => {
     errorTimes: 0,
   };
 
-  currentLangResults.value.push(result);
+  currentResults.value.push(result);
 
-  return currentLangResults.value[currentLangResults.value.length - 1];
+  return currentResults.value[currentResults.value.length - 1];
 }
 
 const addMistakes = async (mistake: WordMistake) => {
@@ -473,7 +457,7 @@ const getHint = async () => {
 }
 
 const currentWordResult = computed(() => {
-  return currentLangResults.value.find(r => r.id === currentWord.value.id)
+  return currentResults.value.find(result => result.id === currentWord.value.id)
 })
 
 const isHintsAvailable = computed(() => {
@@ -562,8 +546,8 @@ const otpColor = computed(() => {
 
 })
 
-const selectLanguage = async (selectedLanguage: Lang) => {
-  lang.value = selectedLanguage;
+const selectLanguage = async (selectedLanguage: TranslationLanguage) => {
+  currentLanguage.value = selectedLanguage;
   currentWordIndex.value = -1;
   currentWordId.value = null;
 
@@ -599,18 +583,18 @@ const completeBoxData: ComputedRef<{ title: string, type: 'warning' | 'success',
 
 const showCompleteBox = computed(() => wordCompleteSuccessfully.value);
 
-const pauseText = computed(() => lang.value === 'ru' ? 'Похоже, время сделать паузу' : 'Let\'s get a pause');
+const pauseText = computed(() => currentLanguage.value === 'ru' ? 'Похоже, время сделать паузу' : 'Let\'s get a pause');
 
 const isShownPause = computed(() => {
   return isUserPaused.value;
 })
 
-const isTasksUncompletedTotally = computed(() => {
-  if (enUncompletedWords.value !== null && enUncompletedWords.value > 0) {
+const areAllTasksCompleted = computed(() => {
+  if (englishRemainingWordCount.value !== null && englishRemainingWordCount.value > 0) {
     return false;
   }
 
-  if (ruUncompletedWords.value !== null && ruUncompletedWords.value > 0) {
+  if (russianRemainingWordCount.value !== null && russianRemainingWordCount.value > 0) {
     return false;
   }
 
@@ -622,9 +606,9 @@ const isTasksUncompletedTotally = computed(() => {
 <template>
 
   <template
-    v-if="!isTasksUncompletedTotally">
+    v-if="!areAllTasksCompleted">
 
-    <template v-if="wordsCount > 0">
+    <template v-if="remainingWordsCount > 0">
 
       <v-card>
 
@@ -633,7 +617,7 @@ const isTasksUncompletedTotally = computed(() => {
             <div class="task-title__text">
               <span class="d-none d-sm-inline">{{ taskTitle }}</span>
               <span class="d-sm-none">
-                Слов: {{ wordsCount }}/{{ currentLangList.length }}
+                Слов: {{ remainingWordsCount }}/{{ currentWordList.length }}
               </span>
             </div>
 
@@ -668,13 +652,13 @@ const isTasksUncompletedTotally = computed(() => {
           <template v-else>
 
             <IWord v-if="currentWord"
-                   :key="`${lang}-${currentWord.id}-${currentWord.checkWord}-${wordInstanceKey}`"
+                   :key="`${currentLanguage}-${currentWord.id}-${currentWord.checkWord}-${wordInstanceKey}`"
                    ref="otp"
                    :model-value="answer"
                    :word="currentWord.word"
                    :translate="currentWord.checkWord"
                    :other-words="currentWord.otherCheckWords"
-                   :lang="lang"
+                   :lang="currentLanguage"
                    :disabled="(timerPaused || isChangingWord) && !isShowingSkippedWord"
                    :readonly="isShowingSkippedWord"
                    :color="otpColor"
@@ -791,17 +775,17 @@ const isTasksUncompletedTotally = computed(() => {
 
     <template v-else>
 
-      <v-card v-if="!!enUncompletedWords && enUncompletedWords > 0 && !!ruUncompletedWords && ruUncompletedWords > 0"
+      <v-card v-if="!!englishRemainingWordCount && englishRemainingWordCount > 0 && !!russianRemainingWordCount && russianRemainingWordCount > 0"
               title="Выберем язык"
               subtitle="Выберите язык для повторения"
               text="На выбранном языке нужно будет писать перевод заданных слов">
         <v-card-actions>
-          <v-btn :disabled="enUncompletedWords === 0" @click="selectEnglish" color="error">English</v-btn>
-          <v-btn :disabled="ruUncompletedWords === 0" @click="selectRussian" color="primary">Русский</v-btn>
+          <v-btn :disabled="englishRemainingWordCount === 0" @click="selectEnglish" color="error">English</v-btn>
+          <v-btn :disabled="russianRemainingWordCount === 0" @click="selectRussian" color="primary">Русский</v-btn>
         </v-card-actions>
       </v-card>
 
-      <v-card v-else-if="!!enUncompletedWords && enUncompletedWords > 0 && ruUncompletedWords === 0"
+      <v-card v-else-if="!!englishRemainingWordCount && englishRemainingWordCount > 0 && russianRemainingWordCount === 0"
               title="А теперь давайте по английски"
               subtitle="Я буду писать слова по-русски"
               text="Вам предстоит писать перевод русских слов по-английски">

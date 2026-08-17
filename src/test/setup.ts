@@ -1,4 +1,5 @@
 import {vi} from 'vitest';
+import 'fake-indexeddb/auto';
 
 class ResizeObserverMock {
   observe(): void {}

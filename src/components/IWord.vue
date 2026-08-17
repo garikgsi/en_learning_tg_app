@@ -3,9 +3,7 @@
 import {computed, nextTick, ref} from 'vue';
 import {vDisableOtpAutocomplete} from '@/directives/disableOtpAutocomplete';
 import {useKeyNormalizer} from '@/use/keyNormalizer';
-
-export type WordResult = { isOk: boolean, answer: string }
-export type WordMistake = { count: number, answer: string }
+import type {WordMistake, WordResult} from '@/types/translation';
 
 interface Props {
   modelValue: string
@@ -140,6 +138,9 @@ const answer = computed({
   set: (newValue) => {
     const normalizedAnswer = normalizeAnswer(newValue)
     const wrongAnswerIndex = getWrongAnswerIndex(normalizedAnswer)
+    const sanitizedAnswer = wrongAnswerIndex >= 0
+      ? normalizedAnswer.slice(0, wrongAnswerIndex + 1)
+      : normalizedAnswer
     const mistakesCount = Array.from(normalizedAnswer).filter((letter, index) => {
       const isChanged = letter !== props.modelValue[index]
       const isWrong = letter.toLowerCase()
@@ -148,12 +149,13 @@ const answer = computed({
       return isChanged && isWrong
     }).length
 
-    emits('update:model-value', normalizedAnswer)
+    emits('update:model-value', sanitizedAnswer)
 
     if (mistakesCount > 0) {
+      navigator.vibrate?.(50)
       emits('mistake', {
         count: mistakesCount,
-        answer: normalizedAnswer,
+        answer: sanitizedAnswer,
       })
     }
 

@@ -1,42 +1,15 @@
 import {computed, ref} from 'vue';
 import {defineStore} from 'pinia';
-import {apiClient} from '@/api/client';
 import {getApiErrorMessage} from '@/api/errors';
 import {useSettingsStore} from '@/stores/settingsStore';
+import {useUserStore} from '@/stores/userStore';
 import useMessages from '@/use/messages';
+import {useDictionaryRepository} from '@/use/dictionaryRepository';
+import type {ApiDictionaryWord} from '@/api/types/dictionary';
+import type {DictionaryWord} from '@/types/dictionary';
+import {messageKeys} from '@/use/messageKeys';
 
-export type DictionaryWord = {
-  id: number
-  english: string
-  russian: string
-  grade: number
-  repeatCount: number
-  successfulRepeatCount: number
-  failedRepeatCount: number
-  isSelectedForRepetition: boolean
-}
-
-type ApiDictionaryWord = {
-  id: number
-  ru: string
-  en: string
-  grade: number
-  repeatCount: number
-  successfulRepeatCount: number
-  failedRepeatCount: number
-  is_active: boolean
-}
-
-type DictionaryPageResponse = {
-  items: ApiDictionaryWord[]
-  total: number
-  page: number
-  perPage: number
-  lastPage: number
-  availableGrade: number
-}
-
-const {addError} = useMessages();
+const {addError, addWarning, readMessageByKey} = useMessages();
 
 const isWordEligibleForRepetition = (word: DictionaryWord): boolean => {
   return !/\s/.test(word.english.trim())
@@ -56,6 +29,8 @@ const toDictionaryWord = (word: ApiDictionaryWord): DictionaryWord => ({
 
 export const useDictionaryStore = defineStore('dictionary', () => {
   const settingsStore = useSettingsStore();
+  const userStore = useUserStore();
+  const dictionaryRepository = useDictionaryRepository();
 
   const items = ref<DictionaryWord[]>([]);
   const knownWords = ref<Record<number, DictionaryWord>>({});
@@ -109,21 +84,24 @@ export const useDictionaryStore = defineStore('dictionary', () => {
 
 
     try {
-      const {data} = await apiClient.get<DictionaryPageResponse>(
-        '/api/v1/dictionary',
-        {
-          params: {
-            search: search.value.trim() || undefined,
-            page: targetPage,
-            perPage: settingsStore.dictionaryWordsPerPage,
-          },
-        },
+      const userId = userStore.user?.id;
+
+      if (!userId) {
+        throw new Error('Пользователь не авторизован');
+      }
+
+      const result = await dictionaryRepository.getPage(
+        userId,
+        search.value.trim() || undefined,
+        targetPage,
+        settingsStore.dictionaryWordsPerPage,
       );
 
       if (currentRequestId !== requestId) {
         return;
       }
 
+      const data = result.data;
       const loadedItems = data.items.map(toDictionaryWord);
 
       items.value = append
@@ -147,9 +125,41 @@ export const useDictionaryStore = defineStore('dictionary', () => {
       }
 
       repetitionWordIds.value = [...selectedWordIds];
+
+      if (result.source === 'indexedDb') {
+        const warning = result.fallbackReason === 'server'
+          ? 'Ошибка сервера. Показан словарь, сохранённый на устройстве.'
+          : 'Нет подключения к интернету. Показан словарь, сохранённый на устройстве.';
+
+        addWarning(warning, 0, {
+          key: messageKeys.cachedDictionary,
+          action: {
+            title: 'Обновить',
+            handler: async () => {
+              await dictionaryRepository.synchronize(userId, true);
+              await loadDictionary(1);
+            },
+          },
+        });
+      } else {
+        readMessageByKey(messageKeys.cachedDictionary);
+        readMessageByKey(messageKeys.dictionaryLoadError);
+      }
     } catch (error) {
       if (currentRequestId === requestId) {
-        addError(getApiErrorMessage( error, 'Не удалось загрузить словарь'));
+        addError(
+          getApiErrorMessage(error, 'Не удалось загрузить словарь'),
+          0,
+          {
+            key: messageKeys.dictionaryLoadError,
+            action: {
+              title: 'Обновить',
+              handler: async () => {
+                await loadDictionary(1);
+              },
+            },
+          },
+        );
       }
     } finally {
       if (currentRequestId === requestId) {
@@ -182,9 +192,13 @@ export const useDictionaryStore = defineStore('dictionary', () => {
   const addWordToRepetition = async (wordId: number): Promise<void> => {
 
     try {
-      await apiClient.post('/api/v1/repetition-list/words', {
-        word_id: wordId,
-      });
+      const userId = userStore.user?.id;
+
+      if (!userId) {
+        throw new Error('Пользователь не авторизован');
+      }
+
+      await dictionaryRepository.addWord(userId, wordId);
 
       const word = knownWords.value[wordId];
 

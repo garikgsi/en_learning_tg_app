@@ -16,14 +16,17 @@ import type {EChartsOption} from 'echarts';
 import VChart from 'vue-echarts';
 import IConfirmDialog from '@/components/IConfirmDialog.vue';
 import {
-  type AttentionWord,
-  type ExerciseStatisticsChartPeriod,
-  type ExerciseStatisticsItem,
   findStatisticsAchievement,
   useStatisticsStore,
 } from '@/stores/statisticsStore';
+import type {
+  AttentionWord,
+  ExerciseStatisticsChartPeriod,
+  ExerciseStatisticsItem,
+} from '@/api/types/statistics';
 import {useUserStore} from '@/stores/userStore';
 import useLoading from '@/use/loading'
+import {useNetwork} from '@/use/network';
 
 use([
   CanvasRenderer,
@@ -47,6 +50,7 @@ const {isLoading} = useLoading();
 
 const statisticsStore = useStatisticsStore();
 const userStore = useUserStore();
+const {isConnected} = useNetwork();
 const {
   items,
   charts,
@@ -74,6 +78,24 @@ const exerciseDialogText = computed(() => {
   return selectedEvent.value?.status === 'completed'
     ? 'Вы хотите пройти упражнение еще раз?'
     : 'Пройти упражнение?';
+});
+
+const exerciseDialogTitle = computed(() => {
+  const event = selectedEvent.value;
+
+  if (!event) {
+    return 'Упражнение';
+  }
+
+  if (isUserExercise(event)) {
+    return event.type.title;
+  }
+
+  const type = `${event.type.name} ${event.type.title}`.toLowerCase();
+
+  return type.includes('week') || type.includes('недел')
+    ? 'Еженедельное упражнение'
+    : 'Ежедневное упражнение';
 });
 
 const openExerciseDialog = (event: StatisticsCalendarEvent): void => {
@@ -147,6 +169,7 @@ const buildChartOption = (
   const users = period?.users ?? [];
   const shouldZoom = users.length > 6;
   const themeColors = theme.current.value.colors;
+  const chartTextColor = themeColors['on-surface-variant'];
 
   return {
     backgroundColor: 'transparent',
@@ -160,7 +183,7 @@ const buildChartOption = (
     legend: {
       top: 0,
       textStyle: {
-        color: themeColors['on-surface'],
+        color: chartTextColor,
       },
     },
     grid: {
@@ -173,7 +196,7 @@ const buildChartOption = (
       type: 'category',
       data: users.map(user => user.userName),
       axisLabel: {
-        color: themeColors['on-surface'],
+        color: chartTextColor,
         interval: 0,
         rotate: users.length > 4 ? 30 : 0,
       },
@@ -187,7 +210,7 @@ const buildChartOption = (
       type: 'value',
       minInterval: 1,
       axisLabel: {
-        color: themeColors['on-surface'],
+        color: chartTextColor,
       },
       splitLine: {
         lineStyle: {
@@ -359,6 +382,12 @@ watch(
     await statisticsStore.loadMonth(visibleMonth.value);
   },
 );
+
+watch(isConnected, async (connected, wasConnected) => {
+  if (connected && wasConnected === false) {
+    await statisticsStore.loadMonth(visibleMonth.value);
+  }
+});
 
 onMounted(async () => {
   await statisticsStore.loadMonth(visibleMonth.value);
@@ -629,7 +658,7 @@ onMounted(async () => {
     v-model="isExerciseDialogOpen"
     no-button-text="Нет"
     :text="exerciseDialogText"
-    title="Упражнение"
+    :title="exerciseDialogTitle"
     yes-button-text="Да"
     @no="closeExerciseDialog"
     @yes="startSelectedExercise"

@@ -12,17 +12,29 @@ project setting.
 - On this workstation, use the Android Studio JBR at
   `C:\Program Files\Android\Android Studio\jbr` for Gradle builds. If
   `JAVA_HOME` is missing, set it to this path for the build command only.
-- Never connect to backend or production servers, including over SSH.
+- Never connect to production servers, including over SSH. The local backend
+  repository may be inspected and modified when it is within the user's task.
+- Development database migrations may be applied in the local Docker
+  environment without asking for approval. Production migrations must always
+  be left for the user to run manually.
 - Never perform deployments. When the user asks about deployment, provide the
   required steps and commands for the user to run themselves.
-- Do not inspect or modify the backend repository unless the user explicitly
-  asks for backend work.
 
 ## Responsive UI
 
 - Keep the interface usable on small mobile screens.
 - On extra-small screens, compact secondary labels when they compete with
   important values for horizontal space.
+
+## Camera integration
+
+- Use the official `@capacitor/camera` plugin as the baseline camera
+  implementation.
+- Keep a custom native CameraX screen as a possible fallback only when the user
+  explicitly asks to guarantee that the front camera opens by default.
+- Do not change camera implementations automatically. Notify the user when an
+  official plugin or Android API release adds reliable Android support for
+  opening the front camera by default.
 
 ## Brand colors
 

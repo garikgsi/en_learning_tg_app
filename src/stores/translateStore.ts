@@ -1,52 +1,17 @@
 import {computed, ref} from 'vue';
 import {defineStore} from 'pinia';
-import {apiClient} from '@/api/client';
 import {getApiErrorMessage} from '@/api/errors';
-import type {Task} from '@/components/ITranslateTask.vue';
+import type {Exercise} from '@/api/types/exercise';
+import type {
+  TranslationTask,
+  TranslationWord,
+} from '@/types/translation';
 import {MAX_HINTS_ON_WORD} from '@/libs/exerciseRules';
 import useMessages from '@/use/messages';
-
-export type Word = {
-  id: number
-  exerciseId: number
-  exerciseItemId: number
-  wordId: number
-  word: string
-  translate: string
-  checkWord: string
-  otherCheckWords: string[]
-}
-
-type ApiExerciseWord = {
-  id: number
-  ru: string
-  en: string
-  grade: number
-}
-
-type ApiExercise = {
-  id: number
-  userId: string
-  type: {
-    id: number
-    name: string
-    title: string
-  }
-  dueDate: string
-  items: {
-    id: number
-    word: ApiExerciseWord
-  }[]
-  createdAt: string
-}
-
-type ExercisesResponse = {
-  items: ApiExercise[]
-}
-
-type ExerciseResponse = {
-  item: ApiExercise
-}
+import {useExerciseRepository} from '@/use/exerciseRepository';
+import {useUserStore} from '@/stores/userStore';
+import {useOfflineManager} from '@/use/offlineManager';
+import {messageKeys} from '@/use/messageKeys';
 
 type ExerciseItemResultPayload = {
   exercise_item_id: number
@@ -56,12 +21,12 @@ type ExerciseItemResultPayload = {
   variants: string[]
 }
 
-type CompleteExercisePayload = {
-  exercise_id: number
-  exercise_items_result: ExerciseItemResultPayload[]
-}
-
-const {addError} = useMessages();
+const {
+  addError,
+  addInfo,
+  addWarning,
+  readMessageByKey,
+} = useMessages();
 
 const langIds = {
   en: 1,
@@ -70,7 +35,7 @@ const langIds = {
 
 export const selectCheckWord = (
   value: string,
-): Pick<Word, 'checkWord' | 'otherCheckWords'> => {
+): Pick<TranslationWord, 'checkWord' | 'otherCheckWords'> => {
   const variants = [...new Set(
     value
       .split(',')
@@ -94,10 +59,13 @@ export const selectCheckWord = (
 }
 
 export const useTranslateStore = defineStore('translate', () => {
-  const enList = ref<Word[]>([]);
+  const wordList = ref<TranslationWord[]>([]);
+  const exerciseRepository = useExerciseRepository();
+  const userStore = useUserStore();
+  const offlineManager = useOfflineManager();
 
-  const ruList = computed<Word[]>(() => {
-    return enList.value.map(word => {
+  const reversedWordList = computed<TranslationWord[]>(() => {
+    return wordList.value.map(word => {
       const checkWord = selectCheckWord(word.word);
 
       return {
@@ -110,11 +78,11 @@ export const useTranslateStore = defineStore('translate', () => {
   });
 
   const clearWords = (): void => {
-    enList.value = [];
+    wordList.value = [];
   }
 
-  const setExercises = (exercises: ApiExercise[]): void => {
-    enList.value = exercises.flatMap(exercise => {
+  const setExercises = (exercises: Exercise[]): void => {
+    wordList.value = exercises.flatMap(exercise => {
       return exercise.items.map(({id, word}) => {
         const checkWord = selectCheckWord(word.en);
 
@@ -131,37 +99,126 @@ export const useTranslateStore = defineStore('translate', () => {
     });
   }
 
-  const loadWords = async (_code?: string): Promise<void> => {
-
+  const loadWords = async (_code?: string): Promise<boolean> => {
     try {
-      const {data} = await apiClient.get<ExercisesResponse>(
-        '/api/v1/exercises/current',
-      );
+      const userId = userStore.user?.id;
 
-      setExercises(data.items);
+      if (!userId) {
+        throw new Error('Пользователь не авторизован');
+      }
+
+      const result = await exerciseRepository.getCurrent(userId);
+
+      setExercises(result.data);
+      if (result.source === 'indexedDb') {
+        const warning = result.fallbackReason === 'server'
+          ? 'Ошибка сервера. Используется сохранённое упражнение.'
+          : 'Нет подключения к интернету. Используется сохранённое упражнение.';
+
+        addWarning(
+          warning,
+          0,
+          {
+            key: messageKeys.cachedExercise,
+            action: {
+              title: 'Обновить',
+              handler: async () => {
+                await loadWords(_code);
+              },
+            },
+          },
+        );
+      } else {
+        readMessageByKey(messageKeys.cachedExercise);
+        readMessageByKey(messageKeys.exerciseLoadError);
+      }
+
+      return true;
     } catch (error) {
-      enList.value = [];
-      addError(getApiErrorMessage( error, 'Не удалось загрузить упражнение', ));
+      wordList.value = [];
+      const errorMessage = getApiErrorMessage(
+        error,
+        'Не удалось загрузить упражнение',
+      );
+      addError(errorMessage, 0, {
+        key: messageKeys.exerciseLoadError,
+        action: {
+          title: 'Обновить',
+          handler: async () => {
+            await loadWords(_code);
+          },
+        },
+      });
+      return false;
     }
   }
 
-  const loadExercise = async (exerciseId: number): Promise<void> => {
-
+  const loadExercise = async (exerciseId: number): Promise<boolean> => {
     try {
-      const {data} = await apiClient.get<ExerciseResponse>(
-        `/api/v1/exercises/${exerciseId}`,
+      const userId = userStore.user?.id;
+
+      if (!userId) {
+        throw new Error('Пользователь не авторизован');
+      }
+
+      const result = await exerciseRepository.getById(
+        userId,
+        exerciseId,
       );
 
-      setExercises([data.item]);
+      setExercises([result.data]);
+      if (result.source === 'indexedDb') {
+        const warning = result.fallbackReason === 'server'
+          ? 'Ошибка сервера. Используется сохранённое упражнение.'
+          : 'Нет подключения к интернету. Используется сохранённое упражнение.';
+
+        addWarning(
+          warning,
+          0,
+          {
+            key: messageKeys.cachedExercise,
+            action: {
+              title: 'Обновить',
+              handler: async () => {
+                await loadExercise(exerciseId);
+              },
+            },
+          },
+        );
+      } else {
+        readMessageByKey(messageKeys.cachedExercise);
+        readMessageByKey(messageKeys.exerciseLoadError);
+      }
+
+      return true;
     } catch (error) {
-      enList.value = [];
-      addError(getApiErrorMessage( error, 'Не удалось загрузить выбранное упражнение'));
+      wordList.value = [];
+      const errorMessage = getApiErrorMessage(
+        error,
+        'Не удалось загрузить выбранное упражнение',
+      );
+      addError(errorMessage, 0, {
+        key: messageKeys.exerciseLoadError,
+        action: {
+          title: 'Обновить',
+          handler: async () => {
+            await loadExercise(exerciseId);
+          },
+        },
+      });
+      return false;
     }
   }
 
-  const taskCompleted = async (tasks: Task[]): Promise<void> => {
+  const taskCompleted = async (tasks: TranslationTask[]): Promise<void> => {
 
     try {
+      const userId = userStore.user?.id;
+
+      if (!userId) {
+        throw new Error('Пользователь не авторизован');
+      }
+
       const resultsByExercise = new Map<number, ExerciseItemResultPayload[]>();
 
       tasks.forEach(task => {
@@ -192,20 +249,18 @@ export const useTranslateStore = defineStore('translate', () => {
         });
       });
 
-      await Promise.all(
+      const summary = await exerciseRepository.enqueueCompletions(
+        userId,
         [...resultsByExercise.entries()].map(
-          ([exerciseId, exerciseItemsResult]) => {
-            const payload: CompleteExercisePayload = {
-              exercise_id: exerciseId,
-              exercise_items_result: exerciseItemsResult,
-            };
-
-            return apiClient.post('/api/v1/exercises/complete', payload);
-          },
-        ),
+          ([exerciseId, itemResults]) => ({exerciseId, itemResults})),
       );
+      await offlineManager.updateOutboxSummary(userId);
 
-      enList.value = [];
+      wordList.value = [];
+
+      if (summary.pending > 0) {
+        addInfo('Результат сохранён и будет отправлен при подключении к интернету');
+      }
     } catch (error) {
       addError(getApiErrorMessage( error, 'Не удалось сохранить результаты упражнения'));
     }
@@ -213,9 +268,8 @@ export const useTranslateStore = defineStore('translate', () => {
 
 
   return {
-    enList,
-    ruList,
-
+    wordList,
+    reversedWordList,
     loadWords,
     loadExercise,
     clearWords,

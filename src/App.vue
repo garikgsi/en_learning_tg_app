@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-import {computed, watch} from 'vue';
+import {computed, onMounted, watch} from 'vue';
 import {storeToRefs} from 'pinia';
 import {useRoute} from 'vue-router';
 import {useTheme} from 'vuetify';
@@ -17,11 +17,20 @@ import MainLayout from '@/layouts/MainLayout.vue';
 import UnsecureLayout from '@/layouts/UnsecureLayout.vue';
 import {getRouteTitle, isPublicRoute} from '@/router/routeAccess';
 import {useSettingsStore} from '@/stores/settingsStore';
+import {useUserStore} from '@/stores/userStore';
+import {useNetwork} from '@/use/network';
+import {useOfflineManager} from '@/use/offlineManager';
+import useMessages from '@/use/messages';
 
 const route = useRoute();
 const theme = useTheme();
 const settingsStore = useSettingsStore();
+const userStore = useUserStore();
 const {isDarkTheme} = storeToRefs(settingsStore);
+const {user} = storeToRefs(userStore);
+const network = useNetwork();
+const offlineManager = useOfflineManager();
+const {add} = useMessages();
 
 watch(isDarkTheme, (isDark) => {
   theme.global.name.value = isDark ? 'brandDark' : 'brandLight';
@@ -32,4 +41,48 @@ const activeLayout = computed(() => {
 });
 
 const pageTitle = computed(() => getRouteTitle(route.path));
+
+onMounted(async () => {
+  await network.initialize();
+});
+
+watch(
+  () => [
+    user.value?.id,
+    network.isConnected.value,
+    network.isInitialized.value,
+  ] as const,
+  async (
+    [userId, connected, networkInitialized],
+    previousValues,
+  ) => {
+    const [
+      previousUserId,
+      previousConnected,
+      wasNetworkInitialized,
+    ] = previousValues ?? [];
+    if (!userId || !networkInitialized) {
+      return;
+    }
+
+    const shouldInitialize = userId !== previousUserId
+      || wasNetworkInitialized !== true
+      || (connected && previousConnected === false);
+
+    if (shouldInitialize) {
+      await offlineManager.initializeForUser(userId, connected);
+    }
+  },
+  {immediate: true},
+);
+
+watch(network.isConnected, (connected, wasConnected) => {
+  if (
+    network.isInitialized.value
+    && connected
+    && wasConnected === false
+  ) {
+    add('Соединение с интернетом восстановлено', 3);
+  }
+});
 </script>

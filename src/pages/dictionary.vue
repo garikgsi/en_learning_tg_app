@@ -7,11 +7,9 @@ import {
   watch,
 } from 'vue';
 import {storeToRefs} from 'pinia';
-import {
-  type DictionaryWord,
-  useDictionaryStore,
-} from '@/stores/dictionaryStore';
+import {useDictionaryStore} from '@/stores/dictionaryStore';
 import {useSettingsStore} from '@/stores/settingsStore';
+import type {DictionaryWord} from '@/types/dictionary';
 
 const dictionaryStore = useDictionaryStore();
 const settingsStore = useSettingsStore();

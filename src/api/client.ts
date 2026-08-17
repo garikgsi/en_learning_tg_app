@@ -3,7 +3,8 @@ import axios, {
   AxiosHeaders,
   type InternalAxiosRequestConfig,
 } from 'axios';
-import {tokenStorage, type TokenPair} from '@/api/tokenStorage';
+import {tokenStorage} from '@/api/tokenStorage';
+import type {TokenPair} from '@/api/types/auth';
 
 import useLoading from '@/use/loading';
 
@@ -79,13 +80,13 @@ apiClient.interceptors.response.use(
 
         refreshRequest ??= refreshClient
           .post<RefreshResponse>('/api/v1/auth/refresh', {refreshToken})
-          .then(({data}) => {
-            tokenStorage.save(data);
+          .then(async ({data}) => {
+            await tokenStorage.save(data);
             setLoading(false);
             return data.accessToken;
           })
-          .catch(refreshError => {
-            tokenStorage.clear();
+          .catch(async refreshError => {
+            await tokenStorage.clear();
             throw refreshError;
           })
           .finally(() => {

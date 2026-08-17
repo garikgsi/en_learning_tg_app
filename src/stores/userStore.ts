@@ -1,42 +1,27 @@
 import {computed, ref} from 'vue';
 import {defineStore} from 'pinia';
-import {apiClient} from '@/api/client';
 import {getApiErrorMessage} from '@/api/errors';
-import {tokenStorage, type TokenPair} from '@/api/tokenStorage';
+import {tokenStorage} from '@/api/tokenStorage';
 import useMessages from '@/use/messages';
+import {useAuthRepository} from '@/use/authRepository';
+import {useUserRepository} from '@/use/userRepository';
+import type {UserInfo} from '@/api/types/user';
+import type {AuthResponse} from '@/api/types/auth';
 
-export type UserInfo = {
-  id: string
-  name: string
-  phone: string
-  avatar: string
-  createdAt: string
-}
-
-export type AuthorizationData = {
+type AuthorizationData = {
   phone: string
   pinCode: string
 }
 
-export type RegistrationData = AuthorizationData & {
+type RegistrationData = AuthorizationData & {
   name: string
   firstGradeYear: number
 }
 
-export type PinCodeChangeData = {
+type PinCodeChangeData = {
   currentPin: string
   pinCode: string
   pinCodeConfirmation: string
-}
-
-type AuthResponse = TokenPair & {
-  user: UserInfo
-  tokenType: 'Bearer'
-  expiresIn: number
-}
-
-type UserResponse = {
-  data: UserInfo
 }
 
 export const RUSSIAN_PHONE_LENGTH = 10;
@@ -72,6 +57,8 @@ const toApiPhone = (phone: string): string => {
 export const useUserStore = defineStore('user', () => {
   const user = ref<UserInfo | null>(null);
   const savedPhone = ref(getSavedPhone());
+  const authRepository = useAuthRepository();
+  const userRepository = useUserRepository();
 
   const isInitialized = ref(false);
 
@@ -79,7 +66,7 @@ export const useUserStore = defineStore('user', () => {
 
   const isAuthenticated = computed(() => user.value !== null);
 
-  const saveUser = (authorizedUser: UserInfo): void => {
+  const saveUser = async (authorizedUser: UserInfo): Promise<void> => {
     user.value = authorizedUser;
     savedPhone.value = authorizedUser.phone;
 
@@ -88,16 +75,27 @@ export const useUserStore = defineStore('user', () => {
     } catch {
       // Remembering the phone is optional.
     }
+
+    await userRepository.save(authorizedUser).catch(() => {
+      // The online session remains usable if the optional offline cache fails.
+    });
   }
 
-  const saveAuthorization = (response: AuthResponse): void => {
-    tokenStorage.save(response);
-    saveUser(response.user);
+  const saveAuthorization = async (response: AuthResponse): Promise<void> => {
+    await tokenStorage.save({...response, userId: response.user.id});
+    await saveUser(response.user);
   }
 
-  const clearAuthorization = (): void => {
-    tokenStorage.clear();
+  const clearAuthorization = async (): Promise<void> => {
+    const userId = user.value?.id ?? tokenStorage.getUserId();
+    await tokenStorage.clear();
     user.value = null;
+
+    if (userId) {
+      void userRepository.remove(userId).catch(() => {
+        // Authorization is already cleared even if cache cleanup fails.
+      });
+    }
   }
 
   const restoreSession = async (): Promise<void> => {
@@ -110,16 +108,31 @@ export const useUserStore = defineStore('user', () => {
     }
 
     restoreRequest = (async () => {
+      await tokenStorage.initialize();
+
       if (!tokenStorage.getAccessToken() && !tokenStorage.getRefreshToken()) {
         isInitialized.value = true;
         return;
       }
 
       try {
-        const {data} = await apiClient.get<UserResponse>('/api/v1/users/me');
-        saveUser(data.data);
+        const result = await userRepository.getCurrent(
+          tokenStorage.getUserId(),
+        );
+
+        if (
+          result.source === 'indexedDb'
+          && !tokenStorage.isOfflineSessionValid()
+        ) {
+          throw new Error('Срок офлайн-сессии истёк');
+        }
+
+        if (result.source === 'http') {
+          await tokenStorage.markOnline();
+        }
+        await saveUser(result.data);
       } catch {
-        clearAuthorization();
+        await clearAuthorization();
       } finally {
         isInitialized.value = true;
         restoreRequest = null;
@@ -134,12 +147,12 @@ export const useUserStore = defineStore('user', () => {
   ): Promise<boolean> => {
 
     try {
-      const {data} = await apiClient.post<AuthResponse>('/api/v1/auth/login', {
-        phone: toApiPhone(authorizationData.phone),
-        pinCode: authorizationData.pinCode,
-      });
+      const response = await authRepository.login(
+        toApiPhone(authorizationData.phone),
+        authorizationData.pinCode,
+      );
 
-      saveAuthorization(data);
+      await saveAuthorization(response);
       return true;
     } catch (error) {
       addError(getApiErrorMessage(error, 'Не удалось выполнить авторизацию'));
@@ -163,9 +176,9 @@ export const useUserStore = defineStore('user', () => {
       }
       userFormData.append('firstGradeYear', `${registrationData.firstGradeYear}`);
 
-      const {data} = await apiClient.post<AuthResponse>('/api/v1/auth/register', userFormData);
+      const response = await authRepository.register(userFormData);
 
-      saveAuthorization(data);
+      await saveAuthorization(response);
 
       if (avatar) {
         try {
@@ -186,12 +199,12 @@ export const useUserStore = defineStore('user', () => {
 
     try {
       if (tokenStorage.getAccessToken()) {
-        await apiClient.post('/api/v1/auth/logout');
+        await authRepository.logout();
       }
     } catch (error) {
       addError(getApiErrorMessage(error, 'Не удалось завершить сессию'));
     } finally {
-      clearAuthorization();
+      await clearAuthorization();
 
     }
   }
@@ -199,11 +212,9 @@ export const useUserStore = defineStore('user', () => {
   const updateName = async (nameValue: string): Promise<boolean> => {
 
     try {
-      const {data} = await apiClient.patch<UserResponse>('/api/v1/users/me', {
-        name: nameValue.trim(),
-      });
+      const updatedUser = await userRepository.updateName(nameValue.trim());
 
-      saveUser(data.data);
+      await saveUser(updatedUser);
       return true;
     } catch (error) {
       addError(getApiErrorMessage(error, 'Не удалось изменить имя'));
@@ -225,9 +236,9 @@ export const useUserStore = defineStore('user', () => {
 
       // PHP does not parse multipart request bodies sent with PATCH under the
       // usual FPM setup. Send POST and let Laravel apply the method override.
-      const {data} = await apiClient.post<UserResponse>('/api/v1/users/me', userFormData);
+      const updatedUser = await userRepository.updateMultipart(userFormData);
 
-      saveUser(data.data);
+      await saveUser(updatedUser);
       return true;
     } catch (error) {
       addError(getApiErrorMessage(error, 'Не удалось изменить информацию пользователя'));
@@ -241,8 +252,8 @@ export const useUserStore = defineStore('user', () => {
     formData.append('_method', 'PATCH');
     formData.append('avatar', avatar);
 
-    const {data} = await apiClient.post<UserResponse>('/api/v1/users/me', formData);
-    saveUser(data.data);
+    const updatedUser = await userRepository.updateMultipart(formData);
+    await saveUser(updatedUser);
   }
 
   const updateAvatar = async (avatar: File): Promise<boolean> => {
@@ -261,8 +272,8 @@ export const useUserStore = defineStore('user', () => {
   ): Promise<boolean> => {
 
     try {
-      await apiClient.put('/api/v1/users/me/pin', pinCodeData);
-      clearAuthorization();
+      await userRepository.updatePin(pinCodeData);
+      await clearAuthorization();
       return true;
     } catch (error) {
       addError(getApiErrorMessage(error, 'Не удалось изменить PIN-код'));

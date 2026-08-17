@@ -2,10 +2,11 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {createPinia, setActivePinia} from 'pinia';
 import {apiClient} from '@/api/client';
 import {
-  type ExerciseStatisticsCharts,
   findStatisticsAchievement,
   useStatisticsStore,
 } from '@/stores/statisticsStore';
+import type {ExerciseStatisticsCharts} from '@/api/types/statistics';
+import {useUserStore} from '@/stores/userStore';
 
 const chartsWithUsers = (
   users: ExerciseStatisticsCharts['week']['users'],
@@ -61,6 +62,13 @@ describe('statisticsStore', () => {
         },
       },
     } as never);
+    useUserStore().user = {
+      id: 'current-user',
+      name: 'Current user',
+      phone: '+79991234567',
+      avatar: '',
+      createdAt: '2026-07-01T00:00:00Z',
+    };
     const store = useStatisticsStore();
 
     await store.loadMonth(new Date(2026, 6, 15));
