@@ -5,9 +5,11 @@ import {useRouter} from 'vue-router';
 import logoUrl from '@/assets/logo.svg';
 import {indexedDbDatabaseVersion} from '@/api/indexedDb';
 import {useAppUpdate} from '@/use/appUpdate';
+import useMessages from '@/use/messages.ts';
 
 const router = useRouter();
 const appUpdate = useAppUpdate();
+const {add, addError} = useMessages();
 const checkResult = ref<'current' | null>(null);
 
 const appVersion = computed(() => {
@@ -31,8 +33,14 @@ const checkForUpdates = async (): Promise<void> => {
     return;
   }
 
+  if (appUpdate.checkError.value) {
+    addError(appUpdate.checkError.value);
+    return;
+  }
+
   if (!appUpdate.checkError.value) {
-    checkResult.value = 'current';
+    add('Установлена последняя версия приложения');
+    return;
   }
 };
 
@@ -73,23 +81,6 @@ onMounted(async () => {
         </v-list-item>
       </v-list>
 
-      <v-alert
-        v-if="checkResult === 'current'"
-        class="mt-5 text-left"
-        type="success"
-        variant="tonal"
-      >
-        Установлена последняя версия приложения.
-      </v-alert>
-
-      <v-alert
-        v-if="appUpdate.checkError.value"
-        class="mt-5 text-left"
-        type="error"
-        variant="tonal"
-      >
-        {{ appUpdate.checkError.value }}
-      </v-alert>
     </v-card-text>
 
     <v-card-actions class="about-card__actions">

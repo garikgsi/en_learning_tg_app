@@ -159,6 +159,69 @@ npm run release:manifest
 npm run release:manifest -- --mandatory
 ```
 
+### Публикация Android-релиза из Unix
+
+Полный цикл публикации выполняет Bash-скрипт
+`scripts/publish-android-release.sh`. Он обновляет Android-версию, запускает
+тесты и production-сборку, синхронизирует Capacitor, собирает APK, формирует
+`update-manifest.json`, включает все текущие изменения в коммит ветки,
+создаёт и отправляет тег, а затем публикует GitHub Release с APK и манифестом.
+
+Токен GitHub не передаётся непосредственно в командной строке. Параметр
+`--github-token-env` задаёт имя переменной окружения, из которой скрипт его
+прочитает:
+
+```bash
+export RELEASE_GITHUB_TOKEN='github-token'
+
+bash scripts/publish-android-release.sh \
+  --version-code 12 \
+  --version-name '0.1.0-rc.12' \
+  --description 'Улучшен интерфейс, исправлены мелкие ошибки и повышена стабильность приложения.' \
+  --commit-message 'prepare v0.1.0-rc.12' \
+  --release-name 'v0.1.0-rc.12' \
+  --branch master \
+  --remote origin \
+  --github-repository 'garikgsi/en_learning_tg_app' \
+  --github-token-env RELEASE_GITHUB_TOKEN \
+  --java-home '/usr/lib/jvm/java-21-openjdk' \
+  --android-sdk-root "$HOME/Android/Sdk" \
+  --prerelease true \
+  --mandatory false
+```
+
+До запуска на машине должны быть установлены Node.js с npm, JDK, Android SDK,
+Git и curl. Скрипт намеренно останавливается, если запущен не из указанной
+ветки, тег уже существует или GitHub Release с таким тегом уже опубликован.
+
+### Публикация Android-релиза из Windows
+
+PowerShell-скрипт `scripts/publish-android-release.ps1` выполняет тот же полный
+цикл публикации. Значения передаются именованными параметрами, а токен также
+читается из указанной переменной окружения:
+
+```powershell
+$env:RELEASE_GITHUB_TOKEN = 'github-token'
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\publish-android-release.ps1 `
+  -VersionCode 12 `
+  -VersionName '0.1.0-rc.12' `
+  -Description 'Улучшен интерфейс, исправлены мелкие ошибки и повышена стабильность приложения.' `
+  -CommitMessage 'prepare v0.1.0-rc.12' `
+  -ReleaseName 'v0.1.0-rc.12' `
+  -Branch master `
+  -Remote origin `
+  -GitHubRepository 'garikgsi/en_learning_tg_app' `
+  -GitHubTokenEnvironmentVariable RELEASE_GITHUB_TOKEN `
+  -JavaHome 'C:\Program Files\Android\Android Studio\jbr' `
+  -AndroidSdkRoot "$env:LOCALAPPDATA\Android\Sdk" `
+  -Prerelease true `
+  -Mandatory false
+```
+
+Для Windows требуются Git, Node.js с npm, Android SDK, JDK и `curl.exe`.
+
 ## Обновление IndexedDB
 
 Миграции схемы находятся в `src/api/indexedDb/migrations`, а порядок их
