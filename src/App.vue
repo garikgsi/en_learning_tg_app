@@ -20,6 +20,7 @@ import {useSettingsStore} from '@/stores/settingsStore';
 import {useUserStore} from '@/stores/userStore';
 import {useNetwork} from '@/use/network';
 import {useOfflineManager} from '@/use/offlineManager';
+import {useAppUpdate} from '@/use/appUpdate';
 import useMessages from '@/use/messages';
 
 const route = useRoute();
@@ -30,6 +31,7 @@ const {isDarkTheme} = storeToRefs(settingsStore);
 const {user} = storeToRefs(userStore);
 const network = useNetwork();
 const offlineManager = useOfflineManager();
+const appUpdate = useAppUpdate();
 const {add} = useMessages();
 
 watch(isDarkTheme, (isDark) => {
@@ -70,7 +72,10 @@ watch(
       || (connected && previousConnected === false);
 
     if (shouldInitialize) {
-      await offlineManager.initializeForUser(userId, connected);
+      await Promise.allSettled([
+        offlineManager.initializeForUser(userId, connected),
+        connected ? appUpdate.check() : Promise.resolve(),
+      ]);
     }
   },
   {immediate: true},

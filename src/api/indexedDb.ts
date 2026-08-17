@@ -7,60 +7,83 @@ export const indexedDbStores = {
   users: 'users',
   dictionaryWords: 'dictionaryWords',
   dictionaryMetadata: 'dictionaryMetadata',
+  syncMetadata: 'syncMetadata',
 } as const;
 
 export type IndexedDbStore = typeof indexedDbStores[keyof typeof indexedDbStores];
 
 const databaseName = 'en-learning';
-const databaseVersion = 2;
+export const indexedDbDatabaseVersion = 3;
+
+type IndexedDbMigration = (database: IDBPDatabase) => void;
+
+const migrations: Record<number, IndexedDbMigration> = {
+  1(database) {
+    if (!database.objectStoreNames.contains(indexedDbStores.exercises)) {
+      const store = database.createObjectStore(indexedDbStores.exercises, {
+        keyPath: 'key',
+      });
+      store.createIndex('by-user-due-date', ['userId', 'dueDate']);
+      store.createIndex('by-user', 'userId');
+    }
+
+    if (!database.objectStoreNames.contains(indexedDbStores.statistics)) {
+      const store = database.createObjectStore(indexedDbStores.statistics, {
+        keyPath: 'key',
+      });
+      store.createIndex('by-user', 'userId');
+    }
+  },
+  2(database) {
+    if (!database.objectStoreNames.contains(indexedDbStores.completionOutbox)) {
+      const store = database.createObjectStore(
+        indexedDbStores.completionOutbox,
+        {keyPath: 'attemptId'},
+      );
+      store.createIndex('by-user-created-at', ['userId', 'createdAt']);
+      store.createIndex('by-user-status', ['userId', 'status']);
+    }
+
+    if (!database.objectStoreNames.contains(indexedDbStores.users)) {
+      database.createObjectStore(indexedDbStores.users, {
+        keyPath: 'userId',
+      });
+    }
+
+    if (!database.objectStoreNames.contains(indexedDbStores.dictionaryWords)) {
+      const store = database.createObjectStore(
+        indexedDbStores.dictionaryWords,
+        {keyPath: 'key'},
+      );
+      store.createIndex('by-user', 'userId');
+    }
+
+    if (!database.objectStoreNames.contains(indexedDbStores.dictionaryMetadata)) {
+      database.createObjectStore(indexedDbStores.dictionaryMetadata, {
+        keyPath: 'userId',
+      });
+    }
+  },
+  3(database) {
+    if (!database.objectStoreNames.contains(indexedDbStores.syncMetadata)) {
+      database.createObjectStore(indexedDbStores.syncMetadata, {
+        keyPath: 'key',
+      });
+    }
+  },
+};
 
 let databasePromise: Promise<IDBPDatabase> | null = null;
 
 const openDatabase = (): Promise<IDBPDatabase> => {
-  databasePromise ??= openDB(databaseName, databaseVersion, {
-    upgrade(database) {
-      if (!database.objectStoreNames.contains(indexedDbStores.exercises)) {
-        const store = database.createObjectStore(indexedDbStores.exercises, {
-          keyPath: 'key',
-        });
-        store.createIndex('by-user-due-date', ['userId', 'dueDate']);
-        store.createIndex('by-user', 'userId');
-      }
-
-      if (!database.objectStoreNames.contains(indexedDbStores.statistics)) {
-        const store = database.createObjectStore(indexedDbStores.statistics, {
-          keyPath: 'key',
-        });
-        store.createIndex('by-user', 'userId');
-      }
-
-      if (!database.objectStoreNames.contains(indexedDbStores.completionOutbox)) {
-        const store = database.createObjectStore(
-          indexedDbStores.completionOutbox,
-          {keyPath: 'attemptId'},
-        );
-        store.createIndex('by-user-created-at', ['userId', 'createdAt']);
-        store.createIndex('by-user-status', ['userId', 'status']);
-      }
-
-      if (!database.objectStoreNames.contains(indexedDbStores.users)) {
-        database.createObjectStore(indexedDbStores.users, {
-          keyPath: 'userId',
-        });
-      }
-
-      if (!database.objectStoreNames.contains(indexedDbStores.dictionaryWords)) {
-        const store = database.createObjectStore(
-          indexedDbStores.dictionaryWords,
-          {keyPath: 'key'},
-        );
-        store.createIndex('by-user', 'userId');
-      }
-
-      if (!database.objectStoreNames.contains(indexedDbStores.dictionaryMetadata)) {
-        database.createObjectStore(indexedDbStores.dictionaryMetadata, {
-          keyPath: 'userId',
-        });
+  databasePromise ??= openDB(databaseName, indexedDbDatabaseVersion, {
+    upgrade(database, oldVersion) {
+      for (
+        let version = oldVersion + 1;
+        version <= indexedDbDatabaseVersion;
+        version++
+      ) {
+        migrations[version]?.(database);
       }
     },
   });

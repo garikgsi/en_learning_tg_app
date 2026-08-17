@@ -58,6 +58,30 @@ describe('exerciseRepository', () => {
     ).rejects.toBe(error);
   });
 
+  it('adds newly published exercises to the existing IndexedDB cache', async () => {
+    const newExercise = {
+      ...exercise,
+      id: 8,
+      createdAt: '2026-08-15T00:00:00Z',
+    };
+    const getForPeriod = vi.spyOn(httpExerciseDriver, 'getForPeriod')
+      .mockResolvedValueOnce([exercise])
+      .mockResolvedValueOnce([exercise, newExercise])
+      .mockRejectedValueOnce(new AxiosError('Network unavailable'));
+    const repository = useExerciseRepository();
+    const period = [
+      '2026-08-11T00:00:00Z',
+      '2026-08-17T23:59:59Z',
+    ] as const;
+
+    await repository.getForPeriod('user-1', ...period);
+    await repository.getForPeriod('user-1', ...period);
+    const cached = await repository.getForPeriod('user-1', ...period);
+
+    expect(cached.source).toBe('indexedDb');
+    expect(cached.data.map(item => item.id)).toEqual([exercise.id, 8]);
+  });
+
   it('keeps a result queued after a network failure and retries the same attempt', async () => {
     const complete = vi.spyOn(httpExerciseDriver, 'complete');
     complete.mockRejectedValueOnce(new AxiosError('Network unavailable'));

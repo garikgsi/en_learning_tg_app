@@ -159,6 +159,34 @@ npm run android:sync
 должны настраиваться отдельным release-процессом. Не храните keystore и его
 пароли в Git.
 
+### Прямое обновление APK
+
+Приложение проверяет `GET /api/v1/app-updates/latest` после входа. Для каждой
+новой версии увеличьте `versionCode`, соберите и подпишите APK тем же ключом,
+опубликуйте файл по HTTPS и настройте backend:
+
+```dotenv
+APP_UPDATE_VERSION_CODE=8
+APP_UPDATE_VERSION_NAME=0.1.0-rc.8
+APP_UPDATE_APK_URL=https://downloads.example.com/en-learning-v0.1.0-rc.8.apk
+APP_UPDATE_SHA256=<64 hex characters>
+APP_UPDATE_SIZE=<size in bytes>
+APP_UPDATE_RELEASED_AT=2026-08-17T08:00:00Z
+APP_UPDATE_RELEASE_NOTES="Исправления и новые упражнения"
+APP_UPDATE_MANDATORY=false
+```
+
+SHA-256 и размер вычисляются только после финальной подписи APK. Android один
+раз попросит пользователя разрешить приложению установку из этого источника,
+а затем покажет системное подтверждение обновления. APK с другой подписью или
+меньшим/equal `versionCode` Android поверх установленного приложения не примет.
+
+IndexedDB обновляется последовательными миграциями в `src/api/indexedDb.ts`.
+При изменении схемы добавляйте новую миграцию и увеличивайте
+`indexedDbDatabaseVersion`; существующие упражнения и очередь не удаляйте без
+отдельной миграции данных. Новые упражнения с backend подмешиваются в локальный
+кэш при входе и при восстановлении соединения.
+
 ## Проверка после релиза
 
 - сайт открывается только по HTTPS;
