@@ -20,6 +20,7 @@
     "@capacitor/android": "^8.4.2",
     "@capacitor/camera": "^8.2.1",
     "@capacitor/core": "8.4.2",
+    "@capacitor/haptics": "^8.0.0",
     "@capacitor/network": "^8.0.1",
     "@mdi/font": "7.4.47",
     "axios": "^1.18.1",

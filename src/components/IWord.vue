@@ -1,6 +1,7 @@
 <script setup lang="ts">
 
 import {computed, nextTick, ref} from 'vue';
+import {Haptics} from '@capacitor/haptics';
 import {vDisableOtpAutocomplete} from '@/directives/disableOtpAutocomplete';
 import {useKeyNormalizer} from '@/use/keyNormalizer';
 import type {WordMistake, WordResult} from '@/types/translation';
@@ -40,6 +41,15 @@ const {
 
 const emits = defineEmits<Emits>()
 const root = ref<HTMLElement | null>(null);
+const mistakeVibrationDurationMs = 300;
+
+const vibrateOnMistake = (): void => {
+  void Haptics.vibrate({
+    duration: mistakeVibrationDurationMs,
+  }).catch(() => {
+    navigator.vibrate?.(mistakeVibrationDurationMs);
+  });
+};
 
 const answerLanguage = computed<'en' | 'ru'>(() => {
   return props.lang
@@ -152,7 +162,7 @@ const answer = computed({
     emits('update:model-value', sanitizedAnswer)
 
     if (mistakesCount > 0) {
-      navigator.vibrate?.(200)
+      vibrateOnMistake();
       emits('mistake', {
         count: mistakesCount,
         answer: sanitizedAnswer,

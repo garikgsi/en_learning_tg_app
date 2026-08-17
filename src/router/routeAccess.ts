@@ -54,6 +54,12 @@ export const routes: Record<string, RouteMetadata> = {
     showInSideBar: false,
     isPublic: false,
   },
+  '/update': {
+    title: 'Обновление приложения',
+    icon: 'mdi-cellphone-arrow-down',
+    showInSideBar: false,
+    isPublic: false,
+  },
 };
 
 export const isPublicRoute = (path: string): boolean => {

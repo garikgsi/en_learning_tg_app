@@ -5,6 +5,16 @@ import {createVuetify} from 'vuetify';
 import IPinCodeInput from '@/components/IPinCodeInput.vue';
 import IWord from '@/components/IWord.vue';
 
+const hapticsMocks = vi.hoisted(() => ({
+  vibrate: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock('@capacitor/haptics', () => ({
+  Haptics: {
+    vibrate: hapticsMocks.vibrate,
+  },
+}));
+
 const mountWithVuetify = (
   component: Parameters<typeof mount>[0],
   props: Record<string, unknown> = {},
@@ -91,6 +101,7 @@ describe('OTP autocomplete', () => {
 
 describe('IWord keyboard layout normalization', () => {
   afterEach(() => {
+    hapticsMocks.vibrate.mockClear();
     Reflect.deleteProperty(navigator, 'vibrate');
   });
 
@@ -208,11 +219,6 @@ describe('IWord keyboard layout normalization', () => {
   });
 
   it('keeps only the first wrong letter from fast input and vibrates', async () => {
-    const vibrate = vi.fn();
-    Object.defineProperty(navigator, 'vibrate', {
-      configurable: true,
-      value: vibrate,
-    });
     const answer = ref('');
     const TestHost = defineComponent({
       setup() {
@@ -235,8 +241,8 @@ describe('IWord keyboard layout normalization', () => {
     await flushPromises();
 
     expect(answer.value).toBe('CX');
-    expect(vibrate).toHaveBeenCalledOnce();
-    expect(vibrate).toHaveBeenCalledWith(200);
+    expect(hapticsMocks.vibrate).toHaveBeenCalledOnce();
+    expect(hapticsMocks.vibrate).toHaveBeenCalledWith({duration: 300});
     wrapper.unmount();
   });
 });

@@ -4,13 +4,11 @@ import {getApiErrorMessage} from '@/api/errors';
 import {httpAppUpdateDriver} from '@/api/http/appUpdate';
 import type {AppRelease} from '@/api/types/appUpdate';
 import {AppUpdate, type InstalledAppVersion} from '@/native/appUpdate';
-import useMessages from '@/use/messages';
 
 const availableRelease = ref<AppRelease | null>(null);
 const isChecking = ref(false);
 const isDownloading = ref(false);
-const checkedVersionCodes = new Set<number>();
-const messageKey = 'app-update';
+const installationError = ref<string | null>(null);
 
 export const isNewerRelease = (
   release: AppRelease,
@@ -22,11 +20,8 @@ const install = async (release: AppRelease): Promise<void> => {
     return;
   }
 
-  const {addError, addWarning, readMessageByKey} = useMessages();
+  installationError.value = null;
   isDownloading.value = true;
-  addWarning(`Скачивается обновление ${release.versionName}…`, 0, {
-    key: messageKey,
-  });
 
   try {
     await AppUpdate.downloadAndInstall({
@@ -35,23 +30,24 @@ const install = async (release: AppRelease): Promise<void> => {
       ...(release.size ? {size: release.size} : {}),
     });
   } catch (error) {
-    addError(getApiErrorMessage(error, 'Не удалось установить обновление'));
+    installationError.value = getApiErrorMessage(
+      error,
+      'Не удалось установить обновление',
+    );
   } finally {
-    readMessageByKey(messageKey);
     isDownloading.value = false;
   }
 };
 
-const check = async (): Promise<void> => {
+const check = async (): Promise<AppRelease | null> => {
   if (
     isChecking.value
     || !Capacitor.isNativePlatform()
     || Capacitor.getPlatform() !== 'android'
   ) {
-    return;
+    return null;
   }
 
-  const {addWarning} = useMessages();
   isChecking.value = true;
 
   try {
@@ -62,31 +58,17 @@ const check = async (): Promise<void> => {
 
     if (
       !release
-      || checkedVersionCodes.has(release.versionCode)
       || !isNewerRelease(release, installed)
     ) {
-      return;
+      return null;
     }
 
-    checkedVersionCodes.add(release.versionCode);
     availableRelease.value = release;
-    const notes = release.releaseNotes
-      ? ` ${release.releaseNotes}`
-      : '';
 
-    addWarning(
-      `Доступна версия ${release.versionName}.${notes}`,
-      0,
-      {
-        key: messageKey,
-        action: {
-          title: 'Обновить',
-          handler: () => install(release),
-        },
-      },
-    );
+    return release;
   } catch {
     // Проверка обновлений не должна мешать входу и offline-синхронизации.
+    return null;
   } finally {
     isChecking.value = false;
   }
@@ -96,6 +78,7 @@ export const useAppUpdate = () => ({
   availableRelease: readonly(availableRelease),
   isChecking: readonly(isChecking),
   isDownloading: readonly(isDownloading),
+  installationError: readonly(installationError),
   check,
   install,
 });

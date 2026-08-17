@@ -11,7 +11,7 @@
 <script lang="ts" setup>
 import {computed, onMounted, watch} from 'vue';
 import {storeToRefs} from 'pinia';
-import {useRoute} from 'vue-router';
+import {useRoute, useRouter} from 'vue-router';
 import {useTheme} from 'vuetify';
 import MainLayout from '@/layouts/MainLayout.vue';
 import UnsecureLayout from '@/layouts/UnsecureLayout.vue';
@@ -24,6 +24,7 @@ import {useAppUpdate} from '@/use/appUpdate';
 import useMessages from '@/use/messages';
 
 const route = useRoute();
+const router = useRouter();
 const theme = useTheme();
 const settingsStore = useSettingsStore();
 const userStore = useUserStore();
@@ -43,6 +44,14 @@ const activeLayout = computed(() => {
 });
 
 const pageTitle = computed(() => getRouteTitle(route.path));
+
+const checkForAppUpdate = async (): Promise<void> => {
+  const release = await appUpdate.check();
+
+  if (release && route.path !== '/update') {
+    await router.replace('/update');
+  }
+};
 
 onMounted(async () => {
   await network.initialize();
@@ -74,7 +83,7 @@ watch(
     if (shouldInitialize) {
       await Promise.allSettled([
         offlineManager.initializeForUser(userId, connected),
-        connected ? appUpdate.check() : Promise.resolve(),
+        connected ? checkForAppUpdate() : Promise.resolve(),
       ]);
     }
   },
