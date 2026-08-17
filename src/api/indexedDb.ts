@@ -11,6 +11,14 @@ import {
 export {indexedDbDatabaseVersion, indexedDbStores};
 export type {IndexedDbStore};
 
+export type IndexedDbMutation<T> =
+  | {type: 'put', value: T}
+  | {type: 'delete', key: IDBValidKey};
+
+export type IndexedDbStoreMutation =
+  | {store: IndexedDbStore, type: 'put', value: unknown}
+  | {store: IndexedDbStore, type: 'delete', key: IDBValidKey};
+
 const databaseName = 'en-learning';
 
 let databasePromise: Promise<IDBPDatabase> | null = null;
@@ -26,14 +34,6 @@ const openDatabase = (): Promise<IDBPDatabase> => {
 
   return databasePromise;
 }
-
-export type IndexedDbMutation<T> =
-  | {type: 'put', value: T}
-  | {type: 'delete', key: IDBValidKey};
-
-export type IndexedDbStoreMutation =
-  | {store: IndexedDbStore, type: 'put', value: unknown}
-  | {store: IndexedDbStore, type: 'delete', key: IDBValidKey};
 
 export class IndexedDbClient {
   async get<T>(store: IndexedDbStore, key: IDBValidKey): Promise<T | undefined> {
