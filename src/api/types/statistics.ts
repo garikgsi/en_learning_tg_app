@@ -1,5 +1,6 @@
 export type ExerciseStatisticsItem = {
   exerciseId: number
+  createdAt: string
   completionId: number | null
   status: 'completed' | 'uncompleted'
   date: string
@@ -10,6 +11,13 @@ export type ExerciseStatisticsItem = {
   }
   wordsCount: number
   wordsWithErrors: number
+  errorsCount: number
+  errorWords: string[]
+  words: {
+    english: string
+    russian: string
+    hasErrors: boolean
+  }[]
   successPercentage: number
 }
 

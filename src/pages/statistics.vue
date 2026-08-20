@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue';
+  import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import {storeToRefs} from 'pinia';
 import {useRouter} from 'vue-router';
 import {useTheme} from 'vuetify';
@@ -15,6 +15,7 @@ import {
 import type {EChartsOption} from 'echarts';
 import VChart from 'vue-echarts';
 import IConfirmDialog from '@/components/IConfirmDialog.vue';
+  import IChipWord from '@/components/IChipWord.vue';
 import {
   findStatisticsAchievement,
   useStatisticsStore,
@@ -27,6 +28,16 @@ import type {
 import {useUserStore} from '@/stores/userStore';
 import useLoading from '@/use/loading'
 import {useNetwork} from '@/use/network';
+  import {
+    buildStatisticsCalendarGroups,
+    buildStatisticsExerciseQueue,
+    findUncompletedUserExerciseForDay,
+    limitStatisticsCalendarWords,
+    selectStatisticsCalendarExercise,
+  } from '@/use/statisticsCalendar';
+  import type {
+    StatisticsCalendarGroup,
+  } from '@/use/statisticsCalendar';
 
 use([
   CanvasRenderer,
@@ -36,15 +47,6 @@ use([
   LegendComponent,
   TooltipComponent,
 ]);
-
-type StatisticsCalendarEvent = ExerciseStatisticsItem & {
-  id: string
-  title: string
-  start: Date
-  end: Date
-  allDay: true
-  color: string
-}
 
 const {isLoading} = useLoading();
 
@@ -62,64 +64,103 @@ const router = useRouter();
 const theme = useTheme();
 
 const calendarDate = ref<Date[]>([new Date()]);
-const selectedEvent = ref<StatisticsCalendarEvent | null>(null);
+  const isCalendarLoading = ref(true);
+  const selectedGroup = ref<StatisticsCalendarGroup | null>(null);
 const isExerciseDialogOpen = ref(false);
 const isCreateDialogOpen = ref(false);
 
-const isUserExercise = (event: ExerciseStatisticsItem): boolean => {
-  return event.type.name === 'user';
+  const selectedExerciseFor = (
+    group: StatisticsCalendarGroup,
+  ): ExerciseStatisticsItem | null => {
+    return selectStatisticsCalendarExercise(group);
 }
 
-const canOpenExercise = (event: ExerciseStatisticsItem): boolean => {
-  return !isUserExercise(event) || event.status === 'uncompleted';
-}
-
-const exerciseDialogText = computed(() => {
-  return selectedEvent.value?.status === 'completed'
-    ? 'Вы хотите пройти упражнение еще раз?'
-    : 'Пройти упражнение?';
+  const selectedEvent = computed<ExerciseStatisticsItem | null>(() => {
+    return selectedGroup.value
+      ? selectedExerciseFor(selectedGroup.value)
+      : null;
 });
 
 const exerciseDialogTitle = computed(() => {
-  const event = selectedEvent.value;
+    const group = selectedGroup.value;
 
-  if (!event) {
+    if (!group) {
     return 'Упражнение';
   }
 
-  if (isUserExercise(event)) {
-    return event.type.title;
+    if (group.typeName === 'user') {
+      return 'Пользовательское упражнение';
   }
 
-  const type = `${event.type.name} ${event.type.title}`.toLowerCase();
-
-  return type.includes('week') || type.includes('недел')
+    return group.typeName === 'weekly'
     ? 'Еженедельное упражнение'
     : 'Ежедневное упражнение';
 });
 
-const openExerciseDialog = (event: StatisticsCalendarEvent): void => {
-  if (!canOpenExercise(event)) {
-    return;
+  const canStartSelectedGroup = computed(() => {
+    return selectedGroup.value?.typeName !== 'user'
+      || selectedEvent.value?.status === 'uncompleted';
+  });
+
+  const exerciseDialogText = computed(() => {
+    if (!canStartSelectedGroup.value) {
+      return '';
   }
 
-  selectedEvent.value = event;
+    return selectedGroup.value?.typeName === 'user'
+      ? 'Пройти упражнение?'
+      : 'Пройти упражнение еще раз?';
+  });
+
+  const isSelectedUncompletedUserExercise = computed(() => {
+    return selectedGroup.value?.typeName === 'user'
+      && selectedGroup.value.status === 'uncompleted';
+  });
+
+  const selectedWordsSummary = computed(() => {
+    return limitStatisticsCalendarWords(selectedGroup.value?.words ?? []);
+  });
+
+  const groupTitle = (group: StatisticsCalendarGroup): string => {
+    return group.typeName === 'daily'
+      ? 'Daily'
+      : group.typeName === 'weekly'
+        ? 'Weekly'
+        : 'My';
+  }
+
+  const groupResultTitle = (group: StatisticsCalendarGroup): string => {
+    const count = group.count === 1 ? '' : ` * ${group.count}`;
+    const correctWords = group.wordsCount - group.wordsWithErrors;
+
+    return `${groupTitle(group)}${count} (${correctWords}/${group.wordsCount})`;
+  }
+
+  const openExerciseDialog = (group: StatisticsCalendarGroup): void => {
+    selectedGroup.value = group;
   isExerciseDialogOpen.value = true;
 }
 
 const closeExerciseDialog = (): void => {
-  selectedEvent.value = null;
+    selectedGroup.value = null;
 }
 
 const startSelectedExercise = async (): Promise<void> => {
-  const exerciseId = selectedEvent.value?.exerciseId;
-  selectedEvent.value = null;
+    const group = selectedGroup.value;
+    const exerciseIds = group ? buildStatisticsExerciseQueue(group) : [];
+    const exerciseId = exerciseIds.shift();
+    selectedGroup.value = null;
 
   if (!exerciseId) {
     return;
   }
 
-  await router.push(`/exercises/${exerciseId}`);
+    await router.push({
+      path: `/exercises/${exerciseId}`,
+      query: exerciseIds.length > 0
+        ? { queue: exerciseIds.join(',') }
+        : undefined,
+    });
 }
 
 const createUserExercise = async (): Promise<void> => {
@@ -135,32 +176,6 @@ const getRepetitionButtonTitle = (word: AttentionWord): string => {
   return word.isSelectedForRepetition
     ? 'Слово добавлено для повторения'
     : 'Добавить слово для повторения';
-}
-
-const isSameLocalDay = (first: Date, second: Date): boolean => {
-  return first.getFullYear() === second.getFullYear()
-    && first.getMonth() === second.getMonth()
-    && first.getDate() === second.getDate();
-}
-
-const successColor = (percentage: number): string => {
-  if (percentage >= 90) {
-    return 'green-lighten-1';
-  }
-
-  if (percentage >= 75) {
-    return 'green';
-  }
-
-  if (percentage >= 50) {
-    return 'green-darken-1';
-  }
-
-  if (percentage >= 25) {
-    return 'green-darken-2';
-  }
-
-  return 'green-darken-3';
 }
 
 const buildChartOption = (
@@ -339,39 +354,46 @@ const formatChartPeriod = (
     + formatter.format(toLocalDate(period.dateTo));
 }
 
-const events = computed<StatisticsCalendarEvent[]>(() => {
-  return items.value.map(item => {
-    const date = new Date(item.date);
-    const isUncompletedToday = item.status === 'uncompleted'
-      && isSameLocalDay(date, new Date());
-
-    return {
-      ...item,
-      id: item.completionId === null
-        ? `exercise-${item.exerciseId}`
-        : `completion-${item.completionId}`,
-      title: isUserExercise(item)
-        ? item.type.title
-        : isUncompletedToday
-          ? 'Задание на сегодня'
-          : item.type.title,
-      start: date,
-      end: date,
-      allDay: true,
-      color: isUserExercise(item)
-        ? 'grey-darken-1'
-        : isUncompletedToday
-          ? 'orange-darken-1'
-          : item.status === 'uncompleted'
-            ? 'red-darken-1'
-            : successColor(item.successPercentage),
-    };
-  });
+  const events = computed<StatisticsCalendarGroup[]>(() => {
+    return buildStatisticsCalendarGroups(items.value);
 });
+
+  const openUserExerciseCreation = async (): Promise<void> => {
+    const existingGroup = findUncompletedUserExerciseForDay(
+      events.value,
+      new Date(),
+    );
+    const existingExerciseId = existingGroup
+      ? buildStatisticsExerciseQueue(existingGroup)[0]
+      : null;
+
+    if (existingExerciseId) {
+      await router.push(`/exercises/${existingExerciseId}`);
+      return;
+    }
+
+    isCreateDialogOpen.value = true;
+  }
 
 const visibleMonth = computed(() => {
   return calendarDate.value[0] ?? new Date();
 });
+
+  let calendarLoadSequence = 0;
+
+  const loadVisibleMonth = async (): Promise<void> => {
+    const loadSequence = ++calendarLoadSequence;
+    isCalendarLoading.value = true;
+
+    try {
+      await statisticsStore.loadMonth(visibleMonth.value);
+      await nextTick();
+    } finally {
+      if (loadSequence === calendarLoadSequence) {
+        isCalendarLoading.value = false;
+      }
+    }
+  }
 
 watch(
   () => [
@@ -379,18 +401,18 @@ watch(
     visibleMonth.value.getMonth(),
   ],
   async () => {
-    await statisticsStore.loadMonth(visibleMonth.value);
+      await loadVisibleMonth();
   },
 );
 
 watch(isConnected, async (connected, wasConnected) => {
   if (connected && wasConnected === false) {
-    await statisticsStore.loadMonth(visibleMonth.value);
+      await loadVisibleMonth();
   }
 });
 
 onMounted(async () => {
-  await statisticsStore.loadMonth(visibleMonth.value);
+    await loadVisibleMonth();
 });
 </script>
 
@@ -399,7 +421,7 @@ onMounted(async () => {
   <v-card class="statistics-card">
     <v-card-title class="statistics-card__header">
 
-      <v-spacer></v-spacer>
+      <v-spacer />
 
       <v-btn
         color="primary"
@@ -407,40 +429,40 @@ onMounted(async () => {
         :loading="isCreating"
         prepend-icon="mdi-plus"
         variant="text"
-        @click="isCreateDialogOpen = true"
+        @click="openUserExerciseCreation"
       >
         Новое задание
       </v-btn>
     </v-card-title>
 
-    <v-divider></v-divider>
+    <v-divider />
 
     <v-card-text class="pb-2">
       <div class="statistics-legend">
         <div class="statistics-legend__item">
-          <span class="statistics-legend__color bg-orange-darken-1"></span>
+          <span class="statistics-legend__color bg-orange-darken-1" />
           Задание на сегодня
         </div>
         <div class="statistics-legend__item">
-          <span class="statistics-legend__color bg-red-darken-1"></span>
+          <span class="statistics-legend__color bg-red-darken-1" />
           Не пройдено
         </div>
         <div class="statistics-legend__item">
-          <span class="statistics-legend__gradient"></span>
+          <span class="statistics-legend__gradient" />
           Пройдено
         </div>
         <div class="statistics-legend__item">
-          <span class="statistics-legend__color bg-grey-darken-1"></span>
-          Пользовательское
+          <span class="statistics-legend__color bg-grey-darken-1" />
+          Самоподготовка
         </div>
       </div>
     </v-card-text>
 
     <v-skeleton-loader
-      v-if="isLoading"
+      v-if="isCalendarLoading"
       class="statistics-calendar-skeleton"
       type="table"
-    ></v-skeleton-loader>
+    />
 
     <div
       v-else
@@ -454,6 +476,7 @@ onMounted(async () => {
         :hide-week-number="true"
         :show-adjacent-months="false"
         view-mode="month"
+        weeks-in-month="static"
       >
         <template #event="{event}">
           <v-tooltip location="top">
@@ -462,28 +485,44 @@ onMounted(async () => {
                 v-bind="props"
                 class="statistics-event"
                 :class="{
-                  'statistics-event--disabled': !canOpenExercise(
-                    event as StatisticsCalendarEvent,
-                  ),
+                  'statistics-event--single-type': (
+                    event as StatisticsCalendarGroup
+                  ).isOnlyTypeInDay,
                 }"
                 :color="event.color as string"
-                :role="canOpenExercise(event as StatisticsCalendarEvent) ? 'button' : undefined"
+                role="button"
                 rounded="sm"
-                :tabindex="canOpenExercise(event as StatisticsCalendarEvent) ? 0 : undefined"
-                @click="openExerciseDialog(event as StatisticsCalendarEvent)"
-                @keydown.enter="openExerciseDialog(event as StatisticsCalendarEvent)"
-                @keydown.space.prevent="openExerciseDialog(event as StatisticsCalendarEvent)"
+                :style="{
+                  flexGrow: (event as StatisticsCalendarGroup).count,
+                }"
+                :tabindex="0"
+                @click="openExerciseDialog(event as StatisticsCalendarGroup)"
+                @keydown.enter="openExerciseDialog(
+                  event as StatisticsCalendarGroup,
+                )"
+                @keydown.space.prevent="openExerciseDialog(
+                  event as StatisticsCalendarGroup,
+                )"
               >
-                <div class="statistics-event__title">
-                  {{ event.title }}
+                <div class="statistics-event__compact-title d-sm-none">
+                  {{ (event as StatisticsCalendarGroup).shortTitle }}<span
+                    v-if="(event as StatisticsCalendarGroup).count > 1"
+                  >
+                    {{ (event as StatisticsCalendarGroup).count }}
+                  </span>
                 </div>
-                <div class="statistics-event__result">
-                  {{ event.wordsCount }} / {{ event.wordsWithErrors }}
+                <div class="statistics-event__details d-none d-sm-flex">
+                <div class="statistics-event__title">
+                    {{ groupResultTitle(event as StatisticsCalendarGroup) }}
+                </div>
                 </div>
               </v-sheet>
             </template>
 
             <div>{{ event.title }}</div>
+            <div v-if="(event as StatisticsCalendarGroup).count > 1">
+              Упражнений: {{ (event as StatisticsCalendarGroup).count }}
+            </div>
             <div>
               Всего слов: {{ event.wordsCount }},
               с ошибками: {{ event.wordsWithErrors }}
@@ -494,7 +533,7 @@ onMounted(async () => {
             <div v-else>Упражнение не пройдено</div>
             <div
               v-if="
-                isUserExercise(event as StatisticsCalendarEvent)
+                (event as StatisticsCalendarGroup).typeName === 'user'
                   && event.status === 'completed'
               "
             >
@@ -532,7 +571,7 @@ onMounted(async () => {
           v-if="isLoading"
           height="380"
           type="image"
-        ></v-skeleton-loader>
+        />
         <VChart
           v-else
           autoresize
@@ -552,7 +591,7 @@ onMounted(async () => {
           v-if="isLoading"
           height="380"
           type="image"
-        ></v-skeleton-loader>
+        />
         <VChart
           v-else
           autoresize
@@ -574,7 +613,7 @@ onMounted(async () => {
     <v-skeleton-loader
       v-if="isLoading"
       type="list-item-two-line@3"
-    ></v-skeleton-loader>
+    />
 
     <v-list
       v-else-if="attentionWords.length"
@@ -646,7 +685,7 @@ onMounted(async () => {
               @click="
                 statisticsStore.addAttentionWordToRepetition(word.wordId)
               "
-            ></v-btn>
+            />
           </div>
         </template>
       </v-list-item>
@@ -654,15 +693,67 @@ onMounted(async () => {
 
   </v-card>
 
-  <IConfirmDialog
+  <v-dialog
     v-model="isExerciseDialogOpen"
-    no-button-text="Нет"
-    :text="exerciseDialogText"
-    :title="exerciseDialogTitle"
-    yes-button-text="Да"
-    @no="closeExerciseDialog"
-    @yes="startSelectedExercise"
+    max-width="500"
+    persistent
+    scrollable
+    @after-leave="closeExerciseDialog"
+  >
+    <v-card v-if="selectedGroup">
+      <v-card-title>{{ exerciseDialogTitle }}</v-card-title>
+      <v-divider />
+      <v-card-text class="exercise-statistics-dialog__content">
+        <div v-if="isSelectedUncompletedUserExercise" class="mb-4 font-weight-thin font-italic text-right">
+          упражнение еще не пройдено
+        </div>
+        <div class="exercise-statistics-dialog__words mb-4">
+          <v-divider />
+          <IChipWord
+            v-for="(word, index) in selectedWordsSummary.words"
+            :key="`${index}:${word.english}`"
+            :color="isSelectedUncompletedUserExercise
+              ? 'secondary'
+              : word.hasErrors ? 'red' : 'green'"
+            language="en"
+            :translation="word.russian"
+            :word="word.english"
   />
+          <v-chip
+            v-if="selectedWordsSummary.hiddenCount > 0"
+            color="grey"
+            size="small"
+          >
+            еще +{{ selectedWordsSummary.hiddenCount }}
+          </v-chip>
+          <v-divider />
+        </div>
+        <div
+          v-if="exerciseDialogText"
+          class="exercise-statistics-dialog__question"
+        >
+          {{ exerciseDialogText }}
+        </div>
+      </v-card-text>
+      <v-divider />
+      <v-card-actions>
+        <v-spacer />
+        <v-btn
+          v-if="canStartSelectedGroup"
+          color="primary"
+          @click="isExerciseDialogOpen = false; startSelectedExercise()"
+        >
+          Да
+        </v-btn>
+        <v-btn
+          color="secondary"
+          @click="isExerciseDialogOpen = false"
+        >
+          {{ canStartSelectedGroup ? 'Нет' : 'Закрыть' }}
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 
   <IConfirmDialog
     v-model="isCreateDialogOpen"
@@ -792,11 +883,38 @@ onMounted(async () => {
 }
 
 .statistics-calendar :deep(.v-calendar-month__days) {
+  grid-auto-rows: minmax(0, 1fr);
   min-height: 0;
+  overflow: hidden;
 }
 
 .statistics-calendar :deep(.v-calendar-month__day) {
   min-height: 0;
+  overflow: hidden;
+}
+
+.statistics-calendar :deep(.v-calendar-weekly__day-content) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.statistics-calendar :deep(.v-calendar-weekly__day-content > div) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.statistics-calendar :deep(.v-calendar-weekly__day-alldayevents-container) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .statistics-calendar :deep(.v-calendar-weekly__head-weekday) {
@@ -841,15 +959,42 @@ onMounted(async () => {
 }
 
 .statistics-event {
+  align-items: center;
   color: white;
   cursor: pointer;
+  display: flex;
+  flex-basis: 0;
+  flex-shrink: 1;
+  justify-content: center;
   margin: 2px 4px;
+  min-height: 0;
   overflow: hidden;
   padding: 4px 6px;
 }
 
-.statistics-event--disabled {
-  cursor: default;
+.statistics-event--single-type {
+  flex-basis: calc(50% - 4px);
+  flex-grow: 0 !important;
+  flex-shrink: 0;
+}
+
+.statistics-event__compact-title {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.statistics-event__compact-title span {
+  margin-left: 3px;
+}
+
+.statistics-event__details {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
 }
 
 .statistics-event__title {
@@ -860,8 +1005,19 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.statistics-event__result {
-  font-size: 11px;
-  opacity: 0.9;
+.exercise-statistics-dialog__content {
+  display: grid;
+  gap: 8px;
+  padding-top: 24px;
+}
+
+.exercise-statistics-dialog__words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.exercise-statistics-dialog__question {
+  margin-top: 8px;
 }
 </style>

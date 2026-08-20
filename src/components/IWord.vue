@@ -36,6 +36,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const {
+  isAnswerLetterCorrect,
   normalizeAnswer: normalizeKeyAnswer,
   normalizeLanguageText,
 } = useKeyNormalizer();
@@ -172,8 +173,11 @@ const normalizeAnswer = (value: string) => {
 
 const getWrongAnswerIndex = (value: string) => {
   return Array.from(value).findIndex((letter, index) => {
-    return letter.toLowerCase()
-      !== normalizedTranslate.value[index]?.toLowerCase()
+    return !isAnswerLetterCorrect(
+      letter,
+      normalizedTranslate.value[index] ?? '',
+      answerLanguage.value,
+    );
   })
 }
 
@@ -187,8 +191,11 @@ const answer = computed({
       : normalizedAnswer
     const mistakesCount = Array.from(normalizedAnswer).filter((letter, index) => {
       const isChanged = letter !== props.modelValue[index]
-      const isWrong = letter.toLowerCase()
-        !== normalizedTranslate.value[index]?.toLowerCase()
+      const isWrong = !isAnswerLetterCorrect(
+        letter,
+        normalizedTranslate.value[index] ?? '',
+        answerLanguage.value,
+      );
 
       return isChanged && isWrong
     }).length
@@ -302,8 +309,7 @@ const onWordFinish = async (wordIndex: number, wordAnswer: string) => {
     return;
   }
 
-  const isCorrect = normalizedAnswer.toLowerCase()
-    === normalizedTranslate.value.toLowerCase();
+  const isCorrect = getWrongAnswerIndex(normalizedAnswer) < 0;
 
   if (!isCorrect) {
     const wrongAnswerIndex = getWrongAnswerIndex(normalizedAnswer);

@@ -13,6 +13,24 @@ const englishToRussian = createLayoutMap(englishLayout, russianLayout);
 const russianToEnglish = createLayoutMap(russianLayout, englishLayout);
 
 export const useKeyNormalizer = () => {
+  const isAnswerLetterCorrect = (
+    answerLetter: string,
+    expectedLetter: string,
+    language: KeyNormalizerLanguage,
+  ): boolean => {
+    const answer = answerLetter.toLowerCase();
+    const expected = expectedLetter.toLowerCase();
+
+    if (answer === expected) {
+      return true;
+    }
+
+    return language === 'ru' && (
+      (answer === 'е' && expected === 'ё')
+      || (answer === 'ь' && expected === 'ъ')
+    );
+  }
+
   const normalizeLanguageText = (
     value: string,
     language: KeyNormalizerLanguage,
@@ -54,6 +72,7 @@ export const useKeyNormalizer = () => {
   }
 
   return {
+    isAnswerLetterCorrect,
     normalizeAnswer,
     normalizeKeyboardInput,
     normalizeLanguageText,

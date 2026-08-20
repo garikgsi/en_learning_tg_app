@@ -113,6 +113,49 @@ describe('IWord keyboard layout normalization', () => {
     Reflect.deleteProperty(navigator, 'vibrate');
   });
 
+  it.each([
+    ['елка', 'ёлка'],
+    ['обьект', 'объект'],
+  ])('accepts "%s" as an answer for "%s"', async (
+    enteredAnswer,
+    expectedAnswer,
+  ) => {
+    const answer = ref('');
+    const finish = vi.fn();
+    const mistake = vi.fn();
+    const TestHost = defineComponent({
+      setup() {
+        return () => h(IWord, {
+          modelValue: answer.value,
+          word: 'test',
+          translate: expectedAnswer,
+          lang: 'ru',
+          'onUpdate:modelValue': (value: string) => {
+            answer.value = value;
+          },
+          onFinish: finish,
+          onMistake: mistake,
+        });
+      },
+    });
+    const wrapper = mountWithVuetify(TestHost);
+
+    await flushPromises();
+    const input = wrapper.findComponent({name: 'VOtpInput'});
+    input.vm.$emit('update:modelValue', enteredAnswer);
+    await flushPromises();
+    input.vm.$emit('finish', enteredAnswer);
+    await flushPromises();
+
+    expect(answer.value).toBe(enteredAnswer.toUpperCase());
+    expect(mistake).not.toHaveBeenCalled();
+    expect(finish).toHaveBeenCalledWith({
+      isOk: true,
+      answer: enteredAnswer.toUpperCase(),
+    });
+    wrapper.unmount();
+  });
+
   it('converts Russian-layout keystrokes to the expected English letters', async () => {
     const TestHost = defineComponent({
       setup() {

@@ -36,6 +36,14 @@ project setting.
 - On extra-small screens, compact secondary labels when they compete with
   important values for horizontal space.
 
+## Vue and Vuetify implementation
+
+- Prefer built-in Vue/Vuetify components, directives, composables, and other
+  framework helpers over custom reactive plumbing.
+- Avoid `watch` when the same behavior can be expressed declaratively or with
+  a framework helper. Add a watcher only when no simpler built-in mechanism
+  fits the requirement.
+
 ## Camera integration
 
 - Use the official `@capacitor/camera` plugin as the baseline camera

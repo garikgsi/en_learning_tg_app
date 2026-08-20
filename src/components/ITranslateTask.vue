@@ -29,7 +29,7 @@ type Emits = {
 
 const emits = defineEmits<Emits>();
 const {wordList, reversedWordList} = storeToRefs(useTranslateStore());
-const {normalizeAnswer} = useKeyNormalizer();
+const {isAnswerLetterCorrect, normalizeAnswer} = useKeyNormalizer();
 
 const wordCompleteSuccessfully = ref(false);
 
@@ -554,16 +554,21 @@ const wrongAnswerPos = computed(() => {
     return null;
   }
 
-  if (currentWord.value.checkWord.substring(0, answer.value.length).toLowerCase() === answer.value.toLowerCase()) {
+  if (!currentLanguage.value || !currentWord.value) {
     return null;
   }
 
-  for (let i = 1; i < answer.value.length + 1; i++) {
-    if (currentWord.value.checkWord.substring(0, i).toLowerCase() !== answer.value.substring(0, i).toLowerCase()) {
-      return i - 1;
+  for (const [index, letter] of Array.from(answer.value).entries()) {
+    if (!isAnswerLetterCorrect(
+      letter,
+      currentWord.value.checkWord[index] ?? '',
+      currentLanguage.value,
+    )) {
+      return index;
     }
   }
 
+  return null;
 })
 
 const isWordCompleted = computed(() => {
