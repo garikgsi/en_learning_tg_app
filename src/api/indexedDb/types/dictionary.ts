@@ -10,5 +10,6 @@ export type DictionaryCacheMetadata = {
   userId: string
   latestCreatedAt: string | null
   availableGrade: number
+  revision: number
   synchronizedAt: string
 }

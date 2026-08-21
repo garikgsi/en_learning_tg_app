@@ -4,6 +4,7 @@ import {defineComponent, h, nextTick} from 'vue';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {createVuetify} from 'vuetify';
 import ITranslateTask from '@/components/ITranslateTask.vue';
+import {useDictionaryStore} from '@/stores/dictionaryStore';
 import {useTranslateStore} from '@/stores/translateStore';
 import type {TranslationWord} from '@/types/translation';
 
@@ -35,6 +36,7 @@ const word: TranslationWord = {
   wordId: 11,
   word: 'кот',
   translate: 'cat',
+  wordVariants: [],
   checkWord: 'cat',
   otherCheckWords: [],
 };
@@ -155,6 +157,28 @@ describe('ITranslateTask word transitions', () => {
     wrapper.unmount();
   });
 
+  it('plays the english word in both translation directions', async () => {
+    const playWordAudio = vi.spyOn(
+      useDictionaryStore(),
+      'playWordAudio',
+    ).mockResolvedValue();
+    const wrapper = await mountTask();
+    const getAudioButton = () => wrapper
+      .findAllComponents({name: 'VBtn'})
+      .find(button => button.text().includes('Озвучить'));
+
+    expect(getAudioButton()).toBeDefined();
+    await getAudioButton()!.trigger('click');
+    expect(playWordAudio).toHaveBeenLastCalledWith(11);
+
+    await finishCurrentWord(wrapper);
+    await continueWithRussian(wrapper);
+    await getAudioButton()!.trigger('click');
+    expect(playWordAudio).toHaveBeenLastCalledWith(11);
+    expect(playWordAudio).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
+  });
+
   it('shows a skipped answer for five seconds without completing it or advancing the next timer', async () => {
     useTranslateStore().wordList = [
       {...word},
@@ -189,15 +213,23 @@ describe('ITranslateTask word transitions', () => {
     const hintButtons = wrapper
       .findAllComponents({name: 'VBtn'})
       .filter(button => button.props('icon') === 'mdi-help');
-    const pauseButtons = wrapper
+    const audioButtons = wrapper
       .findAllComponents({name: 'VBtn'})
-      .filter(button => button.text().includes('Пауза')
-        || button.props('title') === 'Пауза');
+      .filter(button => button.text().includes('Озвучить')
+        || button.props('title') === 'Озвучить английское слово');
+    const skipButtons = wrapper
+      .findAllComponents({name: 'VBtn'})
+      .filter(button => button.text().includes('Пропустить')
+        || button.props('title') === 'Пропустить');
 
     expect(wrapper.get('.word-timer__label').text()).toBe('Запомните перевод слова');
     expect(skippedProgress.props('max')).toBe(5000);
     expect(hintButtons.every(button => button.props('disabled'))).toBe(true);
-    expect(pauseButtons.every(button => button.props('disabled'))).toBe(true);
+    expect(audioButtons.every(button => button.props('disabled'))).toBe(true);
+    expect(skipButtons.every(button => {
+      return button.props('icon') === 'mdi-debug-step-over'
+        || button.text().includes('Пропустить');
+    })).toBe(true);
 
     skippedInput.vm.$emit('finish', {isOk: true, answer: 'cat'});
     await nextTick();

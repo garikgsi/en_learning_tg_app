@@ -12,7 +12,15 @@ const exercise: Exercise = {
   dueDate: '2026-08-14T09:00:00Z',
   items: [{
     id: 91,
-    word: {id: 4, ru: 'кот', en: 'cat', grade: 1},
+    word: {
+      id: 4,
+      ru: 'кот',
+      en: 'cat',
+      ruVariants: [],
+      enVariants: [],
+      transcription: null,
+      grade: 1,
+    },
   }],
   createdAt: '2026-08-14T00:00:00Z',
 };

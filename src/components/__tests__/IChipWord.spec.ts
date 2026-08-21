@@ -20,7 +20,9 @@ describe('IChipWord', () => {
       },
       props: {
         word: 'apple',
+        wordId: 42,
         translation: 'яблоко',
+        transcription: '/ˈæp.əl/',
         language: 'en',
         color: 'red',
       },
@@ -33,10 +35,14 @@ describe('IChipWord', () => {
     expect(chip.attributes('lang')).toBe('en');
     expect(chip.classes()).toContain('text-red');
 
+    await chip.trigger('click');
+    expect(wrapper.emitted('play')).toEqual([[42]]);
+
     tooltip.vm.$emit('update:modelValue', true);
     await nextTick();
 
     expect(document.body.textContent).toContain('яблоко');
+    expect(document.body.textContent).toContain('/ˈæp.əl/');
     expect(tooltip.props('modelValue')).toBe(true);
 
     document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));

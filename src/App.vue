@@ -29,7 +29,7 @@ const theme = useTheme();
 const settingsStore = useSettingsStore();
 const userStore = useUserStore();
 const {isDarkTheme} = storeToRefs(settingsStore);
-const {user} = storeToRefs(userStore);
+const {isInitialized, user} = storeToRefs(userStore);
 const network = useNetwork();
 const offlineManager = useOfflineManager();
 const appUpdate = useAppUpdate();
@@ -43,7 +43,11 @@ const activeLayout = computed(() => {
   return isPublicRoute(route.path) ? UnsecureLayout : MainLayout;
 });
 
-const pageTitle = computed(() => getRouteTitle(route.path));
+const pageTitle = computed(() => {
+  return isInitialized.value
+    ? getRouteTitle(route.path)
+    : 'Восстановление сессии';
+});
 
 const checkForAppUpdate = async (): Promise<void> => {
   const release = await appUpdate.check();

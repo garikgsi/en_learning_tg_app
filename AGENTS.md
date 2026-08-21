@@ -44,6 +44,14 @@ project setting.
   a framework helper. Add a watcher only when no simpler built-in mechanism
   fits the requirement.
 
+## Linting and formatting
+
+- Keep the standard `lint` command read-only: it must report code-quality
+  problems without rewriting source files.
+- Do not make whitespace or other formatting-only rules a release blocker.
+- Do not spend task time on formatting-only changes unless the user explicitly
+  asks for formatting.
+
 ## Camera integration
 
 - Use the official `@capacitor/camera` plugin as the baseline camera

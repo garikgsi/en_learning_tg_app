@@ -9,8 +9,14 @@ import {createRouter, createWebHistory} from 'vue-router/auto'
 import {routes} from 'vue-router/auto-routes'
 import index from '@/pages/index.vue'
 import exercises from '@/pages/exercises.vue'
+import StatisticsRoute from '@/router/StatisticsRoute.vue'
 import {isPublicRoute} from '@/router/routeAccess'
 import {useUserStore} from '@/stores/userStore'
+
+const applicationRoutes = routes.map(route => route.path === '/statistics'
+  ? {...route, component: StatisticsRoute}
+  : route,
+)
 
 const advancedRoutes = [
   {
@@ -23,7 +29,7 @@ const advancedRoutes = [
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [...routes, ...advancedRoutes],
+  routes: [...applicationRoutes, ...advancedRoutes],
 })
 
 router.beforeEach(async to => {

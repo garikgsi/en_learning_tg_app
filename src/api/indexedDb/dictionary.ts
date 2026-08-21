@@ -33,6 +33,7 @@ export const indexedDbDictionaryDriver = {
       userId,
       latestCreatedAt: response.latestCreatedAt,
       availableGrade: response.availableGrade,
+      revision: response.revision,
       synchronizedAt: new Date().toISOString(),
     };
     const existing = response.isFullSync
@@ -129,5 +130,13 @@ export const indexedDbDictionaryDriver = {
       is_active: true,
     };
     await indexedDb.put(indexedDbStores.dictionaryWords, {...cached, word});
+  },
+
+  async putWord(userId: string, word: ApiDictionaryWord): Promise<void> {
+    await indexedDb.put(indexedDbStores.dictionaryWords, {
+      key: wordKey(userId, word.id),
+      userId,
+      word,
+    } satisfies CachedDictionaryWord);
   },
 };

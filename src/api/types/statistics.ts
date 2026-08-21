@@ -14,8 +14,12 @@ export type ExerciseStatisticsItem = {
   errorsCount: number
   errorWords: string[]
   words: {
+    wordId: number
     english: string
     russian: string
+    ruVariants: string[]
+    enVariants: string[]
+    transcription: string | null
     hasErrors: boolean
   }[]
   successPercentage: number

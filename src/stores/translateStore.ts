@@ -34,11 +34,11 @@ const langIds = {
 } as const;
 
 export const selectCheckWord = (
-  value: string,
+  value: string | string[],
 ): Pick<TranslationWord, 'checkWord' | 'otherCheckWords'> => {
   const variants = [...new Set(
-    value
-      .split(',')
+    (Array.isArray(value) ? value : [value])
+      .flatMap(variant => variant.split(','))
       .map(variant => variant.trim())
       .filter(Boolean),
   )];
@@ -66,12 +66,13 @@ export const useTranslateStore = defineStore('translate', () => {
 
   const reversedWordList = computed<TranslationWord[]>(() => {
     return wordList.value.map(word => {
-      const checkWord = selectCheckWord(word.word);
+      const checkWord = selectCheckWord([word.word, ...word.wordVariants]);
 
       return {
         ...word,
         word: word.translate,
         translate: word.word,
+        wordVariants: [],
         ...checkWord,
       };
     });
@@ -84,7 +85,10 @@ export const useTranslateStore = defineStore('translate', () => {
   const setExercises = (exercises: Exercise[]): void => {
     wordList.value = exercises.flatMap(exercise => {
       return exercise.items.map(({id, word}) => {
-        const checkWord = selectCheckWord(word.en);
+        const checkWord = selectCheckWord([
+          word.en,
+          ...(word.enVariants ?? []),
+        ]);
 
         return {
           id,
@@ -93,6 +97,7 @@ export const useTranslateStore = defineStore('translate', () => {
           wordId: word.id,
           word: word.ru,
           translate: word.en,
+          wordVariants: word.ruVariants ?? [],
           ...checkWord,
         };
       });

@@ -6,6 +6,11 @@ import {useUserStore} from '@/stores/userStore';
 import useMessages from '@/use/messages';
 import {useDictionaryRepository} from '@/use/dictionaryRepository';
 import type {ApiDictionaryWord} from '@/api/types/dictionary';
+import type {
+  DictionaryLookupResponse,
+  DictionaryStorePayload,
+  DictionaryStoreResponse,
+} from '@/api/types/dictionary';
 import type {DictionaryWord} from '@/types/dictionary';
 import {messageKeys} from '@/use/messageKeys';
 
@@ -20,6 +25,7 @@ const toDictionaryWord = (word: ApiDictionaryWord): DictionaryWord => ({
   id: word.id,
   english: word.en,
   russian: word.ru,
+  transcription: word.transcription,
   grade: word.grade,
   repeatCount: word.repeatCount,
   successfulRepeatCount: word.successfulRepeatCount,
@@ -41,10 +47,21 @@ export const useDictionaryStore = defineStore('dictionary', () => {
   const hasMore = computed(() => page.value < lastPage.value);
   const availableGrade = ref(0);
   const isDataFetching = ref(false);
+  const audioLoadingWordId = ref<number | null>(null);
   const search = ref('');
 
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
   let requestId = 0;
+  let activeAudio: HTMLAudioElement | null = null;
+
+  const releaseActiveAudio = (): void => {
+    if (activeAudio) {
+      activeAudio.pause();
+      activeAudio.removeAttribute('src');
+      activeAudio.load();
+      activeAudio = null;
+    }
+  }
 
   const leastRepeatedWords = computed<DictionaryWord[]>(() => {
     const eligibleWords = Object.values(knownWords.value)
@@ -218,6 +235,65 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     return repetitionWordIds.value.includes(wordId);
   }
 
+  const lookupWord = async (
+    word: string,
+    sourceLanguage: 'ru' | 'en',
+  ): Promise<DictionaryLookupResponse> => {
+    try {
+      return await dictionaryRepository.lookupWord(word, sourceLanguage);
+    } catch (error) {
+      addError(getApiErrorMessage(
+        error,
+        'Не удалось получить перевод слова',
+      ));
+      throw error;
+    }
+  }
+
+  const storeWord = async (
+    word: DictionaryStorePayload,
+  ): Promise<DictionaryStoreResponse> => {
+    try {
+      const userId = userStore.user?.id;
+
+      if (!userId) {
+        throw new Error('Пользователь не авторизован');
+      }
+
+      const response = await dictionaryRepository.storeWord(userId, word);
+      await loadDictionary(1);
+
+      return response;
+    } catch (error) {
+      addError(getApiErrorMessage(error, 'Не удалось добавить слово'));
+      throw error;
+    }
+  }
+
+  const playWordAudio = async (wordId: number): Promise<void> => {
+    if (audioLoadingWordId.value !== null) {
+      return;
+    }
+
+    audioLoadingWordId.value = wordId;
+
+    try {
+      releaseActiveAudio();
+      activeAudio = new Audio(dictionaryRepository.getWordAudioUrl(wordId));
+      activeAudio.preload = 'auto';
+      activeAudio.addEventListener('ended', releaseActiveAudio, {once: true});
+      await activeAudio.play();
+    } catch (error) {
+      releaseActiveAudio();
+      addError(getApiErrorMessage(
+        error,
+        'Не удалось воспроизвести произношение',
+      ));
+    } finally {
+      audioLoadingWordId.value = null;
+    }
+  }
+
 
   return {
     items,
@@ -230,6 +306,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     hasMore,
     availableGrade,
     isLoading: isDataFetching,
+    audioLoadingWordId,
     search,
     loadDictionary,
     searchDictionary,
@@ -237,6 +314,9 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     reloadFromFirstPage,
     addWordToRepetition,
     isWordSelectedForRepetition,
+    lookupWord,
+    storeWord,
+    playWordAudio,
 
   };
 });

@@ -14,6 +14,7 @@ export type TranslationWord = {
   wordId: number
   word: string
   translate: string
+  wordVariants: string[]
   checkWord: string
   otherCheckWords: string[]
 }

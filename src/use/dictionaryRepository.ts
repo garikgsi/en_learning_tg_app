@@ -1,6 +1,11 @@
 import {httpDictionaryDriver} from '@/api/http/dictionary';
 import {indexedDbDictionaryDriver} from '@/api/indexedDb/dictionary';
-import type {DictionaryPageResponse} from '@/api/types/dictionary';
+import type {
+  DictionaryLookupResponse,
+  DictionaryPageResponse,
+  DictionaryStorePayload,
+  DictionaryStoreResponse,
+} from '@/api/types/dictionary';
 import {getRepositoryFallbackReason} from '@/use/repositoryFallback';
 import type {
   RepositoryFallbackReason,
@@ -32,6 +37,7 @@ const performSynchronization = async (
       synchronizationPageSize,
       metadata?.latestCreatedAt ?? undefined,
       metadata?.availableGrade,
+      metadata?.revision,
     );
     const remainingPages = await Promise.all(
       Array.from(
@@ -41,6 +47,7 @@ const performSynchronization = async (
           synchronizationPageSize,
           metadata?.latestCreatedAt ?? undefined,
           metadata?.availableGrade,
+          metadata?.revision,
         ),
       ),
     );
@@ -120,6 +127,28 @@ const repository = {
   async addWord(userId: string, wordId: number): Promise<void> {
     await httpDictionaryDriver.addWord(wordId);
     await indexedDbDictionaryDriver.markSelectedForRepetition(userId, wordId);
+  },
+
+  lookupWord(
+    word: string,
+    sourceLanguage: 'ru' | 'en',
+  ): Promise<DictionaryLookupResponse> {
+    return httpDictionaryDriver.lookupWord(word, sourceLanguage);
+  },
+
+  async storeWord(
+    userId: string,
+    word: DictionaryStorePayload,
+  ): Promise<DictionaryStoreResponse> {
+    const response = await httpDictionaryDriver.storeWord(word);
+    await indexedDbDictionaryDriver.putWord(userId, response.item);
+    synchronizationResults.delete(userId);
+
+    return response;
+  },
+
+  getWordAudioUrl(wordId: number): string {
+    return httpDictionaryDriver.getWordAudioUrl(wordId);
   },
 };
 

@@ -8,6 +8,9 @@ export type ExerciseWord = {
   id: number
   ru: string
   en: string
+  ruVariants: string[]
+  enVariants: string[]
+  transcription: string | null
   grade: number
 }
 

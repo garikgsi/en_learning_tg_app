@@ -19,6 +19,7 @@ import type {
   WordStatistics,
 } from '@/types/translation';
 import {useTranslateStore} from "@/stores/translateStore";
+import {useDictionaryStore} from '@/stores/dictionaryStore';
 import {MAX_HINTS_ON_WORD} from '@/libs/exerciseRules';
 import pause from '@/libs/pause';
 import {useKeyNormalizer} from '@/use/keyNormalizer';
@@ -29,6 +30,7 @@ type Emits = {
 
 const emits = defineEmits<Emits>();
 const {wordList, reversedWordList} = storeToRefs(useTranslateStore());
+const dictionaryStore = useDictionaryStore();
 const {isAnswerLetterCorrect, normalizeAnswer} = useKeyNormalizer();
 
 const wordCompleteSuccessfully = ref(false);
@@ -41,7 +43,6 @@ const intervalTimer = ref();
 const timerStep = 100;
 
 const timerPaused = ref(false);
-const isUserPaused = ref(false);
 
 const wordTimer = ref(0);
 
@@ -291,16 +292,6 @@ const startTimer = () => {
 
 }
 
-const isPaused = computed(() => isUserPaused.value);
-
-const playPauseIcon = computed(() => isPaused.value ? 'mdi-play' : 'mdi-pause');
-
-const playPause = () => {
-  isUserPaused.value = !isUserPaused.value;
-  timerPaused.value = isUserPaused.value;
-}
-
-
 onMounted(() => {
   startNewWord(0);
 
@@ -399,18 +390,18 @@ const skipWord = async () => {
   try {
     await pause(skippedWordDisplayMs);
     isShowingSkippedWord.value = false;
-    timerPaused.value = isUserPaused.value;
+    timerPaused.value = false;
     await startNewWord(skippedWordIndex);
   } finally {
     isShowingSkippedWord.value = false;
-    timerPaused.value = isUserPaused.value;
+    timerPaused.value = false;
     isChangingWord.value = false;
   }
 
 }
 
 const isSkipAvailable = computed(() => {
-  if (isChangingWord.value || isShowingSkippedWord.value || isUserPaused.value) {
+  if (isChangingWord.value || isShowingSkippedWord.value) {
     return false;
   }
 
@@ -515,19 +506,20 @@ const isHintsAvailable = computed(() => {
 
 })
 
-const isPauseAvailable = computed(() => {
+const isAudioAvailable = computed(() => {
+  return currentWord.value !== undefined
+    && !wordCompleteSuccessfully.value
+    && !isShowingSkippedWord.value
+    && !isChangingWord.value;
+});
 
-  if (
-    wordCompleteSuccessfully.value
-    || isShowingSkippedWord.value
-    || isChangingWord.value
-  ) {
-    return false;
+const playCurrentWordAudio = async (): Promise<void> => {
+  if (!isAudioAvailable.value || !currentWord.value) {
+    return;
   }
 
-  return true;
-
-})
+  await dictionaryStore.playWordAudio(currentWord.value.wordId);
+};
 
 const countHintsOnCurrentWord = computed(() => {
   return currentWordResult.value?.hintTimes || 0;
@@ -632,12 +624,6 @@ const completeBoxData: ComputedRef<{ title: string, type: 'warning' | 'success',
 
 const showCompleteBox = computed(() => wordCompleteSuccessfully.value);
 
-const pauseText = computed(() => currentLanguage.value === 'ru' ? 'Похоже, время сделать паузу' : 'Let\'s get a pause');
-
-const isShownPause = computed(() => {
-  return isUserPaused.value;
-})
-
 const areAllTasksCompleted = computed(() => {
   if (englishRemainingWordCount.value !== null && englishRemainingWordCount.value > 0) {
     return false;
@@ -687,20 +673,7 @@ const areAllTasksCompleted = computed(() => {
 
         <v-card-text>
 
-          <template v-if="isShownPause">
-
-            <v-alert
-              class="mt-4"
-              icon="mdi-cat"
-              color="success"
-              :title="pauseText"
-            ></v-alert>
-
-          </template>
-
-          <template v-else>
-
-            <IWord v-if="currentWord"
+          <IWord v-if="currentWord"
                    :key="`${currentLanguage}-${currentWord.id}-${currentWord.checkWord}-${wordInstanceKey}`"
                    ref="otp"
                    :model-value="answer"
@@ -718,7 +691,7 @@ const areAllTasksCompleted = computed(() => {
               <template #header>
                 <div class="d-flex justify-space-between">
                   <div class="ma-1 flex-grow-0 flex-shrink-0">
-                    <v-btn icon="mdi-skip-forward"
+                    <v-btn icon="mdi-debug-step-over"
                            :disabled="!isSkipAvailable"
                            color="primary"
                            title="Пропустить"
@@ -756,8 +729,7 @@ const areAllTasksCompleted = computed(() => {
                 </div>
 
               </template>
-            </IWord>
-          </template>
+          </IWord>
 
         </v-card-text>
 
@@ -777,7 +749,7 @@ const areAllTasksCompleted = computed(() => {
               </v-btn>
 
               <v-btn class="d-xs-block d-sm-none"
-                     icon="mdi-skip-forward"
+                     icon="mdi-debug-step-over"
                      :disabled="!isSkipAvailable"
                      color="primary"
                      title="Пропустить"
@@ -788,17 +760,24 @@ const areAllTasksCompleted = computed(() => {
 
             <v-col class="text-center">
 
-              <v-btn class="d-none d-sm-inline" :disabled="!isPauseAvailable" @click="playPause">
-                {{ isPaused ? 'Дальше' : 'Пауза' }}
+              <v-btn
+                class="d-none d-sm-inline"
+                :disabled="!isAudioAvailable"
+                :loading="dictionaryStore.audioLoadingWordId === currentWord?.wordId"
+                prepend-icon="mdi-play"
+                @click="playCurrentWordAudio"
+              >
+                Озвучить
               </v-btn>
 
               <v-btn class="d-xs-block d-sm-none"
-                     :icon="playPauseIcon"
-                     :disabled="!isPauseAvailable"
+                     icon="mdi-play"
+                     :disabled="!isAudioAvailable"
+                     :loading="dictionaryStore.audioLoadingWordId === currentWord?.wordId"
                      color="warning"
-                     :title="isPaused ? 'Дальше' : 'Пауза'"
+                     title="Озвучить английское слово"
                      rounded="sm"
-                     @click="playPause">
+                     @click="playCurrentWordAudio">
               </v-btn>
 
 

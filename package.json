@@ -10,7 +10,7 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build --force",
     "test": "vitest run",
-    "lint": "eslint src --fix",
+    "lint": "eslint src --cache --cache-location node_modules/.cache/eslint --max-warnings=0",
     "android:sync": "npm run build-only && cap sync android",
     "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
     "release:manifest": "node scripts/create-update-manifest.mjs"

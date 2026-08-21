@@ -15,6 +15,8 @@ declare module 'vue' {
     IMessage: typeof import('./src/components/IMessage.vue')['default']
     IPinCodeInput: typeof import('./src/components/IPinCodeInput.vue')['default']
     IProfileForm: typeof import('./src/components/IProfileForm.vue')['default']
+    IStatisticsCharts: typeof import('./src/components/IStatisticsCharts.vue')['default']
+    IStatisticsPageSkeleton: typeof import('./src/components/IStatisticsPageSkeleton.vue')['default']
     IThemeToggle: typeof import('./src/components/IThemeToggle.vue')['default']
     ITranslateTask: typeof import('./src/components/ITranslateTask.vue')['default']
     IWord: typeof import('./src/components/IWord.vue')['default']

@@ -3,9 +3,14 @@ import type { ExerciseStatisticsItem } from '@/api/types/statistics';
 export type StatisticsCalendarExerciseType = 'user' | 'weekly' | 'daily'
 
 export type StatisticsCalendarWord = {
+  wordId: number | null
   english: string
   russian: string
+  ruVariants: string[]
+  enVariants: string[]
+  transcription: string | null
   hasErrors: boolean
+  isUncompleted: boolean
 }
 
 export type StatisticsCalendarGroup = {
@@ -124,7 +129,12 @@ export const buildStatisticsCalendarGroups = (
       return;
     }
 
-    const key = `${toLocalDayKey(new Date(item.date))}:${item.type.name}`;
+    const date = new Date(item.date);
+    const dayKey = toLocalDayKey(date);
+    const statusKey = item.type.name !== 'user' && isSameLocalDay(date, now)
+      ? `:${item.status}`
+      : '';
+    const key = `${dayKey}:${item.type.name}${statusKey}`;
     const group = groupedItems.get(key) ?? [];
     group.push(item);
     groupedItems.set(key, group);
@@ -151,12 +161,32 @@ export const buildStatisticsCalendarGroups = (
       const errorWords = [...new Set(
         sortedItems.flatMap(item => item.errorWords ?? []),
       )];
-      const wordsWithErrorState = sortedItems.flatMap(item => item.words ?? (
-        item.errorWords ?? []
-      ).map(english => ({ english, russian: '', hasErrors: true })));
+      const wordsWithExerciseState = sortedItems.flatMap(item => {
+        const itemWords = item.words ?? (item.errorWords ?? []).map(
+          english => ({
+            wordId: null,
+            english,
+            russian: '',
+            ruVariants: [],
+            enVariants: [],
+            transcription: null,
+            hasErrors: true,
+          }),
+        );
+
+        return itemWords.map(word => ({
+          ...word,
+          isUncompleted: item.status === 'uncompleted',
+        }));
+      });
       const words = [
-        ...wordsWithErrorState.filter(word => word.hasErrors),
-        ...wordsWithErrorState.filter(word => !word.hasErrors),
+        ...wordsWithExerciseState.filter(word => word.isUncompleted),
+        ...wordsWithExerciseState.filter(
+          word => !word.isUncompleted && word.hasErrors,
+        ),
+        ...wordsWithExerciseState.filter(
+          word => !word.isUncompleted && !word.hasErrors,
+        ),
       ];
       const successPercentage = wordsCount === 0
         ? 0
@@ -217,10 +247,20 @@ export const buildStatisticsCalendarGroups = (
         toLocalDayKey(second.start),
       );
 
-      return dateDifference !== 0
-        ? dateDifference
-        : exerciseTypeOrder.indexOf(first.typeName)
-          - exerciseTypeOrder.indexOf(second.typeName);
+      if (dateDifference !== 0) {
+        return dateDifference;
+      }
+
+      const typeDifference = exerciseTypeOrder.indexOf(first.typeName)
+        - exerciseTypeOrder.indexOf(second.typeName);
+
+      if (typeDifference !== 0) {
+        return typeDifference;
+      }
+
+      return first.status === second.status
+        ? 0
+        : first.status === 'completed' ? -1 : 1;
     });
 }
 
@@ -256,6 +296,29 @@ export const limitStatisticsCalendarWords = (
     words: words.slice(0, limit),
     hiddenCount: Math.max(words.length - limit, 0),
   };
+}
+
+export const formatStatisticsWordTranslation = (
+  word: StatisticsCalendarWord,
+): string => {
+  const translations = [word.russian, ...(word.ruVariants ?? [])]
+    .map(translation => translation.trim())
+    .filter(Boolean);
+  const normalizedTranslations = new Set<string>();
+
+  return translations
+    .filter(translation => {
+      const normalized = translation.toLocaleLowerCase('ru-RU');
+
+      if (normalizedTranslations.has(normalized)) {
+        return false;
+      }
+
+      normalizedTranslations.add(normalized);
+
+      return true;
+    })
+    .join(', ');
 }
 
 export const findUncompletedUserExerciseForDay = (

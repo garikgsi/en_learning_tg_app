@@ -14,4 +14,13 @@ describe('selectCheckWord', () => {
       otherCheckWords: ['газировка'],
     });
   });
+
+  it('combines primary translations with structured variants', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    expect(selectCheckWord(['дом', 'жилище', ' дом '])).toEqual({
+      checkWord: 'дом',
+      otherCheckWords: ['жилище'],
+    });
+  });
 });

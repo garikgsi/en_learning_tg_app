@@ -1,19 +1,14 @@
 <script setup lang="ts">
-  import { computed, nextTick, onMounted, ref, watch } from 'vue';
+  import {
+    computed,
+    defineAsyncComponent,
+    nextTick,
+    onMounted,
+    ref,
+    watch,
+  } from 'vue';
 import {storeToRefs} from 'pinia';
 import {useRouter} from 'vue-router';
-import {useTheme} from 'vuetify';
-import {use} from 'echarts/core';
-import {CanvasRenderer} from 'echarts/renderers';
-import {BarChart} from 'echarts/charts';
-import {
-  DataZoomComponent,
-  GridComponent,
-  LegendComponent,
-  TooltipComponent,
-} from 'echarts/components';
-import type {EChartsOption} from 'echarts';
-import VChart from 'vue-echarts';
 import IConfirmDialog from '@/components/IConfirmDialog.vue';
   import IChipWord from '@/components/IChipWord.vue';
 import {
@@ -22,16 +17,17 @@ import {
 } from '@/stores/statisticsStore';
 import type {
   AttentionWord,
-  ExerciseStatisticsChartPeriod,
   ExerciseStatisticsItem,
 } from '@/api/types/statistics';
 import {useUserStore} from '@/stores/userStore';
+import {useDictionaryStore} from '@/stores/dictionaryStore';
 import useLoading from '@/use/loading'
 import {useNetwork} from '@/use/network';
   import {
     buildStatisticsCalendarGroups,
     buildStatisticsExerciseQueue,
     findUncompletedUserExerciseForDay,
+    formatStatisticsWordTranslation,
     limitStatisticsCalendarWords,
     selectStatisticsCalendarExercise,
   } from '@/use/statisticsCalendar';
@@ -39,18 +35,14 @@ import {useNetwork} from '@/use/network';
     StatisticsCalendarGroup,
   } from '@/use/statisticsCalendar';
 
-use([
-  CanvasRenderer,
-  BarChart,
-  DataZoomComponent,
-  GridComponent,
-  LegendComponent,
-  TooltipComponent,
-]);
+const IStatisticsCharts = defineAsyncComponent(
+  () => import('@/components/IStatisticsCharts.vue'),
+);
 
 const {isLoading} = useLoading();
 
 const statisticsStore = useStatisticsStore();
+const dictionaryStore = useDictionaryStore();
 const userStore = useUserStore();
 const {isConnected} = useNetwork();
 const {
@@ -61,7 +53,6 @@ const {
 } = storeToRefs(statisticsStore);
 
 const router = useRouter();
-const theme = useTheme();
 
 const calendarDate = ref<Date[]>([new Date()]);
   const isCalendarLoading = ref(true);
@@ -178,118 +169,6 @@ const getRepetitionButtonTitle = (word: AttentionWord): string => {
     : 'Добавить слово для повторения';
 }
 
-const buildChartOption = (
-  period?: ExerciseStatisticsChartPeriod,
-): EChartsOption => {
-  const users = period?.users ?? [];
-  const shouldZoom = users.length > 6;
-  const themeColors = theme.current.value.colors;
-  const chartTextColor = themeColors['on-surface-variant'];
-
-  return {
-    backgroundColor: 'transparent',
-    color: [themeColors.success, themeColors.warning, themeColors.secondary],
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'shadow',
-      },
-    },
-    legend: {
-      top: 0,
-      textStyle: {
-        color: chartTextColor,
-      },
-    },
-    grid: {
-      top: 86,
-      right: 24,
-      bottom: shouldZoom ? 92 : 64,
-      left: 56,
-    },
-    xAxis: {
-      type: 'category',
-      data: users.map(user => user.userName),
-      axisLabel: {
-        color: chartTextColor,
-        interval: 0,
-        rotate: users.length > 4 ? 30 : 0,
-      },
-      axisLine: {
-        lineStyle: {
-          color: themeColors['surface-variant'],
-        },
-      },
-    },
-    yAxis: {
-      type: 'value',
-      minInterval: 1,
-      axisLabel: {
-        color: chartTextColor,
-      },
-      splitLine: {
-        lineStyle: {
-          color: themeColors['surface-variant'],
-        },
-      },
-    },
-    dataZoom: shouldZoom
-      ? [
-          {
-            type: 'inside',
-            startValue: 0,
-            endValue: 5,
-          },
-          {
-            type: 'slider',
-            startValue: 0,
-            endValue: 5,
-            bottom: 16,
-          },
-        ]
-      : [],
-    series: [
-      {
-        name: 'Изучено слов',
-        type: 'bar',
-        data: users.map(user => user.learnedWords),
-      },
-      {
-        name: 'Изучено слов, но надо повторить',
-        type: 'bar',
-        data: users.map(user => user.wordsToRepeat),
-      },
-      {
-        name: 'Пройденные упражнения',
-        type: 'bar',
-        data: users.map(user => user.completedExercises),
-      },
-    ],
-  };
-}
-
-const weekChartOption = computed<EChartsOption>(() => {
-  return buildChartOption(charts.value?.week);
-});
-
-const monthChartOption = computed<EChartsOption>(() => {
-  return buildChartOption(charts.value?.month);
-});
-
-const hasCompletedExercises = (
-  period?: ExerciseStatisticsChartPeriod,
-): boolean => {
-  return period?.users.some(user => user.completedExercises > 0) ?? false;
-}
-
-const hasWeekExercises = computed(() => {
-  return hasCompletedExercises(charts.value?.week);
-});
-
-const hasMonthExercises = computed(() => {
-  return hasCompletedExercises(charts.value?.month);
-});
-
 const achievement = computed(() => {
   return findStatisticsAchievement(charts.value, userStore.user?.id);
 });
@@ -329,30 +208,6 @@ const achievementMessage = computed(() => {
   return `Ты занял ${result.place} место среди всех пользователей по `
     + `${criterionText} за ${periodAccusative}.`;
 });
-
-const formatChartPeriod = (
-  period?: ExerciseStatisticsChartPeriod,
-): string => {
-  if (!period) {
-    return '';
-  }
-
-  const formatter = new Intl.DateTimeFormat('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-  });
-  const toLocalDate = (value: string): Date => {
-    const [year, month, day] = value
-      .slice(0, 10)
-      .split('-')
-      .map(Number);
-
-    return new Date(year, month - 1, day);
-  }
-
-  return `${formatter.format(toLocalDate(period.dateFrom))} — `
-    + formatter.format(toLocalDate(period.dateTo));
-}
 
   const events = computed<StatisticsCalendarGroup[]>(() => {
     return buildStatisticsCalendarGroups(items.value);
@@ -557,50 +412,10 @@ onMounted(async () => {
     {{ achievementMessage }}
   </v-alert>
 
-  <div
-    v-if="isLoading || hasWeekExercises || hasMonthExercises"
-    class="statistics-charts"
-  >
-    <v-card v-if="isLoading || hasWeekExercises">
-      <v-card-title>Текущая неделя</v-card-title>
-      <v-card-subtitle>
-        {{ formatChartPeriod(charts?.week) }}
-      </v-card-subtitle>
-      <v-card-text>
-        <v-skeleton-loader
-          v-if="isLoading"
-          height="380"
-          type="image"
-        />
-        <VChart
-          v-else
-          autoresize
-          class="statistics-chart"
-          :option="weekChartOption"
-        />
-      </v-card-text>
-    </v-card>
-
-    <v-card v-if="isLoading || hasMonthExercises">
-      <v-card-title>Текущий месяц</v-card-title>
-      <v-card-subtitle>
-        {{ formatChartPeriod(charts?.month) }}
-      </v-card-subtitle>
-      <v-card-text>
-        <v-skeleton-loader
-          v-if="isLoading"
-          height="380"
-          type="image"
-        />
-        <VChart
-          v-else
-          autoresize
-          class="statistics-chart"
-          :option="monthChartOption"
-        />
-      </v-card-text>
-    </v-card>
-  </div>
+  <IStatisticsCharts
+    :charts="charts"
+    :is-loading="isLoading"
+  />
 
   <v-card
     v-if="isLoading || attentionWords.length"
@@ -631,6 +446,16 @@ onMounted(async () => {
       >
         <template #append>
           <div class="attention-word__actions">
+            <v-btn
+              :aria-label="`Озвучить ${word.english}`"
+              icon="mdi-play-circle-outline"
+              :loading="dictionaryStore.audioLoadingWordId === word.wordId"
+              size="small"
+              :title="`Озвучить ${word.english}`"
+              variant="text"
+              @click="dictionaryStore.playWordAudio(word.wordId)"
+            />
+
             <v-chip
               color="error"
               size="small"
@@ -708,25 +533,29 @@ onMounted(async () => {
           упражнение еще не пройдено
         </div>
         <div class="exercise-statistics-dialog__words mb-4">
-          <v-divider />
+
           <IChipWord
             v-for="(word, index) in selectedWordsSummary.words"
             :key="`${index}:${word.english}`"
-            :color="isSelectedUncompletedUserExercise
+            :color="word.isUncompleted
               ? 'secondary'
               : word.hasErrors ? 'red' : 'green'"
             language="en"
-            :translation="word.russian"
+            :word-id="word.wordId"
+            :transcription="word.transcription"
+            :translation="formatStatisticsWordTranslation(word)"
             :word="word.english"
-  />
-          <v-chip
+            @play="dictionaryStore.playWordAudio"
+          />
+
+          <IChipWord
             v-if="selectedWordsSummary.hiddenCount > 0"
             color="grey"
-            size="small"
-          >
-            еще +{{ selectedWordsSummary.hiddenCount }}
-          </v-chip>
-          <v-divider />
+            language="en"
+            :word="`еще +${ selectedWordsSummary.hiddenCount }`"
+            :translation="` и еще ${selectedWordsSummary.hiddenCount} слов`"
+          />
+
         </div>
         <div
           v-if="exerciseDialogText"
@@ -779,20 +608,8 @@ onMounted(async () => {
   justify-content: space-between;
 }
 
-.statistics-charts {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(0, 1fr);
-  margin-top: 16px;
-}
-
 .statistics-achievement {
   margin-top: 16px;
-}
-
-.statistics-chart {
-  height: 380px;
-  width: 100%;
 }
 
 .attention-card {
@@ -814,10 +631,6 @@ onMounted(async () => {
 }
 
 @media (min-width: 1280px) {
-  .statistics-charts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .attention-list--columns {
     column-gap: 16px;
     display: grid;
