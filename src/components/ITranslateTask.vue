@@ -679,7 +679,8 @@ const areAllTasksCompleted = computed(() => {
                    :model-value="answer"
                    :word="currentWord.word"
                    :translate="currentWord.checkWord"
-                   :other-words="currentWord.otherCheckWords"
+                   :word-variants="currentWord.wordVariants"
+                   :translate-variants="currentWord.translateVariants"
                    :lang="currentLanguage"
                    :disabled="(timerPaused || isChangingWord) && !isShowingSkippedWord"
                    :readonly="isShowingSkippedWord"
@@ -764,7 +765,6 @@ const areAllTasksCompleted = computed(() => {
                 class="d-none d-sm-inline"
                 :disabled="!isAudioAvailable"
                 :loading="dictionaryStore.audioLoadingWordId === currentWord?.wordId"
-                prepend-icon="mdi-play"
                 @click="playCurrentWordAudio"
               >
                 Озвучить

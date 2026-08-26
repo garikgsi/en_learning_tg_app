@@ -35,9 +35,11 @@ export const useKeyNormalizer = () => {
     value: string,
     language: KeyNormalizerLanguage,
   ): string => {
+    const normalizedApostrophes = value.replace(/’/g, "'");
+
     return language === 'ru'
-      ? value.replace(/[^а-яё -]/giu, '')
-      : value.replace(/[^a-z -]/giu, '');
+      ? normalizedApostrophes.replace(/[^а-яё ,'!?-]/giu, '')
+      : normalizedApostrophes.replace(/[^a-z ,'!?-]/giu, '');
   }
 
   const normalizeKeyboardInput = (value: string, expectedValue: string) => {

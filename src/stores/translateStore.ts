@@ -33,47 +33,22 @@ const langIds = {
   ru: 2,
 } as const;
 
-export const selectCheckWord = (
-  value: string | string[],
-): Pick<TranslationWord, 'checkWord' | 'otherCheckWords'> => {
-  const variants = [...new Set(
-    (Array.isArray(value) ? value : [value])
-      .flatMap(variant => variant.split(','))
-      .map(variant => variant.trim())
-      .filter(Boolean),
-  )];
-
-  if (variants.length === 0) {
-    return {
-      checkWord: '',
-      otherCheckWords: [],
-    };
-  }
-
-  const selectedIndex = Math.floor(Math.random() * variants.length);
-
-  return {
-    checkWord: variants[selectedIndex],
-    otherCheckWords: variants.filter((_, index) => index !== selectedIndex),
-  };
-}
-
 export const useTranslateStore = defineStore('translate', () => {
   const wordList = ref<TranslationWord[]>([]);
+  const currentExercises = ref<Exercise[]>([]);
   const exerciseRepository = useExerciseRepository();
   const userStore = useUserStore();
   const offlineManager = useOfflineManager();
 
   const reversedWordList = computed<TranslationWord[]>(() => {
     return wordList.value.map(word => {
-      const checkWord = selectCheckWord([word.word, ...word.wordVariants]);
-
       return {
         ...word,
         word: word.translate,
         translate: word.word,
-        wordVariants: [],
-        ...checkWord,
+        wordVariants: word.translateVariants,
+        translateVariants: word.wordVariants,
+        checkWord: word.word,
       };
     });
   });
@@ -85,11 +60,6 @@ export const useTranslateStore = defineStore('translate', () => {
   const setExercises = (exercises: Exercise[]): void => {
     wordList.value = exercises.flatMap(exercise => {
       return exercise.items.map(({id, word}) => {
-        const checkWord = selectCheckWord([
-          word.en,
-          ...(word.enVariants ?? []),
-        ]);
-
         return {
           id,
           exerciseId: exercise.id,
@@ -98,13 +68,14 @@ export const useTranslateStore = defineStore('translate', () => {
           word: word.ru,
           translate: word.en,
           wordVariants: word.ruVariants ?? [],
-          ...checkWord,
+          translateVariants: word.enVariants ?? [],
+          checkWord: word.en,
         };
       });
     });
   }
 
-  const loadWords = async (_code?: string): Promise<boolean> => {
+  const loadCurrentExercises = async (): Promise<boolean> => {
     try {
       const userId = userStore.user?.id;
 
@@ -114,7 +85,7 @@ export const useTranslateStore = defineStore('translate', () => {
 
       const result = await exerciseRepository.getCurrent(userId);
 
-      setExercises(result.data);
+      currentExercises.value = result.data;
       if (result.source === 'indexedDb') {
         const warning = result.fallbackReason === 'server'
           ? 'Ошибка сервера. Используется сохранённое упражнение.'
@@ -128,7 +99,7 @@ export const useTranslateStore = defineStore('translate', () => {
             action: {
               title: 'Обновить',
               handler: async () => {
-                await loadWords(_code);
+                await loadCurrentExercises();
               },
             },
           },
@@ -140,7 +111,7 @@ export const useTranslateStore = defineStore('translate', () => {
 
       return true;
     } catch (error) {
-      wordList.value = [];
+      currentExercises.value = [];
       const errorMessage = getApiErrorMessage(
         error,
         'Не удалось загрузить упражнение',
@@ -150,12 +121,24 @@ export const useTranslateStore = defineStore('translate', () => {
         action: {
           title: 'Обновить',
           handler: async () => {
-            await loadWords(_code);
+            await loadCurrentExercises();
           },
         },
       });
       return false;
     }
+  }
+
+  const loadWords = async (_code?: string): Promise<boolean> => {
+    const wasLoaded = await loadCurrentExercises();
+
+    if (wasLoaded) {
+      setExercises(currentExercises.value);
+    } else {
+      wordList.value = [];
+    }
+
+    return wasLoaded;
   }
 
   const loadExercise = async (exerciseId: number): Promise<boolean> => {
@@ -274,9 +257,12 @@ export const useTranslateStore = defineStore('translate', () => {
 
   return {
     wordList,
+    currentExercises,
     reversedWordList,
     loadWords,
+    loadCurrentExercises,
     loadExercise,
+    setExercises,
     clearWords,
     taskCompleted,
 

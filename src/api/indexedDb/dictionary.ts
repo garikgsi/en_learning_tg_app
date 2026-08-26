@@ -94,7 +94,13 @@ export const indexedDbDictionaryDriver = {
         }
 
         return word.ru.toLocaleLowerCase('ru-RU').includes(normalizedSearch)
-          || word.en.toLocaleLowerCase('en-US').includes(normalizedSearch);
+          || word.en.toLocaleLowerCase('en-US').includes(normalizedSearch)
+          || word.ruVariants.some(variant => {
+            return variant.toLocaleLowerCase('ru-RU').includes(normalizedSearch);
+          })
+          || word.enVariants.some(variant => {
+            return variant.toLocaleLowerCase('en-US').includes(normalizedSearch);
+          });
       })
       .sort((left, right) => left.ru.localeCompare(right.ru, 'ru-RU'));
     const total = words.length;

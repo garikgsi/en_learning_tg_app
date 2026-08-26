@@ -24,7 +24,9 @@ const isWordEligibleForRepetition = (word: DictionaryWord): boolean => {
 const toDictionaryWord = (word: ApiDictionaryWord): DictionaryWord => ({
   id: word.id,
   english: word.en,
+  englishVariants: word.enVariants,
   russian: word.ru,
+  russianVariants: word.ruVariants,
   transcription: word.transcription,
   grade: word.grade,
   repeatCount: word.repeatCount,

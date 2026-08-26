@@ -15,8 +15,8 @@ export type TranslationWord = {
   word: string
   translate: string
   wordVariants: string[]
+  translateVariants: string[]
   checkWord: string
-  otherCheckWords: string[]
 }
 
 export type TranslationLanguage = 'en' | 'ru';

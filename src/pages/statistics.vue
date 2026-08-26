@@ -98,7 +98,7 @@ const exerciseDialogTitle = computed(() => {
       return '';
   }
 
-    return selectedGroup.value?.typeName === 'user'
+    return selectedGroup.value?.status === 'uncompleted'
       ? 'Пройти упражнение?'
       : 'Пройти упражнение еще раз?';
   });
@@ -448,11 +448,11 @@ onMounted(async () => {
           <div class="attention-word__actions">
             <v-btn
               :aria-label="`Озвучить ${word.english}`"
-              icon="mdi-play-circle-outline"
+              color="primary"
+              icon="mdi-play"
               :loading="dictionaryStore.audioLoadingWordId === word.wordId"
               size="small"
               :title="`Озвучить ${word.english}`"
-              variant="text"
               @click="dictionaryStore.playWordAudio(word.wordId)"
             />
 
@@ -686,6 +686,10 @@ onMounted(async () => {
 .statistics-calendar {
   display: flex;
   flex-direction: column;
+}
+
+.statistics-calendar :deep(.v-calendar-header__today) {
+  border: none !important;
 }
 
 .statistics-calendar :deep(.v-calendar__container) {

@@ -156,6 +156,43 @@ describe('IWord keyboard layout normalization', () => {
     wrapper.unmount();
   });
 
+  it('keeps a comma as an automatic separator between OTP inputs', async () => {
+    const answer = ref('');
+    const TestHost = defineComponent({
+      setup() {
+        return () => h('div', [
+          h(IWord, {
+            modelValue: answer.value,
+            word: 'ответ',
+            translate: "I'm fine, thanks!",
+            lang: 'en',
+            'onUpdate:modelValue': (value: string) => {
+              answer.value = value;
+            },
+          }),
+          h('span', {class: 'normalized-answer'}, answer.value),
+        ]);
+      },
+    });
+    const wrapper = mountWithVuetify(TestHost);
+
+    await flushPromises();
+
+    const fields = wrapper.findAll<HTMLInputElement>('.v-otp-input__field');
+
+    expect(wrapper.get('[aria-label="Запятая"]').text()).toBe(',');
+
+    for (const [index, letter] of Array.from('Imfinethanks').entries()) {
+      await fields[index].trigger('focus');
+      await fields[index].setValue(letter);
+      await flushPromises();
+    }
+
+    expect(wrapper.find('.normalized-answer').text())
+      .toBe("I'M FINE, THANKS!");
+    wrapper.unmount();
+  });
+
   it('converts Russian-layout keystrokes to the expected English letters', async () => {
     const TestHost = defineComponent({
       setup() {
@@ -235,6 +272,96 @@ describe('IWord keyboard layout normalization', () => {
     }
 
     expect(wrapper.find('.normalized-answer').text()).toBe('КОКА-КОЛА');
+    wrapper.unmount();
+  });
+
+  it.each(["It's raining", 'It’s raining'])(
+    'keeps the apostrophe in "%s" as an automatic separator',
+    async expectedAnswer => {
+      const answer = ref('');
+      const TestHost = defineComponent({
+        setup() {
+          return () => h('div', [
+            h(IWord, {
+              modelValue: answer.value,
+              word: 'идёт дождь',
+              translate: expectedAnswer,
+              lang: 'en',
+              'onUpdate:modelValue': (value: string) => {
+                answer.value = value;
+              },
+            }),
+            h('span', {class: 'normalized-answer'}, answer.value),
+          ]);
+        },
+      });
+      const wrapper = mountWithVuetify(TestHost);
+
+      await flushPromises();
+
+      const fields = wrapper.findAll<HTMLInputElement>(
+        '.v-otp-input__field',
+      );
+
+      expect(fields).toHaveLength(10);
+      expect(wrapper.get('[aria-label="Апостроф"]').text())
+        .toBe("'");
+
+      for (const [index, letter] of Array.from('Itsraining').entries()) {
+        await fields[index].trigger('focus');
+        await fields[index].setValue(letter);
+        await flushPromises();
+      }
+
+      expect(wrapper.find('.normalized-answer').text())
+        .toBe("IT'S RAINING");
+      wrapper.unmount();
+    },
+  );
+
+  it.each([
+    ['Really?', 'Вопросительный знак'],
+    ['Great!', 'Восклицательный знак'],
+  ])('appends the terminal sign in "%s" after the OTP input', async (
+    expectedAnswer,
+    ariaLabel,
+  ) => {
+    const answer = ref('');
+    const TestHost = defineComponent({
+      setup() {
+        return () => h('div', [
+          h(IWord, {
+            modelValue: answer.value,
+            word: 'проверка',
+            translate: expectedAnswer,
+            lang: 'en',
+            'onUpdate:modelValue': (value: string) => {
+              answer.value = value;
+            },
+          }),
+          h('span', {class: 'normalized-answer'}, answer.value),
+        ]);
+      },
+    });
+    const wrapper = mountWithVuetify(TestHost);
+
+    await flushPromises();
+
+    const letters = expectedAnswer.slice(0, -1);
+    const fields = wrapper.findAll<HTMLInputElement>('.v-otp-input__field');
+
+    expect(fields).toHaveLength(letters.length);
+    expect(wrapper.get(`[aria-label="${ariaLabel}"]`).text())
+      .toBe(expectedAnswer.at(-1));
+
+    for (const [index, letter] of Array.from(letters).entries()) {
+      await fields[index].trigger('focus');
+      await fields[index].setValue(letter);
+      await flushPromises();
+    }
+
+    expect(wrapper.find('.normalized-answer').text())
+      .toBe(expectedAnswer.toUpperCase());
     wrapper.unmount();
   });
 

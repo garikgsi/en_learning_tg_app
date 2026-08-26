@@ -1,7 +1,9 @@
 export type DictionaryWord = {
   id: number
   english: string
+  englishVariants: string[]
   russian: string
+  russianVariants: string[]
   transcription: string | null
   grade: number
   repeatCount: number

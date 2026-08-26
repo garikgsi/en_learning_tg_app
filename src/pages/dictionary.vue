@@ -118,6 +118,10 @@ const headers = [
     key: 'english',
   },
   {
+    title: 'Варианты перевода',
+    key: 'englishVariants',
+  },
+  {
     title: 'Повторения',
     key: 'repeatCount',
     align: 'end',
@@ -233,12 +237,23 @@ const saveReviewedWord = async (): Promise<void> => {
       ></v-text-field>
 
       <v-btn
+        class="d-none d-sm-inline-flex"
         color="primary"
         prepend-icon="mdi-plus"
         @click="isAddDialogOpen = true"
       >
-        <span class="d-none d-sm-inline">Добавить слово</span>
+        Добавить слово
       </v-btn>
+
+      <v-btn
+        aria-label="Добавить слово"
+        class="d-sm-none"
+        color="primary"
+        icon="mdi-plus"
+        size="small"
+        title="Добавить слово"
+        @click="isAddDialogOpen = true"
+      />
     </v-card-text>
 
     <v-skeleton-loader
@@ -272,15 +287,21 @@ const saveReviewedWord = async (): Promise<void> => {
       item-value="id"
       no-data-text="Слова не найдены"
     >
+      <template #item.russian="{item}">
+        <span>
+          {{ [item.russian, ...item.russianVariants].join(', ') }}
+        </span>
+      </template>
+
       <template #item.english="{item}">
         <div class="dictionary-audio-cell">
           <v-btn
             :aria-label="getAudioButtonTitle(item)"
-            icon="mdi-play-circle-outline"
+            color="primary"
+            icon="mdi-play"
             :loading="dictionaryStore.audioLoadingWordId === item.id"
             size="small"
             :title="getAudioButtonTitle(item)"
-            variant="text"
             @click="dictionaryStore.playWordAudio(item.id)"
           />
           <div class="dictionary-translation" lang="en">
@@ -293,6 +314,16 @@ const saveReviewedWord = async (): Promise<void> => {
             </div>
           </div>
         </div>
+      </template>
+
+      <template #item.englishVariants="{item}">
+        <span
+          v-if="item.englishVariants.length > 0"
+          class="dictionary-variants"
+          lang="en"
+        >
+          {{ item.englishVariants.join(', ') }}
+        </span>
       </template>
 
       <template #item.repeatCount="{item}">
@@ -488,6 +519,14 @@ const saveReviewedWord = async (): Promise<void> => {
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.75rem;
   line-height: 1.25;
+}
+
+.dictionary-translation {
+  margin-left: 4px;
+}
+
+.dictionary-variants {
+  color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .dictionary-audio-cell {

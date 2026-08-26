@@ -22,8 +22,10 @@ project setting.
 - On this workstation, use the Android Studio JBR at
   `C:\Program Files\Android\Android Studio\jbr` for Gradle builds. If
   `JAVA_HOME` is missing, set it to this path for the build command only.
-- Never connect to production servers, including over SSH. The local backend
-  repository may be inspected and modified when it is within the user's task.
+- Read-only checks of public production HTTP(S) endpoints are allowed. Never
+  connect to production through SSH, run console commands there, mutate
+  production data, or deploy. The local backend repository may be inspected
+  and modified when it is within the user's task.
 - Development database migrations may be applied in the local Docker
   environment without asking for approval. Production migrations must always
   be left for the user to run manually.

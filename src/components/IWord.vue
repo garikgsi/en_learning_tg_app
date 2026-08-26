@@ -12,7 +12,8 @@ interface Props {
   word: string
   translate: string
   lang?: 'en' | 'ru'
-  otherWords?: string[]
+  wordVariants?: string[]
+  translateVariants?: string[]
   easyMode?: boolean
   disabled?: boolean
   readonly?: boolean
@@ -32,7 +33,8 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   readonly: false,
   color: 'answer',
-  otherWords: () => [],
+  wordVariants: () => [],
+  translateVariants: () => [],
 })
 
 const {
@@ -111,12 +113,12 @@ const normalizedTranslate = computed(() => {
 
 const translateWords = computed(() => {
   return normalizedTranslate.value
-    .split(/[\s-]+/)
+    .split(/[\s,'!?-]+/)
     .filter(Boolean);
 });
 
 const translateSeparators = computed(() => {
-  return normalizedTranslate.value.match(/[\s-]+/g) ?? [];
+  return normalizedTranslate.value.match(/[\s,'!?-]+/g) ?? [];
 });
 
 const wordStartIndexes = computed(() => {
@@ -132,7 +134,7 @@ const wordStartIndexes = computed(() => {
 
 const toFieldIndex = (answerIndex: number) => {
   return Array.from(normalizedTranslate.value.slice(0, answerIndex))
-    .filter(letter => !/[\s-]/.test(letter))
+    .filter(letter => !/[\s,'!?-]/.test(letter))
     .length;
 }
 
@@ -249,16 +251,20 @@ const updateWordAnswer = (index: number, value: string) => {
   for (let wordIndex = 0; wordIndex <= lastEnteredWordIndex; wordIndex++) {
     nextAnswer += words[wordIndex];
 
+    const separator = translateSeparators.value[wordIndex] ?? '';
     const shouldAppendSeparator = wordIndex < lastEnteredWordIndex
       || (
         wordIndex === lastEnteredWordIndex
         && wordIndex === index
         && isCurrentWordComplete
-        && wordIndex < translateWords.value.length - 1
+        && (
+          wordIndex < translateWords.value.length - 1
+          || /[!?]/.test(separator)
+        )
       );
 
     if (shouldAppendSeparator) {
-      nextAnswer += translateSeparators.value[wordIndex] ?? '';
+      nextAnswer += separator;
     }
   }
 
@@ -351,8 +357,15 @@ defineExpose({
     </div>
 
     <div
+      v-if="wordVariants.length > 0"
+      class="mb-2 text-body-2 text-medium-emphasis text-center"
+    >
+      ({{ wordVariants.join(', ') }})
+    </div>
+
+    <div
       class="phrase-input"
-      :class="otherWords.length > 0 ? 'mb-2' : 'mb-8'"
+      :class="translateVariants.length > 0 ? 'mb-2' : 'mb-8'"
     >
       <template
         v-for="(translateWord, wordIndex) in translateWords"
@@ -377,9 +390,34 @@ defineExpose({
         <span
           v-if="translateSeparators[wordIndex]?.includes('-')"
           aria-label="Дефис"
-          class="hyphen-separator"
+          class="punctuation-separator"
           title="Дефис"
         >-</span>
+
+        <span
+          v-else-if="/'/.test(translateSeparators[wordIndex] ?? '')"
+          aria-label="Апостроф"
+          class="punctuation-separator"
+          title="Апостроф"
+        >'</span>
+
+        <span
+          v-else-if="/[!?]/.test(translateSeparators[wordIndex] ?? '')"
+          :aria-label="translateSeparators[wordIndex]?.includes('?')
+            ? 'Вопросительный знак'
+            : 'Восклицательный знак'"
+          class="punctuation-separator"
+          :title="translateSeparators[wordIndex]?.includes('?')
+            ? 'Вопросительный знак'
+            : 'Восклицательный знак'"
+        >{{ translateSeparators[wordIndex]?.match(/[!?]+/)?.[0] }}</span>
+
+        <span
+          v-else-if="(translateSeparators[wordIndex] ?? '').includes(',')"
+          aria-label="Запятая"
+          class="punctuation-separator"
+          title="Запятая"
+        >,</span>
 
         <v-icon
           v-else-if="wordIndex < translateWords.length - 1"
@@ -392,10 +430,10 @@ defineExpose({
     </div>
 
     <div
-      v-if="otherWords.length > 0"
+      v-if="translateVariants.length > 0"
       class="mb-8 text-body-2 text-medium-emphasis text-center"
     >
-      ({{ otherWords.join(', ') }})
+      ({{ translateVariants.join(', ') }})
     </div>
 
   </div>
@@ -459,7 +497,7 @@ defineExpose({
   flex: 0 0 auto;
 }
 
-.hyphen-separator {
+.punctuation-separator {
   flex: 0 0 auto;
   font-size: 32px;
   line-height: 1;

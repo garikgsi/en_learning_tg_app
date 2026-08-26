@@ -37,8 +37,8 @@ const word: TranslationWord = {
   word: 'кот',
   translate: 'cat',
   wordVariants: [],
+  translateVariants: [],
   checkWord: 'cat',
-  otherCheckWords: [],
 };
 
 const mountTask = async () => {

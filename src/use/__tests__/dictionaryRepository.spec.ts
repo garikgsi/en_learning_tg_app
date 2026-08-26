@@ -165,6 +165,42 @@ describe('dictionaryRepository', () => {
     expect(page.data.items.map(item => item.id)).toEqual([1]);
   });
 
+  it('searches cached dictionary words by translation variants', async () => {
+    const cachedWord = {
+      ...word(1, 'Дом', 1, '2026-08-13T10:00:00Z'),
+      en: 'home',
+      ruVariants: ['Жилище'],
+      enVariants: ['House'],
+    };
+    vi.spyOn(httpDictionaryDriver, 'synchronize').mockResolvedValueOnce({
+      items: [cachedWord],
+      latestCreatedAt: cachedWord.createdAt,
+      availableGrade: 1,
+      revision: 7,
+      isFullSync: true,
+      page: 1,
+      perPage: 500,
+      lastPage: 1,
+    });
+    const repository = useDictionaryRepository();
+
+    const russianPage = await repository.getPage(
+      'dictionary-variant-search-user',
+      'жил',
+      1,
+      30,
+    );
+    const englishPage = await repository.getPage(
+      'dictionary-variant-search-user',
+      'HOU',
+      1,
+      30,
+    );
+
+    expect(russianPage.data.items.map(item => item.id)).toEqual([1]);
+    expect(englishPage.data.items.map(item => item.id)).toEqual([1]);
+  });
+
   it('keeps dictionary data isolated between users on the same device', async () => {
     const firstUserWord = word(1, 'Дом', 1, '2026-08-13T10:00:00Z');
     const secondUserWord = {
