@@ -18,6 +18,7 @@ import UnsecureLayout from '@/layouts/UnsecureLayout.vue';
 import {getRouteTitle, isPublicRoute} from '@/router/routeAccess';
 import {useSettingsStore} from '@/stores/settingsStore';
 import {useUserStore} from '@/stores/userStore';
+import {useTranslateStore} from '@/stores/translateStore';
 import {useNetwork} from '@/use/network';
 import {useOfflineManager} from '@/use/offlineManager';
 import {useAppUpdate} from '@/use/appUpdate';
@@ -28,8 +29,10 @@ const router = useRouter();
 const theme = useTheme();
 const settingsStore = useSettingsStore();
 const userStore = useUserStore();
+const translateStore = useTranslateStore();
 const {isDarkTheme} = storeToRefs(settingsStore);
 const {isInitialized, user} = storeToRefs(userStore);
+const {activeExercise} = storeToRefs(translateStore);
 const network = useNetwork();
 const offlineManager = useOfflineManager();
 const appUpdate = useAppUpdate();
@@ -44,9 +47,27 @@ const activeLayout = computed(() => {
 });
 
 const pageTitle = computed(() => {
-  return isInitialized.value
-    ? getRouteTitle(route.path)
-    : 'Восстановление сессии';
+  if (!isInitialized.value) {
+    return 'Восстановление сессии';
+  }
+
+  if (/^\/exercises\/\d+$/.test(route.path) && activeExercise.value) {
+    if (activeExercise.value.type.name === 'daily') {
+      return 'Ежедневное упражнение';
+    }
+
+    if (activeExercise.value.type.name === 'weekly') {
+      return 'Недельное упражнение';
+    }
+
+    if (activeExercise.value.type.name === 'user') {
+      return 'Пользовательское упражнение';
+    }
+
+    return activeExercise.value.type.title || 'Упражнение';
+  }
+
+  return getRouteTitle(route.path);
 });
 
 const checkForAppUpdate = async (): Promise<void> => {

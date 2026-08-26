@@ -237,24 +237,20 @@ const createUserExercise = async (): Promise<void> => {
         На сегодня непройденных упражнений не осталось.
       </v-alert>
 
-      <v-row>
-        <v-col></v-col>
-        <v-spacer/>
-          <v-col>
-          <v-btn
-            v-if="completedExercises.length > 0"
-            class="exercises-completed__toggle"
-            color="secondary"
-            size="small"
-            variant="text"
-            @click="isCompletedExercisesVisible = !isCompletedExercisesVisible"
-          >
-            {{ isCompletedExercisesVisible
+      <div class="exercises-completed__toggle-row">
+        <v-btn
+          v-if="completedExercises.length > 0"
+          class="exercises-completed__toggle"
+          color="grey"
+          size="small"
+          variant="plain"
+          @click="isCompletedExercisesVisible = !isCompletedExercisesVisible"
+        >
+          {{ isCompletedExercisesVisible
             ? 'Скрыть пройденные'
             : 'Показать пройденные' }}
-          </v-btn>
-        </v-col>
-      </v-row>
+        </v-btn>
+      </div>
 
 
       <v-expand-transition>
@@ -375,7 +371,14 @@ const createUserExercise = async (): Promise<void> => {
   min-width: 0;
 }
 
+.exercises-completed__toggle-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .exercises-completed__toggle {
-  justify-self: start;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
 }
 </style>

@@ -36,6 +36,7 @@ const langIds = {
 export const useTranslateStore = defineStore('translate', () => {
   const wordList = ref<TranslationWord[]>([]);
   const currentExercises = ref<Exercise[]>([]);
+  const activeExercise = ref<Exercise | null>(null);
   const exerciseRepository = useExerciseRepository();
   const userStore = useUserStore();
   const offlineManager = useOfflineManager();
@@ -55,6 +56,7 @@ export const useTranslateStore = defineStore('translate', () => {
 
   const clearWords = (): void => {
     wordList.value = [];
+    activeExercise.value = null;
   }
 
   const setExercises = (exercises: Exercise[]): void => {
@@ -77,6 +79,7 @@ export const useTranslateStore = defineStore('translate', () => {
 
   const loadCurrentExercises = async (): Promise<boolean> => {
     try {
+      activeExercise.value = null;
       const userId = userStore.user?.id;
 
       if (!userId) {
@@ -154,6 +157,7 @@ export const useTranslateStore = defineStore('translate', () => {
         exerciseId,
       );
 
+      activeExercise.value = result.data;
       setExercises([result.data]);
       if (result.source === 'indexedDb') {
         const warning = result.fallbackReason === 'server'
@@ -181,6 +185,7 @@ export const useTranslateStore = defineStore('translate', () => {
       return true;
     } catch (error) {
       wordList.value = [];
+      activeExercise.value = null;
       const errorMessage = getApiErrorMessage(
         error,
         'Не удалось загрузить выбранное упражнение',
@@ -258,6 +263,7 @@ export const useTranslateStore = defineStore('translate', () => {
   return {
     wordList,
     currentExercises,
+    activeExercise,
     reversedWordList,
     loadWords,
     loadCurrentExercises,
