@@ -3,17 +3,14 @@ import {computed, onMounted, ref, watch} from 'vue';
 import {storeToRefs} from 'pinia';
 import {useRoute, useRouter} from 'vue-router';
 import ITranslateTask from '@/components/ITranslateTask.vue';
-import IChipWord from '@/components/IChipWord.vue';
+import IChipWordList from '@/components/IChipWordList.vue';
 import type {TranslationTask} from '@/types/translation';
 import {useTranslateStore} from '@/stores/translateStore';
 import {useStatisticsStore} from '@/stores/statisticsStore';
 import {useDictionaryStore} from '@/stores/dictionaryStore';
 import type {Exercise} from '@/api/types/exercise';
 import type {ExerciseStatisticsItem} from '@/api/types/statistics';
-import {
-  formatStatisticsWordTranslation,
-  limitStatisticsCalendarWords,
-} from '@/use/statisticsCalendar';
+import {formatStatisticsWordTranslation} from '@/use/statisticsCalendar';
 import {useNetwork} from '@/use/network';
 
 type Props = {
@@ -164,11 +161,25 @@ const exerciseTitle = (
   return exercise.type.title || 'Задание';
 }
 
-const completedWordsSummary = (exercise: ExerciseStatisticsItem) => {
-  return limitStatisticsCalendarWords(exercise.words.map(word => ({
-    ...word,
-    isUncompleted: false,
-  })));
+const currentExerciseWords = (exercise: Exercise) => {
+  return exercise.items.map(({word}) => ({
+    id: word.id,
+    en: word.en,
+    ru: word.ru,
+    color: 'grey',
+  }));
+}
+
+const completedExerciseWords = (exercise: ExerciseStatisticsItem) => {
+  return exercise.words.map(word => ({
+    id: word.wordId,
+    en: word.english,
+    ru: formatStatisticsWordTranslation({
+      ...word,
+      isUncompleted: false,
+    }),
+    color: word.hasErrors ? 'red' : 'green',
+  }));
 }
 
 const startExercise = async (exerciseId: number): Promise<void> => {
@@ -209,8 +220,17 @@ const createUserExercise = async (): Promise<void> => {
         variant="outlined"
       >
         <v-card-title>{{ exerciseTitle(exercise) }}</v-card-title>
+        <v-card-subtitle class="text-success">
+          словарный диктант
+        </v-card-subtitle>
         <v-card-text>
-          Приглашаем пройти задание и повторить изученные слова.
+          <div>Приглашаем пройти задание и повторить изученные слова.</div>
+          <IChipWordList
+            class="mt-3"
+            :limit="20"
+            :words="currentExerciseWords(exercise)"
+            @play="dictionaryStore.playWordAudio"
+          />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -268,25 +288,11 @@ const createUserExercise = async (): Promise<void> => {
             <v-card-subtitle class="text-success">
               уже пройдено
             </v-card-subtitle>
-            <v-card-text class="exercise-card__words">
-              <IChipWord
-                v-for="(word, index) in completedWordsSummary(exercise).words"
-                :key="`${index}:${word.english}`"
-                :color="word.hasErrors ? 'red' : 'green'"
-                language="en"
-                :word-id="word.wordId"
-                :transcription="word.transcription"
-                :translation="formatStatisticsWordTranslation(word)"
-                :word="word.english"
+            <v-card-text>
+              <IChipWordList
+                :limit="20"
+                :words="completedExerciseWords(exercise)"
                 @play="dictionaryStore.playWordAudio"
-              />
-
-              <IChipWord
-                v-if="completedWordsSummary(exercise).hiddenCount > 0"
-                color="grey"
-                language="en"
-                :word="`еще +${completedWordsSummary(exercise).hiddenCount}`"
-                :translation="`и еще ${completedWordsSummary(exercise).hiddenCount} слов`"
               />
             </v-card-text>
             <v-card-actions>
@@ -307,6 +313,7 @@ const createUserExercise = async (): Promise<void> => {
           <v-btn
             class="mr-4"
             color="secondary"
+            variant="text"
             prepend-icon="mdi-calendar-check"
             to="/statistics"
           >
@@ -314,6 +321,7 @@ const createUserExercise = async (): Promise<void> => {
           </v-btn>
           <v-btn
             color="primary"
+            variant="text"
             :disabled="isCreating"
             :loading="isCreating"
             prepend-icon="mdi-plus"
@@ -346,12 +354,6 @@ const createUserExercise = async (): Promise<void> => {
 
 .exercise-card :deep(.v-card-actions) {
   margin-top: auto;
-}
-
-.exercise-card__words {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .exercises-completed {

@@ -208,7 +208,7 @@ describe('ITranslateTask word transitions', () => {
       disabled: false,
       readonly: true,
     });
-    const skippedProgress = wrapper.get('.word-timer')
+    const skippedProgress = wrapper.get('.i-timer')
       .findComponent({name: 'VProgressLinear'});
     const hintButtons = wrapper
       .findAllComponents({name: 'VBtn'})
@@ -222,7 +222,7 @@ describe('ITranslateTask word transitions', () => {
       .filter(button => button.text().includes('Пропустить')
         || button.props('title') === 'Пропустить');
 
-    expect(wrapper.get('.word-timer__label').text()).toBe('Запомните перевод слова');
+    expect(wrapper.get('.i-timer__label').text()).toBe('Запомните перевод слова');
     expect(skippedProgress.props('max')).toBe(5000);
     expect(hintButtons.every(button => button.props('disabled'))).toBe(true);
     expect(audioButtons.every(button => button.props('disabled'))).toBe(true);
@@ -237,7 +237,7 @@ describe('ITranslateTask word transitions', () => {
 
     await vi.advanceTimersByTimeAsync(4900);
     expect(wrapper.findComponent(IWordStub).props('word')).toBe('кот');
-    expect(wrapper.get('.word-timer').findComponent({name: 'VProgressLinear'})
+    expect(wrapper.get('.i-timer').findComponent({name: 'VProgressLinear'})
       .props('bufferValue')).toBe(4900);
 
     await vi.advanceTimersByTimeAsync(100);
@@ -249,10 +249,10 @@ describe('ITranslateTask word transitions', () => {
       disabled: false,
       readonly: false,
     });
-    expect(wrapper.get('.word-timer').findComponent({name: 'VProgressLinear'})
+    expect(wrapper.get('.i-timer').findComponent({name: 'VProgressLinear'})
       .props('bufferValue')).toBe(0);
-    expect(wrapper.get('.word-timer__label').text()).toBe('Напишите перевод слова');
-    expect(wrapper.get('.word-timer').findComponent({name: 'VProgressLinear'})
+    expect(wrapper.get('.i-timer__label').text()).toBe('Напишите перевод слова');
+    expect(wrapper.get('.i-timer').findComponent({name: 'VProgressLinear'})
       .props('max')).toBe(100000);
 
     await vi.advanceTimersByTimeAsync(99900);

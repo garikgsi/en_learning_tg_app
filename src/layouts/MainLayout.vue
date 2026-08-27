@@ -3,6 +3,7 @@ import {computed, ref, watch} from 'vue';
 import {storeToRefs} from 'pinia';
 import {useDisplay} from 'vuetify';
 import {routes} from '@/router/routeAccess';
+import {useNotificationStore} from '@/stores/notificationStore';
 import {useUserStore} from '@/stores/userStore';
 import IThemeToggle from '@/components/IThemeToggle.vue';
 import useLoading from '@/use/loading';
@@ -15,6 +16,8 @@ import type {Message} from '@/use/types/messages';
 const {isLoading} = useLoading();
 const userStore = useUserStore();
 const {user} = storeToRefs(userStore);
+const notificationStore = useNotificationStore();
+const {unreadCount} = storeToRefs(notificationStore);
 const offlineManager = useOfflineManager();
 const {pendingResults, failedResults} = offlineManager;
 const {addError, addWarning, readMessageByKey} = useMessages();
@@ -224,12 +227,24 @@ const closeMenuOnSmallScreen = () => {
       <v-list-item
         v-for="item in menuItems"
         :key="item.to"
-        :prepend-icon="item.icon"
         :title="item.text"
         :to="item.to"
         color="primary"
         @click="closeMenuOnSmallScreen"
-      ></v-list-item>
+      >
+        <template #prepend>
+          <v-badge
+            :content="unreadCount"
+            :max="99"
+            :model-value="item.to === '/notifications' && unreadCount > 0"
+            bordered
+            color="error"
+            label="Непрочитанных уведомлений: {0}"
+          >
+            <v-icon :icon="item.icon"></v-icon>
+          </v-badge>
+        </template>
+      </v-list-item>
     </v-list>
   </v-navigation-drawer>
 

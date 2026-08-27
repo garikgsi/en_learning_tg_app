@@ -10,7 +10,7 @@
 import {storeToRefs} from 'pinia';
 import {useRouter} from 'vue-router';
 import IConfirmDialog from '@/components/IConfirmDialog.vue';
-  import IChipWord from '@/components/IChipWord.vue';
+  import IChipWordList from '@/components/IChipWordList.vue';
 import {
   findStatisticsAchievement,
   useStatisticsStore,
@@ -28,7 +28,6 @@ import {useNetwork} from '@/use/network';
     buildStatisticsExerciseQueue,
     findUncompletedUserExerciseForDay,
     formatStatisticsWordTranslation,
-    limitStatisticsCalendarWords,
     selectStatisticsCalendarExercise,
   } from '@/use/statisticsCalendar';
   import type {
@@ -108,8 +107,15 @@ const exerciseDialogTitle = computed(() => {
       && selectedGroup.value.status === 'uncompleted';
   });
 
-  const selectedWordsSummary = computed(() => {
-    return limitStatisticsCalendarWords(selectedGroup.value?.words ?? []);
+  const selectedWords = computed(() => {
+    return (selectedGroup.value?.words ?? []).map(word => ({
+      id: word.wordId,
+      en: word.english,
+      ru: formatStatisticsWordTranslation(word),
+      color: word.isUncompleted
+        ? 'grey'
+        : word.hasErrors ? 'red' : 'green',
+    }));
   });
 
   const groupTitle = (group: StatisticsCalendarGroup): string => {
@@ -532,31 +538,12 @@ onMounted(async () => {
         <div v-if="isSelectedUncompletedUserExercise" class="mb-4 font-weight-thin font-italic text-right">
           упражнение еще не пройдено
         </div>
-        <div class="exercise-statistics-dialog__words mb-4">
-
-          <IChipWord
-            v-for="(word, index) in selectedWordsSummary.words"
-            :key="`${index}:${word.english}`"
-            :color="word.isUncompleted
-              ? 'secondary'
-              : word.hasErrors ? 'red' : 'green'"
-            language="en"
-            :word-id="word.wordId"
-            :transcription="word.transcription"
-            :translation="formatStatisticsWordTranslation(word)"
-            :word="word.english"
-            @play="dictionaryStore.playWordAudio"
-          />
-
-          <IChipWord
-            v-if="selectedWordsSummary.hiddenCount > 0"
-            color="grey"
-            language="en"
-            :word="`еще +${ selectedWordsSummary.hiddenCount }`"
-            :translation="` и еще ${selectedWordsSummary.hiddenCount} слов`"
-          />
-
-        </div>
+        <IChipWordList
+          class="mb-4"
+          :limit="20"
+          :words="selectedWords"
+          @play="dictionaryStore.playWordAudio"
+        />
         <div
           v-if="exerciseDialogText"
           class="exercise-statistics-dialog__question"
@@ -826,12 +813,6 @@ onMounted(async () => {
   display: grid;
   gap: 8px;
   padding-top: 24px;
-}
-
-.exercise-statistics-dialog__words {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .exercise-statistics-dialog__question {

@@ -5,7 +5,6 @@ import {
   buildStatisticsExerciseQueue,
   findUncompletedUserExerciseForDay,
   formatStatisticsWordTranslation,
-  limitStatisticsCalendarWords,
   selectStatisticsCalendarExercise,
 } from '@/use/statisticsCalendar';
 
@@ -130,25 +129,6 @@ describe('statisticsCalendar', () => {
         isUncompleted: false,
       },
     ]);
-  });
-
-  it('limits the word list to 20 and reports the hidden remainder', () => {
-    const words = Array.from({ length: 23 }, (_, index) => ({
-      wordId: index + 1,
-      english: `word ${index + 1}`,
-      russian: `слово ${index + 1}`,
-      ruVariants: [],
-      enVariants: [],
-      transcription: null,
-      hasErrors: false,
-      isUncompleted: false,
-    }));
-
-    const result = limitStatisticsCalendarWords(words);
-
-    expect(result.words).toHaveLength(20);
-    expect(result.words[19].english).toBe('word 20');
-    expect(result.hiddenCount).toBe(3);
   });
 
   it('formats Russian translation variants without duplicates', () => {

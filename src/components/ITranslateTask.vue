@@ -4,13 +4,12 @@ import {
   computed,
   type ComputedRef,
   nextTick,
-  onBeforeUnmount,
   onMounted,
   ref,
-  watch,
 } from "vue";
 import {storeToRefs} from "pinia";
 import IWord from "@/components/IWord.vue";
+import ITimer from '@/components/ITimer.vue';
 import type {
   TranslationLanguage,
   TranslationTask,
@@ -38,13 +37,7 @@ const wordCompleteSuccessfully = ref(false);
 const pauseOnWordsChangeSec = 1;
 const skippedWordDisplayMs = 5000;
 
-const intervalTimer = ref();
-
-const timerStep = 100;
-
 const timerPaused = ref(false);
-
-const wordTimer = ref(0);
 
 const secOnWord = ref(100);
 
@@ -60,6 +53,7 @@ const hintUsageByWord = ref<Record<number, number>>({});
 const visitedWordIdsInCycle = ref<Set<number>>(new Set());
 
 const otp = ref<InstanceType<typeof IWord> | null>(null);
+const timer = ref<InstanceType<typeof ITimer> | null>(null);
 
 const sleep = (pauseSec: number) => {
   return new Promise((resolve) => {
@@ -119,8 +113,6 @@ const onFinish = async (wordId: number, result: WordResult) => {
         > word.checkWord.length / 2;
 
       await changeWordPause(pauseOnWordsChangeSec);
-
-      wordTimer.value = 0;
 
       answer.value = ''
 
@@ -239,11 +231,6 @@ const timerDurationMs = computed(() => {
     : secOnWord.value * 1000;
 });
 
-const isTimeout = computed(() => {
-  return !isShowingSkippedWord.value
-    && wordTimer.value >= timerDurationMs.value;
-});
-
 const currentWord = computed(() => {
   if (currentWordId.value !== null) {
     const selectedWord = remainingWords.value.find(
@@ -262,48 +249,8 @@ const taskTitle = computed(() => {
   return `Осталось слов: ${remainingWordsCount.value} из ${currentWordList.value.length}`
 })
 
-const wordProgressColor = computed(() => {
-  const progress = wordTimer.value / timerDurationMs.value;
-
-  if (progress > 0.9) {
-    return 'error';
-  }
-
-  if (progress > 0.7) {
-    return 'warning';
-  }
-
-  return 'green-darken-3';
-});
-
-const startTimer = () => {
-
-  wordTimer.value = 0;
-
-  clearInterval(intervalTimer.value);
-
-  intervalTimer.value = setInterval(() => {
-
-    if (!timerPaused.value && remainingWordsCount.value > 0) {
-      wordTimer.value = wordTimer.value + timerStep;
-    }
-
-  }, timerStep);
-
-}
-
 onMounted(() => {
   startNewWord(0);
-
-  startTimer()
-});
-
-watch(isTimeout, (isTimedOut) => {
-
-  if (isTimedOut) {
-    startNewWord();
-  }
-
 });
 
 const startNewWord = async (exclude?: number) => {
@@ -331,10 +278,8 @@ const startNewWord = async (exclude?: number) => {
 
     wordCompleteSuccessfully.value = false;
 
-    startTimer();
-
-    // otp.value?.reset();
     await nextTick();
+    timer.value?.reset();
     isChangingWord.value = false;
     await nextTick();
     await otp.value?.focus(0);
@@ -357,12 +302,19 @@ const waitForLanguageSelection = (): void => {
   isChangingWord.value = false;
 }
 
-const progressValue = computed(() => wordTimer.value);
 const timerText = computed(() => {
   return isShowingSkippedWord.value
     ? 'Запомните перевод слова'
     : 'Напишите перевод слова';
 });
+
+const handleTimerTimeout = (): void => {
+  if (isShowingSkippedWord.value || isChangingWord.value) {
+    return;
+  }
+
+  void startNewWord();
+};
 
 
 const skipWord = async () => {
@@ -373,7 +325,8 @@ const skipWord = async () => {
   isChangingWord.value = true;
   isShowingSkippedWord.value = true;
   timerPaused.value = false;
-  wordTimer.value = 0;
+  await nextTick();
+  timer.value?.reset();
 
   const skippedWordIndex = currentWordIndex.value;
   const res = getOrCreateWordResult(currentWord.value.id);
@@ -527,10 +480,6 @@ const countHintsOnCurrentWord = computed(() => {
 
 const countErrorsOnCurrentWord = computed(() => {
   return currentWordResult.value?.errorTimes || 0;
-});
-
-onBeforeUnmount(() => {
-  clearInterval(intervalTimer.value);
 });
 
 const countErrorsOnExercise = computed(() => {
@@ -701,22 +650,15 @@ const areAllTasksCompleted = computed(() => {
                     </v-btn>
 
                   </div>
-                  <v-sheet class="ma-1 flex-grow-1 flex-shrink-0">
-                    <div
-                      v-if="!showCompleteBox"
-                      :aria-label="timerText"
-                      class="word-timer"
-                    >
-                      <v-progress-linear
-                        :buffer-value="progressValue"
-                        :color="wordProgressColor"
-                        :max="timerDurationMs"
-                        :height="48"
-                        rounded="sm"
-                      ></v-progress-linear>
-                      <span class="word-timer__label">{{ timerText }}</span>
-                    </div>
-                  </v-sheet>
+                  <ITimer
+                    v-if="!showCompleteBox"
+                    ref="timer"
+                    class="ma-1 flex-grow-1 flex-shrink-0"
+                    :duration-ms="timerDurationMs"
+                    :is-paused="timerPaused"
+                    :label="timerText"
+                    @timeout="handleTimerTimeout"
+                  />
                   <div class="ma-1 flex-grow-0 flex-shrink-1">
                     <v-btn icon="mdi-help"
                            :disabled="!isHintsAvailable"
@@ -870,27 +812,6 @@ const areAllTasksCompleted = computed(() => {
   grid-column: 3;
   justify-self: end;
   flex-shrink: 0;
-}
-
-.word-timer {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 48px;
-}
-
-.word-timer :deep(.v-progress-linear) {
-  position: absolute;
-  inset: 0;
-}
-
-.word-timer__label {
-  position: relative;
-  z-index: 1;
-  padding: 0 8px;
-  text-align: center;
-  pointer-events: none;
 }
 
 </style>

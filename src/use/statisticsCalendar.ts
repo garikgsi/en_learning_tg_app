@@ -288,16 +288,6 @@ export const buildStatisticsExerciseQueue = (
   return [...new Set(group.items.map(item => item.exerciseId))];
 }
 
-export const limitStatisticsCalendarWords = (
-  words: StatisticsCalendarWord[],
-  limit = 20,
-): { words: StatisticsCalendarWord[], hiddenCount: number } => {
-  return {
-    words: words.slice(0, limit),
-    hiddenCount: Math.max(words.length - limit, 0),
-  };
-}
-
 export const formatStatisticsWordTranslation = (
   word: StatisticsCalendarWord,
 ): string => {
