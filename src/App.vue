@@ -9,7 +9,9 @@
 </template>
 
 <script lang="ts" setup>
-import {computed, onMounted, watch} from 'vue';
+import {computed, onMounted, onUnmounted, watch} from 'vue';
+import {App as CapacitorApp, type AppState} from '@capacitor/app';
+import {Capacitor, type PluginListenerHandle} from '@capacitor/core';
 import {storeToRefs} from 'pinia';
 import {useRoute, useRouter} from 'vue-router';
 import {useTheme} from 'vuetify';
@@ -23,6 +25,9 @@ import {useNetwork} from '@/use/network';
 import {useOfflineManager} from '@/use/offlineManager';
 import {useAppUpdate} from '@/use/appUpdate';
 import useMessages from '@/use/messages';
+import {usePushNotifications} from '@/use/pushNotifications';
+import {onAccessTokenRefreshed} from '@/use/authEvents';
+import {useNotificationStore} from '@/stores/notificationStore';
 
 const route = useRoute();
 const router = useRouter();
@@ -37,6 +42,10 @@ const network = useNetwork();
 const offlineManager = useOfflineManager();
 const appUpdate = useAppUpdate();
 const {add} = useMessages();
+const notificationStore = useNotificationStore();
+const pushNotifications = usePushNotifications();
+let appStateListener: PluginListenerHandle | null = null;
+let removeAccessTokenListener: (() => void) | null = null;
 
 watch(isDarkTheme, (isDark) => {
   theme.global.name.value = isDark ? 'brandDark' : 'brandLight';
@@ -78,8 +87,46 @@ const checkForAppUpdate = async (): Promise<void> => {
   }
 };
 
+const synchronizeNotifications = async (): Promise<void> => {
+  if (!user.value?.id || !network.isConnected.value) {
+    return;
+  }
+
+  await notificationStore.synchronize(user.value.id);
+};
+
+const handleAppStateChange = (state: AppState): void => {
+  if (state.isActive) {
+    void synchronizeNotifications().catch(() => undefined);
+  }
+};
+
+const handleVisibilityChange = (): void => {
+  if (document.visibilityState === 'visible') {
+    void synchronizeNotifications().catch(() => undefined);
+  }
+};
+
 onMounted(async () => {
   await network.initialize();
+  if (Capacitor.isNativePlatform()) {
+    appStateListener = await CapacitorApp.addListener(
+      'appStateChange',
+      handleAppStateChange,
+    );
+  } else {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+  }
+  removeAccessTokenListener = onAccessTokenRefreshed(() => {
+    void synchronizeNotifications().catch(() => undefined);
+  });
+});
+
+onUnmounted(() => {
+  void appStateListener?.remove();
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  removeAccessTokenListener?.();
+  void pushNotifications.dispose();
 });
 
 watch(
@@ -108,7 +155,22 @@ watch(
     if (shouldInitialize) {
       await Promise.allSettled([
         offlineManager.initializeForUser(userId, connected),
+        notificationStore.loadCached(userId),
         connected ? checkForAppUpdate() : Promise.resolve(),
+        connected ? synchronizeNotifications() : Promise.resolve(),
+        connected
+          ? pushNotifications.initializeForUser(
+            userId,
+            synchronizeNotifications,
+            async path => {
+              if (path === '/update') {
+                await appUpdate.check({forceRefresh: true});
+              }
+
+              await router.push(path);
+            },
+          )
+          : Promise.resolve(),
       ]);
     }
   },

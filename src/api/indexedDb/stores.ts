@@ -6,6 +6,7 @@ export const indexedDbStores = {
   dictionaryWords: 'dictionaryWords',
   dictionaryMetadata: 'dictionaryMetadata',
   syncMetadata: 'syncMetadata',
+  notifications: 'notifications',
 } as const;
 
 export type IndexedDbStore = typeof indexedDbStores[keyof typeof indexedDbStores];

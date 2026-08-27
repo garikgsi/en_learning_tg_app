@@ -8,10 +8,11 @@ import {getIndexedDbMigrations} from '@/api/indexedDb/migrator';
 
 describe('IndexedDB migrations', () => {
   it.each([
-    {currentVersion: 0, expectedVersions: [1, 2, 3]},
-    {currentVersion: 1, expectedVersions: [2, 3]},
-    {currentVersion: 2, expectedVersions: [3]},
-    {currentVersion: 3, expectedVersions: []},
+    {currentVersion: 0, expectedVersions: [1, 2, 3, 4]},
+    {currentVersion: 1, expectedVersions: [2, 3, 4]},
+    {currentVersion: 2, expectedVersions: [3, 4]},
+    {currentVersion: 3, expectedVersions: [4]},
+    {currentVersion: 4, expectedVersions: []},
   ])(
     'returns migrations after version $currentVersion',
     ({currentVersion, expectedVersions}) => {
@@ -29,7 +30,7 @@ describe('IndexedDB migrations', () => {
 
     await indexedDb.put(indexedDbStores.syncMetadata, metadata);
 
-    expect(indexedDbDatabaseVersion).toBe(3);
+    expect(indexedDbDatabaseVersion).toBe(4);
     expect(await indexedDb.get(
       indexedDbStores.syncMetadata,
       metadata.key,

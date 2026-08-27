@@ -1,0 +1,74 @@
+name: Android release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify frontend
+        run: |
+          npm run lint
+          npm test
+          npm run build
+
+      - name: Synchronize Android project
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Publish GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+          RELEASE_NOTES: >-
+            Добавлены уведомления о новых упражнениях, напоминаниях и обновлениях
+            приложения. Улучшена синхронизация уведомлений.
+        run: |
+          version_name="${TAG_NAME#v}"
+          configured_version="$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' android/app/build.gradle)"
+
+          if [ "$version_name" != "$configured_version" ]; then
+            echo "Tag $TAG_NAME does not match Android version $configured_version."
+            exit 1
+          fi
+
+          asset_name="en-learning-v${version_name}-debug.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "$asset_name"
+          node scripts/create-update-manifest.mjs --apk "$asset_name" --output update-manifest.json
+          gh release create "$TAG_NAME" "$asset_name" update-manifest.json \
+            --title "$TAG_NAME" \
+            --notes "$RELEASE_NOTES" \
+            --prerelease

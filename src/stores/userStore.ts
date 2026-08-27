@@ -7,6 +7,7 @@ import {useAuthRepository} from '@/use/authRepository';
 import {useUserRepository} from '@/use/userRepository';
 import type {UserInfo} from '@/api/types/user';
 import type {AuthResponse} from '@/api/types/auth';
+import {usePushNotifications} from '@/use/pushNotifications';
 
 type AuthorizationData = {
   phone: string
@@ -59,6 +60,7 @@ export const useUserStore = defineStore('user', () => {
   const savedPhone = ref(getSavedPhone());
   const authRepository = useAuthRepository();
   const userRepository = useUserRepository();
+  const pushNotifications = usePushNotifications();
 
   const isInitialized = ref(false);
 
@@ -199,6 +201,7 @@ export const useUserStore = defineStore('user', () => {
 
     try {
       if (tokenStorage.getAccessToken()) {
+        await pushNotifications.unregisterCurrentDevice();
         await authRepository.logout();
       }
     } catch (error) {

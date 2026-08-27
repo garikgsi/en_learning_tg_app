@@ -5,6 +5,7 @@ import axios, {
 } from 'axios';
 import {tokenStorage} from '@/api/tokenStorage';
 import type {TokenPair} from '@/api/types/auth';
+import {emitAccessTokenRefreshed} from '@/use/authEvents';
 
 import useLoading from '@/use/loading';
 
@@ -80,6 +81,7 @@ apiClient.interceptors.response.use(
           .post<RefreshResponse>('/api/v1/auth/refresh', {refreshToken})
           .then(async ({data}) => {
             await tokenStorage.save(data);
+            emitAccessTokenRefreshed();
             setLoading(false);
             return data.accessToken;
           })
