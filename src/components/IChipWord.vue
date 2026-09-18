@@ -10,11 +10,13 @@
     wordId?: number | null
     language: TranslationLanguage
     color: string
+    closable?: boolean
   }
 
   const props = defineProps<Props>();
   const emit = defineEmits<{
     play: [wordId: number]
+    close: []
   }>();
 
   const { smAndUp } = useDisplay();
@@ -53,8 +55,11 @@
           ].filter(Boolean).join(': ')"
           :color="color"
           :lang="language"
+          :closable="closable"
+          close-label="Удалить слово"
           size="small"
           @click="play"
+          @click:close="emit('close')"
         >
           {{ word }}
         </v-chip>

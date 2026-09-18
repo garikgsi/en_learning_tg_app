@@ -20,6 +20,22 @@ const applicationRoutes = routes.map(route => route.path === '/statistics'
 
 const advancedRoutes = [
   {
+    path: '/monetization-requests',
+    component: () => import('@/components/IMonetizationRequests.vue'),
+    meta: {requiresAdmin: true},
+  },
+  {
+    path: '/statistics/daily/new',
+    component: () => import('@/components/IAdminDailyAssignment.vue'),
+    meta: {requiresAdmin: true},
+  },
+  {
+    path: '/dictionary/words/:wordId(\\d+)/edit',
+    component: () => import('@/components/IDictionaryWordEditor.vue'),
+    props: true,
+    meta: {requiresAdmin: true},
+  },
+  {
     path: '/exercises/:exerciseId(\\d+)',
     component: exercises,
     props: true,
@@ -44,6 +60,10 @@ router.beforeEach(async to => {
         redirect: to.fullPath,
       },
     }
+  }
+
+  if (to.meta.requiresAdmin && !userStore.isAdmin) {
+    return '/dictionary'
   }
 })
 

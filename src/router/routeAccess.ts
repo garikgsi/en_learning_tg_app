@@ -3,9 +3,23 @@ type RouteMetadata = {
   icon: string
   showInSideBar: boolean
   isPublic: boolean
+  adminOnly?: boolean
 }
 
 export const routes: Record<string, RouteMetadata> = {
+  '/balance': {
+    title: 'Баланс',
+    icon: 'mdi-wallet-outline',
+    showInSideBar: true,
+    isPublic: false,
+  },
+  '/monetization-requests': {
+    title: 'Запросы на монетизацию',
+    icon: 'mdi-cash-check',
+    showInSideBar: true,
+    isPublic: false,
+    adminOnly: true,
+  },
   '/': {
     title: 'Перевод слов',
     icon: 'mdi-translate',
@@ -79,6 +93,10 @@ export const isPublicRoute = (path: string): boolean => {
 }
 
 export const getRouteTitle = (path: string): string => {
+  if (path === '/statistics/daily/new') return 'Новое дейли-задание';
+  if (/^\/dictionary\/words\/\d+\/edit$/.test(path)) {
+    return 'Редактирование слова';
+  }
   if (/^\/exercises\/\d+$/.test(path)) {
     return routes['/exercises'].title;
   }

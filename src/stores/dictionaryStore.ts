@@ -47,7 +47,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
   const page = ref(1);
   const lastPage = ref(1);
   const hasMore = computed(() => page.value < lastPage.value);
-  const availableGrade = ref(0);
+  const availableGrade = ref<number | null>(0);
   const isDataFetching = ref(false);
   const audioLoadingWordId = ref<number | null>(null);
   const search = ref('');
@@ -114,6 +114,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
         search.value.trim() || undefined,
         targetPage,
         settingsStore.dictionaryWordsPerPage,
+        targetPage === 1,
       );
 
       if (currentRequestId !== requestId) {
@@ -281,7 +282,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
 
     try {
       releaseActiveAudio();
-      activeAudio = new Audio(dictionaryRepository.getWordAudioUrl(wordId));
+      activeAudio = new Audio(dictionaryRepository.getWordAudioUrl(wordId, knownWords.value[wordId]?.english));
       activeAudio.preload = 'auto';
       activeAudio.addEventListener('ended', releaseActiveAudio, {once: true});
       await activeAudio.play();

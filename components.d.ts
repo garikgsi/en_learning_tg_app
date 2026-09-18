@@ -8,12 +8,15 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    IAdminDailyAssignment: typeof import('./src/components/IAdminDailyAssignment.vue')['default']
     IAvatarPicker: typeof import('./src/components/IAvatarPicker.vue')['default']
     IAvatarUploadToolbar: typeof import('./src/components/IAvatarUploadToolbar.vue')['default']
     IChipWord: typeof import('./src/components/IChipWord.vue')['default']
     IChipWordList: typeof import('./src/components/IChipWordList.vue')['default']
     IConfirmDialog: typeof import('./src/components/IConfirmDialog.vue')['default']
+    IDictionaryWordEditor: typeof import('./src/components/IDictionaryWordEditor.vue')['default']
     IMessage: typeof import('./src/components/IMessage.vue')['default']
+    IMonetizationRequests: typeof import('./src/components/IMonetizationRequests.vue')['default']
     IPinCodeInput: typeof import('./src/components/IPinCodeInput.vue')['default']
     IProfileForm: typeof import('./src/components/IProfileForm.vue')['default']
     IStatisticsCharts: typeof import('./src/components/IStatisticsCharts.vue')['default']

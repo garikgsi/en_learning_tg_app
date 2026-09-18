@@ -67,6 +67,7 @@ export const useUserStore = defineStore('user', () => {
   let restoreRequest: Promise<void> | null = null;
 
   const isAuthenticated = computed(() => user.value !== null);
+  const isAdmin = computed(() => user.value?.role === 'admin');
 
   const saveUser = async (authorizedUser: UserInfo): Promise<void> => {
     user.value = authorizedUser;
@@ -294,6 +295,7 @@ export const useUserStore = defineStore('user', () => {
 
     isInitialized,
     isAuthenticated,
+    isAdmin,
     restoreSession,
     authorize,
     register,

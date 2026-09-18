@@ -3,6 +3,7 @@ node_modules
 .android-sdk
 .jdk
 /dist
+/.tmp/
 /update-manifest.json
 
 # local env files

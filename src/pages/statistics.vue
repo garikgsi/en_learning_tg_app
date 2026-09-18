@@ -285,12 +285,19 @@ onMounted(async () => {
       <v-spacer />
 
       <v-btn
+        v-if="userStore.isAdmin"
+        :disabled="isCreating"
+        variant="text"
+        @click="openUserExerciseCreation"
+      >Самоподготовка</v-btn>
+
+      <v-btn
         color="primary"
         :disabled="isCreating"
         :loading="isCreating"
         prepend-icon="mdi-plus"
         variant="text"
-        @click="openUserExerciseCreation"
+        @click="userStore.isAdmin ? router.push('/statistics/daily/new') : openUserExerciseCreation()"
       >
         Новое задание
       </v-btn>

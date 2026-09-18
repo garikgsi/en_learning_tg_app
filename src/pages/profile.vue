@@ -11,7 +11,7 @@ import IProfileForm from "@/components/IProfileForm.vue";
 
 const userStore = useUserStore();
 const router = useRouter();
-const {user} = storeToRefs(userStore);
+const {user, isAdmin} = storeToRefs(userStore);
 
 const name = ref(user.value?.name ?? '');
 const currentPin = ref('');
@@ -63,7 +63,9 @@ const logout = async () => {
 
 <template>
   <v-card class="mx-auto" max-width="720">
-    <v-card-title>{{name}}</v-card-title>
+    <v-card-title>
+      {{name}}<span v-if="isAdmin" class="text-body-2 text-medium-emphasis text-no-wrap"> · admin</span>
+    </v-card-title>
     <v-card-subtitle>{{ user?.phone }}</v-card-subtitle>
 
     <v-card-text>

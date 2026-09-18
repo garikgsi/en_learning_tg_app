@@ -28,6 +28,7 @@ import useMessages from '@/use/messages';
 import {usePushNotifications} from '@/use/pushNotifications';
 import {onAccessTokenRefreshed} from '@/use/authEvents';
 import {useNotificationStore} from '@/stores/notificationStore';
+import {useMonetizationStore} from '@/stores/monetizationStore';
 
 const route = useRoute();
 const router = useRouter();
@@ -43,6 +44,7 @@ const offlineManager = useOfflineManager();
 const appUpdate = useAppUpdate();
 const {add} = useMessages();
 const notificationStore = useNotificationStore();
+const monetizationStore = useMonetizationStore();
 const pushNotifications = usePushNotifications();
 let appStateListener: PluginListenerHandle | null = null;
 let removeAccessTokenListener: (() => void) | null = null;
@@ -92,7 +94,10 @@ const synchronizeNotifications = async (): Promise<void> => {
     return;
   }
 
-  await notificationStore.synchronize(user.value.id);
+  await Promise.all([
+    notificationStore.synchronize(user.value.id),
+    monetizationStore.synchronize().catch(() => undefined),
+  ]);
 };
 
 const handleAppStateChange = (state: AppState): void => {
@@ -134,21 +139,25 @@ watch(
     user.value?.id,
     network.isConnected.value,
     network.isInitialized.value,
+    userStore.isAdmin,
   ] as const,
   async (
-    [userId, connected, networkInitialized],
+    [userId, connected, networkInitialized, isAdmin],
     previousValues,
   ) => {
     const [
       previousUserId,
       previousConnected,
       wasNetworkInitialized,
+      wasAdmin,
     ] = previousValues ?? [];
+    if (userId !== previousUserId || !isAdmin) monetizationStore.reset();
     if (!userId || !networkInitialized) {
       return;
     }
 
     const shouldInitialize = userId !== previousUserId
+      || isAdmin !== wasAdmin
       || wasNetworkInitialized !== true
       || (connected && previousConnected === false);
 

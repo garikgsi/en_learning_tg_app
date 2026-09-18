@@ -7,6 +7,8 @@ import {
   watch,
 } from 'vue';
 import {storeToRefs} from 'pinia';
+import {useRouter} from 'vue-router';
+import {useUserStore} from '@/stores/userStore';
 import {useDictionaryStore} from '@/stores/dictionaryStore';
 import {useSettingsStore} from '@/stores/settingsStore';
 import type {DictionaryWord} from '@/types/dictionary';
@@ -17,6 +19,18 @@ import type {
 
 const dictionaryStore = useDictionaryStore();
 const settingsStore = useSettingsStore();
+const router = useRouter();
+const {isAdmin} = storeToRefs(useUserStore());
+
+const editWord = (_event: Event, {item}: {item: DictionaryWord}): void => {
+  if (isAdmin.value) {
+    void router.push(`/dictionary/words/${item.id}/edit`);
+  }
+};
+
+const wordRowProps = ({item}: {item: DictionaryWord}) => isAdmin.value
+  ? {class: 'dictionary-row--editable', title: `Редактировать: ${item.english}`}
+  : {};
 const {
   items,
   totalItems,
@@ -286,9 +300,19 @@ const saveReviewedWord = async (): Promise<void> => {
       hide-default-footer
       item-value="id"
       no-data-text="Слова не найдены"
+      :row-props="wordRowProps"
+      @click:row="editWord"
     >
       <template #item.russian="{item}">
-        <span>
+        <router-link
+          v-if="isAdmin"
+          class="dictionary-edit-link"
+          :to="`/dictionary/words/${item.id}/edit`"
+          @click.stop
+        >
+          {{ [item.russian, ...item.russianVariants].join(', ') }}
+        </router-link>
+        <span v-else>
           {{ [item.russian, ...item.russianVariants].join(', ') }}
         </span>
       </template>
@@ -302,7 +326,7 @@ const saveReviewedWord = async (): Promise<void> => {
             :loading="dictionaryStore.audioLoadingWordId === item.id"
             size="small"
             :title="getAudioButtonTitle(item)"
-            @click="dictionaryStore.playWordAudio(item.id)"
+            @click.stop="dictionaryStore.playWordAudio(item.id)"
           />
           <div class="dictionary-translation" lang="en">
             <div>{{ item.english }}</div>
@@ -345,7 +369,7 @@ const saveReviewedWord = async (): Promise<void> => {
             prepend-icon="mdi-bell-plus-outline"
             size="small"
             :title="getRepetitionButtonTitle(item)"
-            @click="dictionaryStore.addWordToRepetition(item.id)"
+            @click.stop="dictionaryStore.addWordToRepetition(item.id)"
           >
             Повторить
           </v-btn>
@@ -359,7 +383,7 @@ const saveReviewedWord = async (): Promise<void> => {
             icon="mdi-bell-plus-outline"
             size="small"
             :title="getRepetitionButtonTitle(item)"
-            @click="dictionaryStore.addWordToRepetition(item.id)"
+            @click.stop="dictionaryStore.addWordToRepetition(item.id)"
           ></v-btn>
         </div>
       </template>
@@ -496,6 +520,23 @@ const saveReviewedWord = async (): Promise<void> => {
 </template>
 
 <style scoped>
+.dictionary-edit-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dictionary-edit-link:hover {
+  text-decoration: underline;
+}
+
+:deep(.dictionary-row--editable) {
+  cursor: pointer;
+}
+
+:deep(.dictionary-row--editable:hover) {
+  background: rgba(var(--v-theme-primary), 0.05);
+}
+
 .repeat-actions {
   display: flex;
   align-items: center;

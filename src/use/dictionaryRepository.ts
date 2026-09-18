@@ -5,6 +5,8 @@ import type {
   DictionaryPageResponse,
   DictionaryStorePayload,
   DictionaryStoreResponse,
+  DictionaryUpdatePayload,
+  DictionaryWordResponse,
 } from '@/api/types/dictionary';
 import {getRepositoryFallbackReason} from '@/use/repositoryFallback';
 import type {
@@ -35,9 +37,10 @@ const performSynchronization = async (
     const firstPage = await httpDictionaryDriver.synchronize(
       1,
       synchronizationPageSize,
-      metadata?.latestCreatedAt ?? undefined,
+      metadata?.latestUpdatedAt ? metadata.latestCreatedAt ?? undefined : undefined,
       metadata?.availableGrade,
       metadata?.revision,
+      metadata?.latestUpdatedAt ?? undefined,
     );
     const remainingPages = await Promise.all(
       Array.from(
@@ -45,9 +48,10 @@ const performSynchronization = async (
         (_, index) => httpDictionaryDriver.synchronize(
           index + 2,
           synchronizationPageSize,
-          metadata?.latestCreatedAt ?? undefined,
+          metadata?.latestUpdatedAt ? metadata.latestCreatedAt ?? undefined : undefined,
           metadata?.availableGrade,
           metadata?.revision,
+          metadata?.latestUpdatedAt ?? undefined,
         ),
       ),
     );
@@ -112,8 +116,9 @@ const repository = {
     search: string | undefined,
     page: number,
     perPage: number,
+    forceSynchronization = false,
   ): Promise<RepositoryResult<DictionaryPageResponse>> {
-    const synchronization = await synchronize(userId);
+    const synchronization = await synchronize(userId, forceSynchronization);
     const data = await indexedDbDictionaryDriver.getPage(
       userId,
       search,
@@ -147,8 +152,24 @@ const repository = {
     return response;
   },
 
-  getWordAudioUrl(wordId: number): string {
-    return httpDictionaryDriver.getWordAudioUrl(wordId);
+  getWord(wordId: number): Promise<DictionaryWordResponse> {
+    return httpDictionaryDriver.getWord(wordId);
+  },
+
+  async updateWord(
+    userId: string,
+    wordId: number,
+    word: DictionaryUpdatePayload,
+  ): Promise<DictionaryWordResponse> {
+    const response = await httpDictionaryDriver.updateWord(wordId, word);
+    await synchronizationRequests.get(userId)?.catch(() => undefined);
+    synchronizationResults.delete(userId);
+    await indexedDbDictionaryDriver.putWord(userId, response.item).catch(() => undefined);
+    return response;
+  },
+
+  getWordAudioUrl(wordId: number, english?: string): string {
+    return httpDictionaryDriver.getWordAudioUrl(wordId, english);
   },
 };
 

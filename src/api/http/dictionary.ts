@@ -5,6 +5,8 @@ import type {
   DictionaryStorePayload,
   DictionaryStoreResponse,
   DictionarySyncResponse,
+  DictionaryUpdatePayload,
+  DictionaryWordResponse,
 } from '@/api/types/dictionary';
 
 export const httpDictionaryDriver = {
@@ -12,11 +14,12 @@ export const httpDictionaryDriver = {
     page: number,
     perPage: number,
     createdAfter?: string,
-    availableGrade?: number,
+    availableGrade?: number | null,
     revision?: number,
+    updatedAfter?: string,
   ): Promise<DictionarySyncResponse> {
     return http.get<DictionarySyncResponse>('/dictionary/sync', {
-      params: {page, perPage, createdAfter, availableGrade, revision},
+      params: {page, perPage, createdAfter, availableGrade, revision, updatedAfter},
     });
   },
 
@@ -42,9 +45,18 @@ export const httpDictionaryDriver = {
     return http.post<DictionaryStoreResponse>('/dictionary/words', word);
   },
 
-  getWordAudioUrl(wordId: number): string {
+  getWord(wordId: number): Promise<DictionaryWordResponse> {
+    return http.get<DictionaryWordResponse>(`/dictionary/words/${wordId}`);
+  },
+
+  updateWord(wordId: number, word: DictionaryUpdatePayload): Promise<DictionaryWordResponse> {
+    return http.patch<DictionaryWordResponse>(`/dictionary/words/${wordId}`, word);
+  },
+
+  getWordAudioUrl(wordId: number, english?: string): string {
     const serverUrl = apiBaseUrl.replace(/\/+$/, '');
 
-    return `${serverUrl}${baseUrl}/dictionary/words/${wordId}/audio`;
+    const url = `${serverUrl}${baseUrl}/dictionary/words/${wordId}/audio`;
+    return english ? `${url}?word=${encodeURIComponent(english)}` : url;
   },
 };

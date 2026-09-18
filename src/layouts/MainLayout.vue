@@ -4,6 +4,7 @@ import {storeToRefs} from 'pinia';
 import {useDisplay} from 'vuetify';
 import {routes} from '@/router/routeAccess';
 import {useNotificationStore} from '@/stores/notificationStore';
+import {useMonetizationStore} from '@/stores/monetizationStore';
 import {useUserStore} from '@/stores/userStore';
 import IThemeToggle from '@/components/IThemeToggle.vue';
 import useLoading from '@/use/loading';
@@ -18,6 +19,7 @@ const userStore = useUserStore();
 const {user} = storeToRefs(userStore);
 const notificationStore = useNotificationStore();
 const {unreadCount} = storeToRefs(notificationStore);
+const {pendingCount} = storeToRefs(useMonetizationStore());
 const offlineManager = useOfflineManager();
 const {pendingResults, failedResults} = offlineManager;
 const {addError, addWarning, readMessageByKey} = useMessages();
@@ -93,13 +95,15 @@ const accountInitial = computed(() => {
 });
 const accountSubtitle = computed(() => user.value?.phone ?? 'Войти');
 
-const menuItems = Object.entries(routes)
-  .filter(([, route]) => route.showInSideBar)
+const menuItems = computed(() => Object.entries(routes)
+  .filter(([, route]) => route.showInSideBar && (!route.adminOnly || userStore.isAdmin))
   .map(([to, route]) => ({
     text: route.title,
     icon: route.icon,
     to,
-  }));
+    badgeCount: to === '/notifications' ? unreadCount.value : to === '/monetization-requests' ? pendingCount.value : 0,
+    badgeLabel: to === '/monetization-requests' ? 'Необработанных запросов: {0}' : 'Непрочитанных уведомлений: {0}',
+  })));
 
 const expandRail = () => {
   if (!smAndDown.value) {
@@ -234,12 +238,12 @@ const closeMenuOnSmallScreen = () => {
       >
         <template #prepend>
           <v-badge
-            :content="unreadCount"
+            :content="item.badgeCount"
             :max="99"
-            :model-value="item.to === '/notifications' && unreadCount > 0"
+            :model-value="item.badgeCount > 0"
             bordered
             color="error"
-            label="Непрочитанных уведомлений: {0}"
+            :label="item.badgeLabel"
           >
             <v-icon :icon="item.icon"></v-icon>
           </v-badge>

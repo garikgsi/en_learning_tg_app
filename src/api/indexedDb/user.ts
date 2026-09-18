@@ -22,7 +22,7 @@ export const indexedDbUserDriver = {
       userId,
     );
 
-    return cached?.user ?? null;
+    return cached ? {...cached.user, role: cached.user.role ?? 'user'} : null;
   },
 
   async remove(userId: string): Promise<void> {

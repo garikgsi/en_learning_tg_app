@@ -9,7 +9,8 @@ export type CachedDictionaryWord = {
 export type DictionaryCacheMetadata = {
   userId: string
   latestCreatedAt: string | null
-  availableGrade: number
+  latestUpdatedAt?: string | null
+  availableGrade: number | null
   revision: number
   synchronizedAt: string
 }

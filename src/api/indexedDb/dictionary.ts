@@ -32,6 +32,7 @@ export const indexedDbDictionaryDriver = {
     const metadata: DictionaryCacheMetadata = {
       userId,
       latestCreatedAt: response.latestCreatedAt,
+      latestUpdatedAt: response.latestUpdatedAt,
       availableGrade: response.availableGrade,
       revision: response.revision,
       synchronizedAt: new Date().toISOString(),
@@ -87,7 +88,7 @@ export const indexedDbDictionaryDriver = {
     );
     const words = cached
       .map(item => item.word)
-      .filter(word => word.grade <= metadata.availableGrade)
+      .filter(word => metadata.availableGrade === null || word.grade <= metadata.availableGrade)
       .filter(word => {
         if (!normalizedSearch) {
           return true;

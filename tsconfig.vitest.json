@@ -3,13 +3,13 @@
   "include": [
     "env.d.ts",
     "src/**/*.ts",
-    "src/components/**/*.vue"
+    "src/components/**/*.vue",
+    "src/pages/**/*.vue"
   ],
   "exclude": [
     "src/main.ts",
     "src/plugins/**",
-    "src/router/**",
-    "src/pages/**"
+    "src/router/index.ts"
   ],
   "compilerOptions": {
     "composite": true,

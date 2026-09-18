@@ -31,10 +31,20 @@ export type DictionaryStoreResponse = {
   wasCreated: boolean
 }
 
+export type DictionaryUpdatePayload = Omit<DictionaryStorePayload, 'transcription'> & {
+  russianVariants: string[]
+  englishVariants: string[]
+}
+
+export type DictionaryWordResponse = {
+  item: ApiDictionaryWord
+}
+
 export type DictionarySyncResponse = {
   items: ApiDictionaryWord[]
   latestCreatedAt: string | null
-  availableGrade: number
+  latestUpdatedAt?: string | null
+  availableGrade: number | null
   revision: number
   isFullSync: boolean
   page: number
@@ -48,5 +58,5 @@ export type DictionaryPageResponse = {
   page: number
   perPage: number
   lastPage: number
-  availableGrade: number
+  availableGrade: number | null
 }

@@ -66,6 +66,7 @@ describe('statisticsStore', () => {
       id: 'current-user',
       name: 'Current user',
       phone: '+79991234567',
+      role: 'user',
       avatar: '',
       createdAt: '2026-07-01T00:00:00Z',
     };
