@@ -113,6 +113,21 @@ describe('IWord keyboard layout normalization', () => {
     Reflect.deleteProperty(navigator, 'vibrate');
   });
 
+  it('can display an English source for an English answer', async () => {
+    const wrapper = mountWithVuetify(IWord, {
+      modelValue: '',
+      word: 'man',
+      translate: 'men',
+      lang: 'en',
+      wordLang: 'en',
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('man');
+    wrapper.unmount();
+  });
+
   it.each([
     ['елка', 'ёлка'],
     ['обьект', 'объект'],

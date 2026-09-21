@@ -7,18 +7,24 @@ type ChipWord = {
   en: string
   ru: string
   color: string
+  plural?: {
+    id: number
+    en: string
+    ru: string
+  } | null
 }
 
 type Props = {
   words: ChipWord[]
   limit?: number
+  audioLoadingWordId?: number | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   limit: 20,
 });
 const emit = defineEmits<{
-  play: [wordId: number]
+  play: [wordId: number, pluralId?: number]
 }>();
 
 const normalizedLimit = computed(() => {
@@ -32,6 +38,15 @@ const visibleWords = computed(() => {
 const hiddenCount = computed(() => {
   return Math.max(props.words.length - normalizedLimit.value, 0);
 });
+
+const play = (word: ChipWord, wordId: number): void => {
+  if (word.plural) {
+    emit('play', wordId, word.plural.id);
+    return;
+  }
+
+  emit('play', wordId);
+};
 </script>
 
 <template>
@@ -42,9 +57,15 @@ const hiddenCount = computed(() => {
       :color="word.color"
       language="en"
       :translation="word.ru"
+      :plural="word.plural ? {
+        id: word.plural.id,
+        word: word.plural.en,
+        translation: word.plural.ru,
+      } : null"
       :word="word.en"
       :word-id="word.id"
-      @play="emit('play', $event)"
+      :audio-loading="audioLoadingWordId === word.id"
+      @play="play(word, $event)"
     />
 
     <IChipWord

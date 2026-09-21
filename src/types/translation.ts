@@ -12,6 +12,8 @@ export type TranslationWord = {
   exerciseId: number
   exerciseItemId: number
   wordId: number
+  pluralId?: number
+  exerciseType?: string
   word: string
   translate: string
   wordVariants: string[]

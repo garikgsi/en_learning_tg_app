@@ -171,6 +171,10 @@ const repository = {
   getWordAudioUrl(wordId: number, english?: string): string {
     return httpDictionaryDriver.getWordAudioUrl(wordId, english);
   },
+
+  getPluralAudioUrl(pluralId: number): string {
+    return httpDictionaryDriver.getPluralAudioUrl(pluralId);
+  },
 };
 
 export const useDictionaryRepository = () => repository;

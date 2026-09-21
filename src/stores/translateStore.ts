@@ -61,17 +61,21 @@ export const useTranslateStore = defineStore('translate', () => {
 
   const setExercises = (exercises: Exercise[]): void => {
     wordList.value = exercises.flatMap(exercise => {
-      return exercise.items.map(({id, word}) => {
+      return exercise.items.map(({id, word, plural}) => {
+        const isPlural = exercise.type.name === 'plural' && plural != null;
+
         return {
           id,
           exerciseId: exercise.id,
           exerciseItemId: id,
           wordId: word.id,
-          word: word.ru,
-          translate: word.en,
-          wordVariants: word.ruVariants ?? [],
-          translateVariants: word.enVariants ?? [],
-          checkWord: word.en,
+          pluralId: plural?.id,
+          exerciseType: exercise.type.name,
+          word: isPlural ? word.en : word.ru,
+          translate: isPlural ? plural!.en : word.en,
+          wordVariants: isPlural ? [word.ru] : word.ruVariants ?? [],
+          translateVariants: isPlural ? [plural!.ru] : word.enVariants ?? [],
+          checkWord: isPlural ? plural!.en : word.en,
         };
       });
     });

@@ -15,8 +15,11 @@ const IWordStub = defineComponent({
     word: String,
     translate: String,
     lang: String,
+    wordLang: String,
     disabled: Boolean,
     readonly: Boolean,
+    wordVariants: Array,
+    translateVariants: Array,
   },
   emits: ['finish', 'mistake', 'update:model-value'],
   setup(_props, {expose, slots}) {
@@ -176,6 +179,62 @@ describe('ITranslateTask word transitions', () => {
     await getAudioButton()!.trigger('click');
     expect(playWordAudio).toHaveBeenLastCalledWith(11);
     expect(playWordAudio).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
+  });
+
+  it('starts plural exercises without language selection and finishes one direction', async () => {
+    const pluralAudio = vi.spyOn(
+      useDictionaryStore(),
+      'playPluralPairAudio',
+    ).mockResolvedValue();
+    useTranslateStore().wordList = [{
+      ...word,
+      word: 'man',
+      translate: 'men',
+      checkWord: 'men',
+      wordVariants: ['мужчина'],
+      translateVariants: ['мужчины'],
+      exerciseType: 'plural',
+      pluralId: 5,
+    }];
+
+    const wrapper = mount(ITranslateTask, {
+      global: {
+        plugins: [createVuetify()],
+        stubs: {IWord: IWordStub},
+      },
+    });
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.text()).not.toContain('Выберем язык');
+    expect(wrapper.findComponent(IWordStub).props()).toMatchObject({
+      word: 'man',
+      translate: 'men',
+      wordLang: 'en',
+      wordVariants: ['мужчина'],
+      translateVariants: ['мужчины'],
+    });
+    expect(wrapper.get('.i-timer__label').text())
+      .toBe('Напишите множественное число');
+
+    const audioButton = wrapper
+      .findAllComponents({name: 'VBtn'})
+      .find(button => button.text().includes('Озвучить'));
+    await audioButton!.trigger('click');
+    expect(pluralAudio).toHaveBeenCalledWith(11, 5);
+
+    wrapper.findComponent(IWordStub).vm.$emit(
+      'finish',
+      {isOk: true, answer: 'men'},
+    );
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+
+    expect(wrapper.emitted('finish')).toHaveLength(1);
+    expect(wrapper.emitted('finish')![0][0]).toMatchObject([
+      {lang: 'en'},
+    ]);
     wrapper.unmount();
   });
 

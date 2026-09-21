@@ -46,4 +46,38 @@ describe('translateStore exercise words', () => {
       translateVariants: ['арифметика'],
     });
   });
+
+  it('maps plural exercises to a single singular-to-plural task', () => {
+    const store = useTranslateStore();
+    const pluralExercise: Exercise = {
+      ...exercise,
+      type: {id: 4, name: 'plural', title: 'Множественное число'},
+      items: [{
+        ...exercise.items[0],
+        word: {
+          ...exercise.items[0].word,
+          ru: 'мужчина',
+          en: 'man',
+        },
+        plural: {
+          id: 5,
+          ru: 'мужчины',
+          en: 'men',
+          transcription: '/men/',
+        },
+      }],
+    };
+
+    store.setExercises([pluralExercise]);
+
+    expect(store.wordList[0]).toMatchObject({
+      word: 'man',
+      translate: 'men',
+      checkWord: 'men',
+      wordVariants: ['мужчина'],
+      translateVariants: ['мужчины'],
+      pluralId: 5,
+      exerciseType: 'plural',
+    });
+  });
 });

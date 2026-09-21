@@ -8,14 +8,20 @@
     translation: string
     transcription?: string | null
     wordId?: number | null
+    plural?: {
+      id: number
+      word: string
+      translation: string
+    } | null
     language: TranslationLanguage
     color: string
     closable?: boolean
+    audioLoading?: boolean
   }
 
   const props = defineProps<Props>();
   const emit = defineEmits<{
-    play: [wordId: number]
+    play: [wordId: number, pluralId?: number]
     close: []
   }>();
 
@@ -28,6 +34,11 @@
 
   const play = (): void => {
     if (props.wordId) {
+      if (props.plural) {
+        emit('play', props.wordId, props.plural.id);
+        return;
+      }
+
       emit('play', props.wordId);
     }
   }
@@ -48,11 +59,9 @@
       >
         <v-chip
           v-bind="props"
-          :aria-label="[
-            word,
-            transcription,
-            translation,
-          ].filter(Boolean).join(': ')"
+          :aria-label="plural
+            ? `${translation} — ${plural.translation}; ${word} — ${plural.word}`
+            : [word, transcription, translation].filter(Boolean).join(': ')"
           :color="color"
           :lang="language"
           :closable="closable"
@@ -66,16 +75,51 @@
       </span>
     </template>
 
-    <div v-if="transcription" class="i-chip-word__transcription">
-      {{ transcription }}
+    <div class="i-chip-word__tooltip">
+      <v-progress-circular
+        v-if="wordId && audioLoading"
+        aria-label="Загрузка произношения"
+        color="secondary"
+        indeterminate
+        :size="26"
+        :width="2"
+      >
+        <v-icon color="secondary" icon="mdi-volume-high" :size="15" />
+      </v-progress-circular>
+      <v-icon
+        v-else-if="wordId"
+        aria-label="Произношение готово"
+        color="primary"
+        icon="mdi-volume-high"
+        :size="22"
+      />
+
+      <div>
+        <template v-if="plural">
+          <div>{{ translation }} — {{ plural.translation }}</div>
+          <div>{{ word }} — {{ plural.word }}</div>
+        </template>
+        <template v-else>
+          <div v-if="transcription" class="i-chip-word__transcription">
+            {{ transcription }}
+          </div>
+          <div>{{ translation }}</div>
+        </template>
+      </div>
     </div>
-    <div>{{ translation }}</div>
   </v-tooltip>
 </template>
 
 <style scoped>
 .i-chip-word__activator {
   display: inline-flex;
+}
+
+.i-chip-word__tooltip {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-height: 26px;
 }
 
 .i-chip-word__transcription {

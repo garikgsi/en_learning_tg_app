@@ -12,6 +12,7 @@ interface Props {
   word: string
   translate: string
   lang?: 'en' | 'ru'
+  wordLang?: 'en' | 'ru'
   wordVariants?: string[]
   translateVariants?: string[]
   easyMode?: boolean
@@ -94,7 +95,8 @@ const answerLanguage = computed<'en' | 'ru'>(() => {
 });
 
 const sourceLanguage = computed<'en' | 'ru'>(() => {
-  return answerLanguage.value === 'ru' ? 'en' : 'ru';
+  return props.wordLang
+    ?? (answerLanguage.value === 'ru' ? 'en' : 'ru');
 });
 
 const normalizedWord = computed(() => {

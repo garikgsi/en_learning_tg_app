@@ -20,6 +20,12 @@ export type ExerciseStatisticsItem = {
     ruVariants: string[]
     enVariants: string[]
     transcription: string | null
+    plural?: {
+      id: number
+      english: string
+      russian: string
+      transcription: string | null
+    } | null
     hasErrors: boolean
   }[]
   successPercentage: number

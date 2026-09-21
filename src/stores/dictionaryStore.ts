@@ -50,19 +50,22 @@ export const useDictionaryStore = defineStore('dictionary', () => {
   const availableGrade = ref<number | null>(0);
   const isDataFetching = ref(false);
   const audioLoadingWordId = ref<number | null>(null);
+  const audioPreparingWordId = ref<number | null>(null);
   const search = ref('');
 
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
   let requestId = 0;
-  let activeAudio: HTMLAudioElement | null = null;
+  const activeAudios = new Set<HTMLAudioElement>();
+
+  const releaseAudio = (audio: HTMLAudioElement): void => {
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    activeAudios.delete(audio);
+  };
 
   const releaseActiveAudio = (): void => {
-    if (activeAudio) {
-      activeAudio.pause();
-      activeAudio.removeAttribute('src');
-      activeAudio.load();
-      activeAudio = null;
-    }
+    [...activeAudios].forEach(releaseAudio);
   }
 
   const leastRepeatedWords = computed<DictionaryWord[]>(() => {
@@ -279,13 +282,16 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     }
 
     audioLoadingWordId.value = wordId;
+    audioPreparingWordId.value = wordId;
 
     try {
       releaseActiveAudio();
-      activeAudio = new Audio(dictionaryRepository.getWordAudioUrl(wordId, knownWords.value[wordId]?.english));
-      activeAudio.preload = 'auto';
-      activeAudio.addEventListener('ended', releaseActiveAudio, {once: true});
-      await activeAudio.play();
+      const audio = new Audio(dictionaryRepository.getWordAudioUrl(wordId, knownWords.value[wordId]?.english));
+      activeAudios.add(audio);
+      audio.preload = 'auto';
+      audio.addEventListener('ended', () => releaseAudio(audio), {once: true});
+      await audio.play();
+      audioPreparingWordId.value = null;
     } catch (error) {
       releaseActiveAudio();
       addError(getApiErrorMessage(
@@ -293,6 +299,94 @@ export const useDictionaryStore = defineStore('dictionary', () => {
         'Не удалось воспроизвести произношение',
       ));
     } finally {
+      audioPreparingWordId.value = null;
+      audioLoadingWordId.value = null;
+    }
+  }
+
+  const loadAudio = async (url: string): Promise<HTMLAudioElement> => {
+    return new Promise<HTMLAudioElement>((resolve, reject) => {
+      const audio = new Audio();
+      activeAudios.add(audio);
+      audio.preload = 'auto';
+
+      const handleReady = (): void => {
+        audio.removeEventListener('canplaythrough', handleReady);
+        audio.removeEventListener('error', handleError);
+        resolve(audio);
+      };
+      const handleError = (): void => {
+        audio.removeEventListener('canplaythrough', handleReady);
+        audio.removeEventListener('error', handleError);
+        releaseAudio(audio);
+        reject(new Error('Audio loading failed'));
+      };
+
+      audio.addEventListener('canplaythrough', handleReady, {once: true});
+      audio.addEventListener('error', handleError, {once: true});
+      audio.src = url;
+      audio.load();
+
+      if (audio.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+        handleReady();
+      }
+    });
+  };
+
+  const playAudioAndWait = async (
+    audio: HTMLAudioElement,
+  ): Promise<void> => {
+    await new Promise<void>((resolve, reject) => {
+      audio.addEventListener('ended', () => {
+        releaseAudio(audio);
+        resolve();
+      }, {once: true});
+      audio.addEventListener('error', () => {
+        releaseAudio(audio);
+        reject(new Error('Audio playback failed'));
+      }, {once: true});
+
+      if (!activeAudios.has(audio)) {
+        resolve();
+        return;
+      }
+
+      audio.play().catch(error => {
+        releaseAudio(audio);
+        reject(error);
+      });
+    });
+  }
+
+  const playPluralPairAudio = async (
+    wordId: number,
+    pluralId: number,
+  ): Promise<void> => {
+    if (audioLoadingWordId.value !== null) {
+      return;
+    }
+
+    audioLoadingWordId.value = wordId;
+    audioPreparingWordId.value = wordId;
+
+    try {
+      releaseActiveAudio();
+      const [singularAudio, pluralAudio] = await Promise.all([
+        loadAudio(dictionaryRepository.getWordAudioUrl(wordId)),
+        loadAudio(dictionaryRepository.getPluralAudioUrl(pluralId)),
+      ]);
+      audioPreparingWordId.value = null;
+      await playAudioAndWait(singularAudio);
+      await new Promise(resolve => setTimeout(resolve, 400));
+      await playAudioAndWait(pluralAudio);
+    } catch (error) {
+      releaseActiveAudio();
+      addError(getApiErrorMessage(
+        error,
+        'Не удалось воспроизвести произношение',
+      ));
+    } finally {
+      audioPreparingWordId.value = null;
       audioLoadingWordId.value = null;
     }
   }
@@ -310,6 +404,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     availableGrade,
     isLoading: isDataFetching,
     audioLoadingWordId,
+    audioPreparingWordId,
     search,
     loadDictionary,
     searchDictionary,
@@ -320,6 +415,7 @@ export const useDictionaryStore = defineStore('dictionary', () => {
     lookupWord,
     storeWord,
     playWordAudio,
+    playPluralPairAudio,
 
   };
 });

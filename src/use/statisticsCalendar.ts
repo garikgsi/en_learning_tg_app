@@ -1,6 +1,6 @@
 import type { ExerciseStatisticsItem } from '@/api/types/statistics';
 
-export type StatisticsCalendarExerciseType = 'user' | 'weekly' | 'daily'
+export type StatisticsCalendarExerciseType = 'user' | 'weekly' | 'daily' | 'plural'
 
 export type StatisticsCalendarWord = {
   wordId: number | null
@@ -9,6 +9,12 @@ export type StatisticsCalendarWord = {
   ruVariants: string[]
   enVariants: string[]
   transcription: string | null
+  plural?: {
+    id: number
+    english: string
+    russian: string
+    transcription: string | null
+  } | null
   hasErrors: boolean
   isUncompleted: boolean
 }
@@ -16,7 +22,7 @@ export type StatisticsCalendarWord = {
 export type StatisticsCalendarGroup = {
   id: string
   typeName: StatisticsCalendarExerciseType
-  shortTitle: 'MY' | 'W' | 'D'
+  shortTitle: 'MY' | 'W' | 'D' | 'P'
   title: string
   start: Date
   end: Date
@@ -38,6 +44,7 @@ const exerciseTypeOrder: StatisticsCalendarExerciseType[] = [
   'user',
   'weekly',
   'daily',
+  'plural',
 ];
 
 const exerciseTypeShortTitles: Record<
@@ -47,6 +54,7 @@ const exerciseTypeShortTitles: Record<
   user: 'MY',
   weekly: 'W',
   daily: 'D',
+  plural: 'P',
 };
 
 const toLocalDayKey = (date: Date): string => {
@@ -170,6 +178,7 @@ export const buildStatisticsCalendarGroups = (
             ruVariants: [],
             enVariants: [],
             transcription: null,
+            plural: null,
             hasErrors: true,
           }),
         );

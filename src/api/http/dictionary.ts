@@ -9,6 +9,16 @@ import type {
   DictionaryWordResponse,
 } from '@/api/types/dictionary';
 
+const bypassDevelopmentAudioCache = (url: string): string => {
+  if (import.meta.env.MODE !== 'development') {
+    return url;
+  }
+
+  const separator = url.includes('?') ? '&' : '?';
+
+  return `${url}${separator}audio_cache_bust=${Date.now()}`;
+};
+
 export const httpDictionaryDriver = {
   synchronize(
     page: number,
@@ -57,6 +67,16 @@ export const httpDictionaryDriver = {
     const serverUrl = apiBaseUrl.replace(/\/+$/, '');
 
     const url = `${serverUrl}${baseUrl}/dictionary/words/${wordId}/audio`;
-    return english ? `${url}?word=${encodeURIComponent(english)}` : url;
+    return bypassDevelopmentAudioCache(
+      english ? `${url}?word=${encodeURIComponent(english)}` : url,
+    );
+  },
+
+  getPluralAudioUrl(pluralId: number): string {
+    const serverUrl = apiBaseUrl.replace(/\/+$/, '');
+
+    return bypassDevelopmentAudioCache(
+      `${serverUrl}${baseUrl}/dictionary/plurals/${pluralId}/audio`,
+    );
   },
 };

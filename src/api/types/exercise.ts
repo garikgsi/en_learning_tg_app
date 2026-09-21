@@ -14,6 +14,13 @@ export type ExerciseWord = {
   grade: number
 }
 
+export type ExercisePlural = {
+  id: number
+  en: string
+  ru: string
+  transcription: string | null
+}
+
 export type Exercise = {
   id: number
   userId: string
@@ -22,6 +29,7 @@ export type Exercise = {
   items: {
     id: number
     word: ExerciseWord
+    plural?: ExercisePlural | null
   }[]
   createdAt: string
 }

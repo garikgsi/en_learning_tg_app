@@ -31,6 +31,10 @@ const emits = defineEmits<Emits>();
 const {wordList, reversedWordList} = storeToRefs(useTranslateStore());
 const dictionaryStore = useDictionaryStore();
 const {isAnswerLetterCorrect, normalizeAnswer} = useKeyNormalizer();
+const isPluralExercise = computed(() => {
+  return wordList.value.length > 0
+    && wordList.value.every(word => word.exerciseType === 'plural');
+});
 
 const wordCompleteSuccessfully = ref(false);
 
@@ -126,6 +130,13 @@ const onFinish = async (wordId: number, result: WordResult) => {
 
       currentWordId.value = null;
 
+      if (tasks.value.every(task => {
+        return task.results.filter(item => item.isOk).length === task.list.length;
+      })) {
+        emits('finish', tasks.value);
+        return;
+      }
+
       if (currentLanguage.value === 'ru' && russianRemainingWordCount.value !== null && russianRemainingWordCount.value > 0) {
 
         await startNewWord();
@@ -138,11 +149,6 @@ const onFinish = async (wordId: number, result: WordResult) => {
         await startNewWord();
         return;
 
-      }
-
-      if (russianRemainingWordCount.value === 0 && englishRemainingWordCount.value === 0) {
-        emits('finish', tasks.value);
-        return;
       }
 
       if (
@@ -187,6 +193,12 @@ const englishResults = ref<WordStatistics[]>([]);
 const currentLanguage = ref<TranslationLanguage>();
 
 const tasks = computed<TranslationTask[]>(() => {
+  if (isPluralExercise.value) {
+    return [
+      {lang: 'en', list: wordList.value, results: englishResults.value},
+    ];
+  }
+
   return [
     {lang: 'ru', list: reversedWordList.value, results: russianResults.value},
     {lang: 'en', list: wordList.value, results: englishResults.value},
@@ -249,8 +261,13 @@ const taskTitle = computed(() => {
   return `Осталось слов: ${remainingWordsCount.value} из ${currentWordList.value.length}`
 })
 
-onMounted(() => {
-  startNewWord(0);
+onMounted(async () => {
+  if (isPluralExercise.value) {
+    await selectLanguage('en');
+    return;
+  }
+
+  await startNewWord(0);
 });
 
 const startNewWord = async (exclude?: number) => {
@@ -303,6 +320,12 @@ const waitForLanguageSelection = (): void => {
 }
 
 const timerText = computed(() => {
+  if (isPluralExercise.value) {
+    return isShowingSkippedWord.value
+      ? 'Запомните множественное число'
+      : 'Напишите множественное число';
+  }
+
   return isShowingSkippedWord.value
     ? 'Запомните перевод слова'
     : 'Напишите перевод слова';
@@ -471,6 +494,14 @@ const playCurrentWordAudio = async (): Promise<void> => {
     return;
   }
 
+  if (isPluralExercise.value && currentWord.value.pluralId) {
+    await dictionaryStore.playPluralPairAudio(
+      currentWord.value.wordId,
+      currentWord.value.pluralId,
+    );
+    return;
+  }
+
   await dictionaryStore.playWordAudio(currentWord.value.wordId);
 };
 
@@ -628,6 +659,7 @@ const areAllTasksCompleted = computed(() => {
                    :model-value="answer"
                    :word="currentWord.word"
                    :translate="currentWord.checkWord"
+                   :word-lang="isPluralExercise ? 'en' : undefined"
                    :word-variants="currentWord.wordVariants"
                    :translate-variants="currentWord.translateVariants"
                    :lang="currentLanguage"

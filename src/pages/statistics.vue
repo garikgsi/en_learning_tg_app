@@ -82,6 +82,10 @@ const exerciseDialogTitle = computed(() => {
       return 'Пользовательское упражнение';
   }
 
+    if (group.typeName === 'plural') {
+      return 'Множественное число';
+  }
+
     return group.typeName === 'weekly'
     ? 'Еженедельное упражнение'
     : 'Ежедневное упражнение';
@@ -115,15 +119,34 @@ const exerciseDialogTitle = computed(() => {
       color: word.isUncompleted
         ? 'grey'
         : word.hasErrors ? 'red' : 'green',
+      plural: word.plural ? {
+        id: word.plural.id,
+        en: word.plural.english,
+        ru: word.plural.russian,
+      } : null,
     }));
   });
+
+  const playStatisticsWord = async (
+    wordId: number,
+    pluralId?: number,
+  ): Promise<void> => {
+    if (pluralId) {
+      await dictionaryStore.playPluralPairAudio(wordId, pluralId);
+      return;
+    }
+
+    await dictionaryStore.playWordAudio(wordId);
+  };
 
   const groupTitle = (group: StatisticsCalendarGroup): string => {
     return group.typeName === 'daily'
       ? 'Daily'
       : group.typeName === 'weekly'
         ? 'Weekly'
-        : 'My';
+        : group.typeName === 'plural'
+          ? 'Plural'
+          : 'My';
   }
 
   const groupResultTitle = (group: StatisticsCalendarGroup): string => {
@@ -549,7 +572,8 @@ onMounted(async () => {
           class="mb-4"
           :limit="20"
           :words="selectedWords"
-          @play="dictionaryStore.playWordAudio"
+          :audio-loading-word-id="dictionaryStore.audioPreparingWordId"
+          @play="playStatisticsWord"
         />
         <div
           v-if="exerciseDialogText"

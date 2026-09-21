@@ -39,6 +39,9 @@ describe('dictionaryRepository', () => {
     expect(useDictionaryRepository().getWordAudioUrl(42)).toBe(
       'http://localhost:8088/api/v1/dictionary/words/42/audio',
     );
+    expect(useDictionaryRepository().getPluralAudioUrl(7)).toBe(
+      'http://localhost:8088/api/v1/dictionary/plurals/7/audio',
+    );
   });
 
   it('downloads the complete dictionary and paginates available words locally', async () => {

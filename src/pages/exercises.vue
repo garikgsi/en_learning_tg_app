@@ -147,7 +147,11 @@ const exerciseTitle = (
   exercise: Pick<Exercise, 'type'> | Pick<ExerciseStatisticsItem, 'type'>,
 ): string => {
   if (exercise.type.name === 'daily') {
-    return 'Ежедневное задание';
+    return 'Перевод слов';
+  }
+
+  if (exercise.type.name === 'plural') {
+    return 'Множественное число';
   }
 
   if (exercise.type.name === 'weekly') {
@@ -221,7 +225,9 @@ const createUserExercise = async (): Promise<void> => {
       >
         <v-card-title>{{ exerciseTitle(exercise) }}</v-card-title>
         <v-card-subtitle class="text-success">
-          словарный диктант
+          {{ exercise.type.name === 'plural'
+            ? 'исключения множественного числа'
+            : 'словарный диктант' }}
         </v-card-subtitle>
         <v-card-text>
           <div>Приглашаем пройти задание и повторить изученные слова.</div>

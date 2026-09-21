@@ -64,7 +64,11 @@ const pageTitle = computed(() => {
 
   if (/^\/exercises\/\d+$/.test(route.path) && activeExercise.value) {
     if (activeExercise.value.type.name === 'daily') {
-      return 'Ежедневное упражнение';
+      return 'Перевод слов';
+    }
+
+    if (activeExercise.value.type.name === 'plural') {
+      return 'Множественное число';
     }
 
     if (activeExercise.value.type.name === 'weekly') {
@@ -72,7 +76,7 @@ const pageTitle = computed(() => {
     }
 
     if (activeExercise.value.type.name === 'user') {
-      return 'Пользовательское упражнение';
+      return 'Перевод слов';
     }
 
     return activeExercise.value.type.title || 'Упражнение';
