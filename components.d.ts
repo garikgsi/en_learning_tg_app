@@ -9,6 +9,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     IAdminDailyAssignment: typeof import('./src/components/IAdminDailyAssignment.vue')['default']
+    IAdminUsers: typeof import('./src/components/IAdminUsers.vue')['default']
     IAvatarPicker: typeof import('./src/components/IAvatarPicker.vue')['default']
     IAvatarUploadToolbar: typeof import('./src/components/IAvatarUploadToolbar.vue')['default']
     IChipWord: typeof import('./src/components/IChipWord.vue')['default']

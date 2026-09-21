@@ -7,6 +7,7 @@ export type AssignmentUser = {
   name: string
   phone: string
   grade: number | null
+  totalEarnedCoins: number
 }
 
 export type DailyAssignmentPayload = {

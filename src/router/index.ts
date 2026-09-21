@@ -20,6 +20,11 @@ const applicationRoutes = routes.map(route => route.path === '/statistics'
 
 const advancedRoutes = [
   {
+    path: '/users',
+    component: () => import('@/components/IAdminUsers.vue'),
+    meta: {requiresAdmin: true},
+  },
+  {
     path: '/monetization-requests',
     component: () => import('@/components/IMonetizationRequests.vue'),
     meta: {requiresAdmin: true},

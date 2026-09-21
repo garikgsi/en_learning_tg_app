@@ -222,6 +222,33 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 
 Для Windows требуются Git, Node.js с npm, Android SDK, JDK и `curl.exe`.
 
+### Отдельный файл публикации фронтенда
+
+`scripts/publish-front.ps1` — короткий запуск полного Android-релиза для этой
+рабочей станции. Его можно скопировать в любой каталог вне проекта. По умолчанию
+используются проект `C:\projects\_\en_learning_tg_app`, JDK Android Studio и SDK
+из `.android-sdk` в проекте. Укажите новый уникальный номер версии, имя версии
+и короткое описание изменений:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File C:\path\publish-front.ps1 `
+  -VersionCode 17 `
+  -VersionName '0.1.0-rc.17' `
+  -Description 'Улучшен интерфейс и исправлены ошибки.'
+```
+
+Путь к проекту можно изменить параметром `-ProjectDirectory`, пути к JDK и SDK —
+`-JavaHome` и `-AndroidSdkRoot`. Скрипт использует `GITHUB_TOKEN`, а если переменная
+не задана — сохранённые Git-учётные данные для GitHub. Токен должен разрешать
+публикацию релизов; в файл его добавлять не нужно.
+
+Запуск выполняет проверки, сборку веб-версии и APK, создаёт манифест обновления,
+коммит всех изменений, тег и GitHub Release с APK и манифестом. По умолчанию
+публикуется prerelease; `-Stable` выбирает обычный релиз, `-Mandatory` помечает
+обновление обязательным. При ошибке дальнейшие шаги останавливаются. Временные
+переменные окружения и текущий каталог восстанавливаются после завершения.
+
 ## Обновление IndexedDB
 
 Миграции схемы находятся в `src/api/indexedDb/migrations`, а порядок их

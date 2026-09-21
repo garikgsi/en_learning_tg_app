@@ -50,6 +50,13 @@ export const routes: Record<string, RouteMetadata> = {
     showInSideBar: true,
     isPublic: false,
   },
+  '/users': {
+    title: 'Пользователи',
+    icon: 'mdi-account-group-outline',
+    showInSideBar: true,
+    isPublic: false,
+    adminOnly: true,
+  },
   '/about': {
     title: 'О программе',
     icon: 'mdi-information-outline',
