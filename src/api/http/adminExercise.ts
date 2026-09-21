@@ -7,6 +7,7 @@ export type AssignmentUser = {
   name: string
   phone: string
   grade: number | null
+  avatar: string
   totalEarnedCoins: number
 }
 

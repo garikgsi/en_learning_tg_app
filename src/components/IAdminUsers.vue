@@ -12,6 +12,8 @@ const users = ref<AssignmentUser[]>([]);
 const isLoading = ref(false);
 const error = ref('');
 
+const userInitial = (name: string): string => name.trim().charAt(0).toUpperCase() || '?';
+
 const load = async (): Promise<void> => {
   if (!userStore.isAdmin) return;
 
@@ -56,22 +58,34 @@ onMounted(load);
       <v-progress-linear v-if="isLoading" class="mb-3" color="primary" indeterminate />
 
       <v-card v-if="users.length > 0" variant="outlined">
-        <v-table class="admin-users__table">
-          <thead>
-            <tr>
-              <th>Логин</th>
-              <th>Номер телефона</th>
-              <th class="text-end">Баланс</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="user in users" :key="user.id">
-              <td>{{ user.name }}</td>
-              <td class="text-no-wrap">{{ user.phone }}</td>
-              <td class="text-end font-weight-medium">{{ user.totalEarnedCoins }}</td>
-            </tr>
-          </tbody>
-        </v-table>
+        <v-list class="py-0" lines="three">
+          <template v-for="(user, index) in users" :key="user.id">
+            <v-list-item class="py-3">
+              <template #prepend>
+                <v-avatar color="surface-variant" size="48">
+                  <v-img v-if="user.avatar" :src="user.avatar" cover />
+                  <span v-else class="text-subtitle-1 font-weight-medium">
+                    {{ userInitial(user.name) }}
+                  </span>
+                </v-avatar>
+              </template>
+              <template #title>
+                <span class="font-weight-medium">{{ user.name }}</span>
+              </template>
+              <template #subtitle>
+                <div class="mt-1">{{ user.phone }}</div>
+                <div class="mt-2">
+                  <v-badge
+                    color="primary"
+                    :content="`${user.totalEarnedCoins} EnCoin`"
+                    inline
+                  />
+                </div>
+              </template>
+            </v-list-item>
+            <v-divider v-if="index < users.length - 1" />
+          </template>
+        </v-list>
       </v-card>
 
       <p v-else-if="!isLoading && !error" class="text-body-1 text-medium-emphasis">
@@ -84,13 +98,5 @@ onMounted(load);
 <style scoped>
 .admin-users {
   max-width: 960px;
-}
-
-.admin-users__table {
-  overflow-x: auto;
-}
-
-.admin-users__table :deep(table) {
-  min-width: 560px;
 }
 </style>

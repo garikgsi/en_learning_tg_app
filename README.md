@@ -232,7 +232,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File C:\path\publish-front.ps1 `
+  -File C:\projects\_\en_learning_tg_app\scripts\publish-front.ps1 `
   -VersionCode 17 `
   -VersionName '0.1.0-rc.17' `
   -Description 'Улучшен интерфейс и исправлены ошибки.'

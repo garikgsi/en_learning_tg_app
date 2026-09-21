@@ -39,18 +39,22 @@ const open = async (role: 'admin' | 'user') => {
 describe('admin users', () => {
   it('shows login, phone and lifetime earned coins', async () => {
     vi.spyOn(httpAdminExerciseDriver, 'getUsers').mockResolvedValue([
-      {id: '1', name: 'Анна', phone: '+79990000001', grade: 5, totalEarnedCoins: 12},
-      {id: '2', name: 'Борис', phone: '+79990000002', grade: null, totalEarnedCoins: 0},
+      {id: '1', name: 'Анна', phone: '+79990000001', grade: 5, avatar: '/storage/avatars/anna.webp', totalEarnedCoins: 12},
+      {id: '2', name: 'Борис', phone: '+79990000002', grade: null, avatar: '', totalEarnedCoins: 0},
     ]);
 
     await open('admin');
 
-    expect(wrapper!.text()).toContain('Логин');
-    expect(wrapper!.text()).toContain('Номер телефона');
-    expect(wrapper!.text()).toContain('Баланс');
+    expect(wrapper!.findAllComponents({name: 'VListItem'})).toHaveLength(2);
+    expect(wrapper!.find('table').exists()).toBe(false);
+    expect(wrapper!.text()).not.toContain('Логин');
+    expect(wrapper!.text()).not.toContain('Номер телефона');
+    expect(wrapper!.text()).not.toContain('Баланс');
     expect(wrapper!.text()).toContain('Анна');
     expect(wrapper!.text()).toContain('+79990000001');
-    expect(wrapper!.text()).toContain('12');
+    expect(wrapper!.findAllComponents({name: 'VAvatar'})).toHaveLength(2);
+    expect(wrapper!.findAllComponents({name: 'VImg'})).toHaveLength(1);
+    expect(wrapper!.findAllComponents({name: 'VBadge'}).map(badge => badge.props('content'))).toEqual(['12 EnCoin', '0 EnCoin']);
   });
 
   it('does not request or expose user data to an ordinary user', async () => {
