@@ -2,6 +2,7 @@ import {readonly, ref} from 'vue';
 import {useExerciseRepository} from '@/use/exerciseRepository';
 import {useStatisticsRepository} from '@/use/statisticsRepository';
 import {useDictionaryRepository} from '@/use/dictionaryRepository';
+import {useGrammarRaceRepository} from '@/use/grammarRaceRepository';
 
 const pendingResults = ref(0);
 const failedResults = ref(0);
@@ -10,6 +11,7 @@ const isSynchronizing = ref(false);
 const exerciseRepository = useExerciseRepository();
 const statisticsRepository = useStatisticsRepository();
 const dictionaryRepository = useDictionaryRepository();
+const grammarRaceRepository = useGrammarRaceRepository();
 const prefetchRequests = new Map<string, Promise<void>>();
 
 const twoWeekPeriod = (): {dateFrom: string, dateTo: string} => {
@@ -57,18 +59,24 @@ const currentMonthPeriod = (): {
 };
 
 const updateOutboxSummary = async (userId: string): Promise<void> => {
-  const summary = await exerciseRepository.getOutboxSummary(userId);
-  pendingResults.value = summary.pending;
-  failedResults.value = summary.failed;
+  const [exercises, grammarRaces] = await Promise.all([
+    exerciseRepository.getOutboxSummary(userId),
+    grammarRaceRepository.getOutboxSummary(userId),
+  ]);
+  pendingResults.value = exercises.pending + grammarRaces.pending;
+  failedResults.value = exercises.failed + grammarRaces.failed;
 };
 
 const sync = async (userId: string): Promise<void> => {
   isSynchronizing.value = true;
 
   try {
-    const summary = await exerciseRepository.syncPending(userId);
-    pendingResults.value = summary.pending;
-    failedResults.value = summary.failed;
+    const [exercises, grammarRaces] = await Promise.all([
+      exerciseRepository.syncPending(userId),
+      grammarRaceRepository.syncPending(userId),
+    ]);
+    pendingResults.value = exercises.pending + grammarRaces.pending;
+    failedResults.value = exercises.failed + grammarRaces.failed;
   } finally {
     isSynchronizing.value = false;
   }

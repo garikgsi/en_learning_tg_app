@@ -385,10 +385,6 @@ const isSkipAvailable = computed(() => {
     return false;
   }
 
-  if (remainingWordsCount.value === 1) {
-    return false;
-  }
-
   return true;
 })
 

@@ -323,6 +323,38 @@ describe('ITranslateTask word transitions', () => {
     wrapper.unmount();
   });
 
+  it('allows skipping when only one word remains', async () => {
+    const wrapper = await mountTask();
+    const skipButtons = wrapper
+      .findAllComponents({name: 'VBtn'})
+      .filter(button => button.text().includes('Пропустить')
+        || button.props('title') === 'Пропустить');
+
+    expect(skipButtons.length).toBeGreaterThan(0);
+    expect(skipButtons.every(button => button.props('disabled') === false))
+      .toBe(true);
+
+    await skipButtons[0].trigger('click');
+    await nextTick();
+
+    expect(wrapper.findComponent(IWordStub).props()).toMatchObject({
+      modelValue: 'CAT',
+      word: 'кот',
+      readonly: true,
+    });
+
+    await vi.advanceTimersByTimeAsync(5000);
+    await flushPromises();
+
+    expect(wrapper.findComponent(IWordStub).props()).toMatchObject({
+      modelValue: '',
+      word: 'кот',
+      readonly: false,
+    });
+    expect(wrapper.emitted('finish')).toBeUndefined();
+    wrapper.unmount();
+  });
+
   it('resets hint limits after every complete pass through the word list', async () => {
     useTranslateStore().wordList = [
       {...word},

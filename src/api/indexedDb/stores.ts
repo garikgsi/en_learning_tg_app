@@ -7,6 +7,8 @@ export const indexedDbStores = {
   dictionaryMetadata: 'dictionaryMetadata',
   syncMetadata: 'syncMetadata',
   notifications: 'notifications',
+  grammarRaceSessions: 'grammarRaceSessions',
+  grammarRaceOutbox: 'grammarRaceOutbox',
 } as const;
 
 export type IndexedDbStore = typeof indexedDbStores[keyof typeof indexedDbStores];

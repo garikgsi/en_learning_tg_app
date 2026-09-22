@@ -7,6 +7,12 @@ type RouteMetadata = {
 }
 
 export const routes: Record<string, RouteMetadata> = {
+  '/games/pronoun': {
+    title: 'Гонка местоимений',
+    icon: 'mdi-flag-checkered',
+    showInSideBar: false,
+    isPublic: false,
+  },
   '/balance': {
     title: 'Баланс',
     icon: 'mdi-wallet-outline',
@@ -29,6 +35,12 @@ export const routes: Record<string, RouteMetadata> = {
   '/exercises': {
     title: 'Упражнения',
     icon: 'mdi-school',
+    showInSideBar: true,
+    isPublic: false,
+  },
+  '/games': {
+    title: 'Игры',
+    icon: 'mdi-gamepad-variant-outline',
     showInSideBar: true,
     isPublic: false,
   },
