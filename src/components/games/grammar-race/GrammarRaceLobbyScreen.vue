@@ -3,6 +3,7 @@ import {computed} from 'vue';
 import studentHappy from './assets/student-happy.png';
 import robotThinking from './assets/robot-thinking.png';
 import type {GrammarRaceDefinition} from './types';
+import type {GrammarRacePlayMode} from '@/api/types/grammarRace';
 
 type Props = {
   game: GrammarRaceDefinition
@@ -12,6 +13,9 @@ type Props = {
   isConnected?: boolean
   isLoading?: boolean
   hasActiveSession?: boolean
+  activePlayMode?: GrammarRacePlayMode
+  isAvailable?: boolean
+  minGrade?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -21,11 +25,14 @@ const props = withDefaults(defineProps<Props>(), {
   isConnected: true,
   isLoading: false,
   hasActiveSession: false,
+  activePlayMode: 'competitive',
+  isAvailable: true,
+  minGrade: 2,
 });
 
 defineEmits<{
   back: []
-  start: []
+  start: [playMode: GrammarRacePlayMode]
 }>();
 
 const buttonText = computed(() => {
@@ -43,6 +50,7 @@ const cannotAfford = computed(() => (
 
 const isStartDisabled = computed(() => (
   props.isLoading
+  || !props.isAvailable
   || (!props.hasActiveSession && !props.isConnected)
   || (!props.hasActiveSession && props.nextEntryCost === null)
   || (!props.hasActiveSession && cannotAfford.value)
@@ -124,9 +132,23 @@ const isStartDisabled = computed(() => (
         rounded="xl"
         size="large"
         variant="flat"
-        @click="$emit('start')"
+        @click="$emit('start', hasActiveSession ? activePlayMode : 'competitive')"
       >
         {{ buttonText }}
+      </v-btn>
+
+      <v-btn
+        v-if="!hasActiveSession"
+        block
+        class="mt-3"
+        color="secondary"
+        :disabled="isLoading || !isConnected || !isAvailable"
+        height="48"
+        prepend-icon="mdi-school-outline"
+        variant="tonal"
+        @click="$emit('start', 'training')"
+      >
+        Тренировка
       </v-btn>
 
       <div
@@ -137,7 +159,17 @@ const isStartDisabled = computed(() => (
       </div>
 
       <v-alert
-        v-if="!isConnected && !hasActiveSession"
+        v-if="!isAvailable && !hasActiveSession"
+        class="mt-3 text-left"
+        density="compact"
+        type="info"
+        variant="tonal"
+      >
+        Игра будет доступна со {{ minGrade }} класса
+      </v-alert>
+
+      <v-alert
+        v-else-if="!isConnected && !hasActiveSession"
         class="mt-3 text-left"
         density="compact"
         type="info"
@@ -153,7 +185,7 @@ const isStartDisabled = computed(() => (
         type="info"
         variant="tonal"
       >
-        На сегодня игры закончились. Снова поиграть можно будет завтра
+        Соревновательные игры на сегодня закончились. Тренироваться можно без ограничений
       </v-alert>
 
       <v-alert

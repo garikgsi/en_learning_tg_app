@@ -12,7 +12,7 @@ import {useUserStore} from '@/stores/userStore';
 import type {ApiDictionaryWord} from '@/api/types/dictionary';
 import type {Exercise} from '@/api/types/exercise';
 
-const recipient = {id: 'recipient', name: 'Анна', phone: '+79990000001', grade: 5, avatar: '', totalEarnedCoins: 0};
+const recipient = {id: 'recipient', name: 'Анна', phone: '+79990000001', grade: 5, avatar: '', balance: 0};
 const phrase: ApiDictionaryWord = {
   id: 42, en: 'good morning', ru: 'доброе утро', enVariants: [], ruVariants: [],
   transcription: '/ɡʊd ˈmɔːnɪŋ/', grade: 99, createdAt: '2026-09-18T00:00:00Z',

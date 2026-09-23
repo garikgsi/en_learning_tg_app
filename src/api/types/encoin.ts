@@ -18,6 +18,7 @@ export type EnCoinBalance = {
   available: number
   rublesPerCoin: number
   withdrawalThreshold: number
+  hasCompletedDailyThisWeek: boolean
   totalEarnedCoins: number
   totalEarnedRubles: number
   requests: MonetizationRequest[]

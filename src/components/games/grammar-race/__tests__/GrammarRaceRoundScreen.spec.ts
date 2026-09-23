@@ -14,6 +14,7 @@ const game: GrammarRaceDefinition = {
   rankTitle: 'Гонщик местоимений',
   title: 'Гонка местоимений',
   description: 'Выберите правильное местоимение',
+  minGrade: 2,
   instruction: 'Выберите местоимение',
   tasks: [],
   rules: {
@@ -27,9 +28,9 @@ const game: GrammarRaceDefinition = {
 
 const task = (botAnswer: string): GrammarRaceTask => ({
   id: 'brother',
-  prompt: 'My brother',
-  translation: 'Мой брат',
-  choices: ['he', 'she', 'it', 'we', 'they'],
+  type: 'single_choice',
+  payload: {text: 'My brother', translation: 'Мой брат'},
+  options: ['he', 'she', 'it', 'we', 'they'].map(id => ({id, label: id})),
   correctAnswer: 'he',
   botAnswer,
   botDelayMs: 4000,
@@ -68,6 +69,35 @@ describe('GrammarRaceRoundScreen', () => {
     expect(answer.find('.pronoun-round__bot-answer-icon').exists()).toBe(true);
   });
 
+  it('keeps a visible space after blanks in article and possessive-pronoun tasks', async () => {
+    const articleTask = task('an');
+    articleTask.payload.text = '___ aunt';
+    articleTask.options = ['a', 'an', 'the', 'none'].map(id => ({
+      id,
+      label: id === 'none' ? 'артикль не нужен' : id,
+    }));
+    articleTask.correctAnswer = 'an';
+    wrapper = mountScreen({task: articleTask});
+
+    const phrase = () => wrapper!.get('.pronoun-round__phrase').text()
+      .replace(/\u00a0/g, ' ');
+    expect(phrase()).toBe('___ aunt');
+    expect(wrapper.findAll('.pronoun-round__answer')).toHaveLength(4);
+    const noArticle = wrapper.get('[aria-label="артикль не нужен"]');
+    expect(noArticle.text()).toBe('артикль не нужен');
+    expect(noArticle.get('.pronoun-round__answer-label--compact').classes())
+      .toContain('pronoun-round__answer-label--compact');
+
+    const possessiveTask = task('her');
+    possessiveTask.payload.text = 'Kate has got a dog. ___ dog is friendly.';
+    possessiveTask.options = ['my', 'your', 'his', 'her', 'its', 'our', 'their']
+      .map(id => ({id, label: id}));
+    possessiveTask.correctAnswer = 'her';
+    await wrapper.setProps({task: possessiveTask});
+
+    expect(phrase()).toBe('Kate has got a dog. ___ dog is friendly.');
+  });
+
   it('updates the computer score only after the yellow point arrives', async () => {
     wrapper = mountScreen({task: task('he')});
     const computerScore = () => wrapper!
@@ -92,5 +122,39 @@ describe('GrammarRaceRoundScreen', () => {
     await nextTick();
 
     expect(computerScore().text()).toBe('1');
+  });
+
+  it('keeps the mistake explanation open until the student understands it', async () => {
+    const articleTask = task('she');
+    articleTask.payload.feedback = {
+      correctText: 'an apple',
+      translation: 'яблоко',
+      explanation: 'Перед гласным звуком ставим an.',
+    };
+    wrapper = mountScreen({task: articleTask, reviewVisible: true});
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('Правильный вариант');
+    expect(document.body.textContent).toContain('an apple');
+    expect(document.body.textContent).toContain('яблоко');
+    expect(document.body.textContent).toContain('Перед гласным звуком ставим an.');
+
+    expect(wrapper.getComponent({name: 'VDialog'}).props('contained')).toBe(true);
+    const button = wrapper.getComponent({name: 'VBtn'});
+    expect(button.props('color')).toBe('success');
+    await button.trigger('click');
+    expect(wrapper.emitted('acknowledgeReview')).toHaveLength(1);
+  });
+
+  it('shows a Russian fallback for an active personal-pronoun session', async () => {
+    const personalTask = task('she');
+    personalTask.payload.feedback = {
+      correctText: 'My brother → he',
+      explanation: 'Вместо имени одного мальчика используем «он» — he.',
+    };
+    wrapper = mountScreen({task: personalTask, reviewVisible: true});
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('Мой брат → он');
   });
 });

@@ -1,6 +1,6 @@
 import type { ExerciseStatisticsItem } from '@/api/types/statistics';
 
-export type StatisticsCalendarExerciseType = 'user' | 'weekly' | 'daily' | 'plural'
+export type StatisticsCalendarExerciseType = 'user' | 'userPlural' | 'weekly' | 'daily' | 'plural'
 
 export type StatisticsCalendarWord = {
   wordId: number | null
@@ -22,7 +22,7 @@ export type StatisticsCalendarWord = {
 export type StatisticsCalendarGroup = {
   id: string
   typeName: StatisticsCalendarExerciseType
-  shortTitle: 'MY' | 'W' | 'D' | 'P'
+  shortTitle: 'MY' | 'MP' | 'W' | 'D' | 'P'
   title: string
   start: Date
   end: Date
@@ -42,6 +42,7 @@ export type StatisticsCalendarGroup = {
 
 const exerciseTypeOrder: StatisticsCalendarExerciseType[] = [
   'user',
+  'userPlural',
   'weekly',
   'daily',
   'plural',
@@ -52,6 +53,7 @@ const exerciseTypeShortTitles: Record<
   StatisticsCalendarGroup['shortTitle']
 > = {
   user: 'MY',
+  userPlural: 'MP',
   weekly: 'W',
   daily: 'D',
   plural: 'P',
@@ -96,7 +98,7 @@ const groupColor = (
   now: Date,
   successPercentage: number,
 ): string => {
-  if (typeName === 'user') {
+  if (['user', 'userPlural'].includes(typeName)) {
     return 'grey-darken-1';
   }
 
@@ -139,7 +141,7 @@ export const buildStatisticsCalendarGroups = (
 
     const date = new Date(item.date);
     const dayKey = toLocalDayKey(date);
-    const statusKey = item.type.name !== 'user' && isSameLocalDay(date, now)
+    const statusKey = !['user', 'userPlural'].includes(item.type.name) && isSameLocalDay(date, now)
       ? `:${item.status}`
       : '';
     const key = `${dayKey}:${item.type.name}${statusKey}`;
@@ -276,7 +278,7 @@ export const buildStatisticsCalendarGroups = (
 export const selectStatisticsCalendarExercise = (
   group: StatisticsCalendarGroup,
 ): ExerciseStatisticsItem | null => {
-  if (group.typeName === 'user') {
+  if (['user', 'userPlural'].includes(group.typeName)) {
     return group.items.find(item => item.status === 'uncompleted') ?? null;
   }
 
@@ -288,7 +290,7 @@ export const selectStatisticsCalendarExercise = (
 export const buildStatisticsExerciseQueue = (
   group: StatisticsCalendarGroup,
 ): number[] => {
-  if (group.typeName === 'user') {
+  if (['user', 'userPlural'].includes(group.typeName)) {
     const exercise = selectStatisticsCalendarExercise(group);
 
     return exercise ? [exercise.exerciseId] : [];

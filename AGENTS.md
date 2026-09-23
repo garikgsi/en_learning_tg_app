@@ -45,6 +45,10 @@ project setting.
 - Avoid `watch` when the same behavior can be expressed declaratively or with
   a framework helper. Add a watcher only when no simpler built-in mechanism
   fits the requirement.
+- Keep every application button in the shared Vuetify button system: use the
+  global rounded style and `tonal`, `flat`, or `outlined` variants. Do not add
+  plain `text` buttons. Icon-only, color, and size variations are allowed when
+  the context requires them.
 
 ## Linting and formatting
 

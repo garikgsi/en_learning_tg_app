@@ -231,12 +231,20 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 и короткое описание изменений:
 
 ```powershell
+$description = @'
+Улучшен интерфейс.
+Исправлены ошибки.
+'@
+
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File C:\projects\_\en_learning_tg_app\scripts\publish-front.ps1 `
   -VersionCode 17 `
   -VersionName '0.1.0-rc.17' `
-  -Description 'Улучшен интерфейс и исправлены ошибки.'
+  -Description $description
 ```
+
+Конструкция `@' ... '@` создаёт многострочную строку без подстановки переменных.
+Закрывающий маркер `'@` должен начинаться с первого символа строки.
 
 Путь к проекту можно изменить параметром `-ProjectDirectory`, пути к JDK и SDK —
 `-JavaHome` и `-AndroidSdkRoot`. Скрипт использует `GITHUB_TOKEN`, а если переменная

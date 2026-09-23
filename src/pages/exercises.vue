@@ -50,7 +50,7 @@ const completedExercises = computed<ExerciseStatisticsItem[]>(() => {
 
   statisticsItems.value
     .filter(item => item.status === 'completed')
-    .filter(item => item.type.name !== 'user')
+    .filter(item => !['user', 'userPlural'].includes(item.type.name))
     .filter(item => isToday(item.date))
     .forEach(item => {
       const existing = latestByExercise.get(item.exerciseId);
@@ -150,7 +150,7 @@ const exerciseTitle = (
     return 'Перевод слов';
   }
 
-  if (exercise.type.name === 'plural') {
+  if (['plural', 'userPlural'].includes(exercise.type.name)) {
     return 'Множественное число';
   }
 
@@ -225,7 +225,7 @@ const createUserExercise = async (): Promise<void> => {
       >
         <v-card-title>{{ exerciseTitle(exercise) }}</v-card-title>
         <v-card-subtitle class="text-success">
-          {{ exercise.type.name === 'plural'
+          {{ ['plural', 'userPlural'].includes(exercise.type.name)
             ? 'исключения множественного числа'
             : 'словарный диктант' }}
         </v-card-subtitle>
@@ -319,7 +319,7 @@ const createUserExercise = async (): Promise<void> => {
           <v-btn
             class="mr-4"
             color="secondary"
-            variant="text"
+            variant="tonal"
             prepend-icon="mdi-calendar-check"
             to="/statistics"
           >
@@ -327,7 +327,7 @@ const createUserExercise = async (): Promise<void> => {
           </v-btn>
           <v-btn
             color="primary"
-            variant="text"
+            variant="tonal"
             :disabled="isCreating"
             :loading="isCreating"
             prepend-icon="mdi-plus"

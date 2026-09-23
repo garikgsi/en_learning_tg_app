@@ -3,6 +3,7 @@ import type {
   CompleteExercisePayload,
   Exercise,
   ExerciseCompletion,
+  UserExerciseType,
 } from '@/api/types/exercise';
 
 type ExercisesResponse = {
@@ -22,9 +23,10 @@ type CreateExerciseResponse = {
 }
 
 export const httpExerciseDriver = {
-  async createUserExercise(): Promise<number> {
+  async createUserExercise(type: UserExerciseType = 'translate'): Promise<number> {
     const response = await http.post<CreateExerciseResponse>(
       '/exercises',
+      {type},
     );
 
     return response.item.id;

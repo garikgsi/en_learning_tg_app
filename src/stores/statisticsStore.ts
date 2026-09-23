@@ -14,6 +14,7 @@ import type {
   ExerciseStatisticsItem,
   UserExerciseStatistics,
 } from '@/api/types/statistics';
+import type {UserExerciseType} from '@/api/types/exercise';
 
 type StatisticsAchievement = {
   place: 1 | 2 | 3
@@ -182,11 +183,11 @@ export const useStatisticsStore = defineStore('statistics', () => {
     }
   }
 
-  const createUserExercise = async (): Promise<number> => {
+  const createUserExercise = async (type: UserExerciseType = 'translate'): Promise<number> => {
     isCreating.value = true;
 
     try {
-      return await exerciseRepository.createUserExercise();
+      return await exerciseRepository.createUserExercise(type);
     } catch (error) {
       addError(getApiErrorMessage(error, 'Не удалось создать пользовательское задание'));
       throw error;

@@ -14,7 +14,7 @@ const label = computed(() => isDarkTheme.value ? 'Включить светлу�
   <v-btn
     :aria-label="label"
     icon
-    variant="text"
+    variant="tonal"
     @click="isDarkTheme = !isDarkTheme"
   >
     <v-icon :icon="icon"></v-icon>

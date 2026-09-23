@@ -126,7 +126,7 @@ const closeMenuOnSmallScreen = () => {
         v-if="message.action"
         :loading="isActionLoading"
         :title="message.action.title"
-        variant="text"
+        variant="tonal"
         @click="runMessageAction(message, runAction)"
       >
         {{ message.action.title }}

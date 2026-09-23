@@ -13,9 +13,27 @@ export const routes: Record<string, RouteMetadata> = {
     showInSideBar: false,
     isPublic: false,
   },
+  '/games/possessive-pronoun': {
+    title: 'Притяжательные местоимения',
+    icon: 'mdi-flag-checkered',
+    showInSideBar: false,
+    isPublic: false,
+  },
+  '/games/articles': {
+    title: 'Гонка артиклей',
+    icon: 'mdi-flag-checkered',
+    showInSideBar: false,
+    isPublic: false,
+  },
   '/balance': {
     title: 'Баланс',
     icon: 'mdi-wallet-outline',
+    showInSideBar: true,
+    isPublic: false,
+  },
+  '/achievements': {
+    title: 'Достижения',
+    icon: 'mdi-medal-outline',
     showInSideBar: true,
     isPublic: false,
   },

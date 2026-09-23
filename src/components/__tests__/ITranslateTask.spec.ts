@@ -6,7 +6,10 @@ import {createVuetify} from 'vuetify';
 import ITranslateTask from '@/components/ITranslateTask.vue';
 import {useDictionaryStore} from '@/stores/dictionaryStore';
 import {useTranslateStore} from '@/stores/translateStore';
-import type {TranslationWord} from '@/types/translation';
+import {useUserStore} from '@/stores/userStore';
+import type {Exercise} from '@/api/types/exercise';
+import type {TranslationExerciseProgress, TranslationWord} from '@/types/translation';
+import {indexedDb, indexedDbStores} from '@/api/indexedDb';
 
 const IWordStub = defineComponent({
   name: 'IWord',
@@ -101,9 +104,10 @@ const continueWithRussian = async (
 }
 
 describe('ITranslateTask word transitions', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
+  beforeEach(async () => {
     setActivePinia(createPinia());
+    await indexedDb.clear(indexedDbStores.exerciseProgress);
+    vi.useFakeTimers();
     useTranslateStore().wordList = [{...word}];
   });
 
@@ -390,6 +394,104 @@ describe('ITranslateTask word transitions', () => {
 
     expect(wrapper.findComponent(IWordStub).props('word')).toBe('кот');
     expect(getHeaderHintButton()!.props('disabled')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('continues a saved daily exercise from the same word and answer', async () => {
+    vi.useRealTimers();
+    const store = useTranslateStore();
+    const secondWord: TranslationWord = {
+      ...word,
+      id: 92,
+      exerciseItemId: 92,
+      wordId: 12,
+      word: 'собака',
+      translate: 'dog',
+      checkWord: 'dog',
+    };
+    const activeExercise: Exercise = {
+      id: 7,
+      userId: 'resume-user',
+      type: {id: 1, name: 'daily', title: 'Перевод слов'},
+      dueDate: '2026-09-23',
+      createdAt: '2026-09-23T00:00:00Z',
+      items: [
+        {
+          id: 91,
+          word: {
+            id: 11,
+            ru: 'кот',
+            en: 'cat',
+            ruVariants: [],
+            enVariants: [],
+            transcription: null,
+            grade: 3,
+          },
+        },
+        {
+          id: 92,
+          word: {
+            id: 12,
+            ru: 'собака',
+            en: 'dog',
+            ruVariants: [],
+            enVariants: [],
+            transcription: null,
+            grade: 3,
+          },
+        },
+      ],
+    };
+    useUserStore().user = {
+      id: 'resume-user',
+      name: 'Ученик',
+      phone: '+79990000000',
+      role: 'user',
+      avatar: '',
+      createdAt: '2026-09-23T00:00:00Z',
+    };
+    store.activeExercise = activeExercise;
+    store.wordList = [{...word}, secondWord];
+    const progress: TranslationExerciseProgress = {
+      version: 1,
+      exerciseId: 7,
+      exerciseItemIds: [91, 92],
+      currentLanguage: 'en',
+      currentWordIndex: 0,
+      currentWordId: 92,
+      answer: 'D',
+      errorsOnCurrentAttempt: 0,
+      hintUsageByWord: {},
+      visitedWordIdsInCycle: [91, 92],
+      russianResults: [],
+      englishResults: [{
+        id: 91,
+        retries: 1,
+        isOk: true,
+        variants: [],
+        skipTimes: 0,
+        hintTimes: 0,
+        errorTimes: 0,
+      }],
+    };
+    await store.saveExerciseProgress(progress);
+
+    const wrapper = mount(ITranslateTask, {
+      global: {
+        plugins: [createVuetify()],
+        stubs: {IWord: IWordStub},
+      },
+    });
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.findComponent(IWordStub).props()).toMatchObject({
+      lang: 'en',
+      word: 'собака',
+      translate: 'dog',
+      modelValue: 'D',
+    });
+    expect(wrapper.text()).toContain('Осталось слов: 1 из 2');
     wrapper.unmount();
   });
 });

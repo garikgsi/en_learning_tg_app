@@ -8,7 +8,7 @@ export type AssignmentUser = {
   phone: string
   grade: number | null
   avatar: string
-  totalEarnedCoins: number
+  balance: number
 }
 
 export type DailyAssignmentPayload = {

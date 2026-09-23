@@ -11,10 +11,10 @@ import {onBeforeRouteLeave, useRouter} from 'vue-router';
 import IConfirmDialog from '@/components/IConfirmDialog.vue';
 import type {
   GrammarRaceGameCode,
+  GrammarRacePlayMode,
   GrammarRaceRound,
   GrammarRaceSession,
   GrammarRaceStatus,
-  PersonalPronoun,
 } from '@/api/types/grammarRace';
 import {getApiErrorMessage} from '@/api/errors';
 import {useUserStore} from '@/stores/userStore';
@@ -25,6 +25,10 @@ import GrammarRaceLobbyScreen from './GrammarRaceLobbyScreen.vue';
 import GrammarRaceRoundScreen from './GrammarRaceRoundScreen.vue';
 import GrammarRaceResultScreen from './GrammarRaceResultScreen.vue';
 import {
+  grammarRaceBotDisplayAnswer,
+  grammarRaceRetryBotDelayMs,
+  grammarRaceSecondAttemptWindow,
+  needsGrammarRaceReview,
   resolveGrammarRaceRound,
   type GrammarRaceRoundOutcome,
 } from './engine';
@@ -53,9 +57,15 @@ const studentScore = ref(0);
 const computerScore = ref(0);
 const roundIndex = ref(0);
 const rounds = ref<GrammarRaceRound[]>([]);
-const selectedAnswer = ref<PersonalPronoun | null>(null);
-const selectedAnswerMs = ref<number | null>(null);
+const selectedAnswer = ref<string | null>(null);
+const firstSelectedAnswer = ref<string | null>(null);
+const firstSelectedAnswerMs = ref<number | null>(null);
+const secondSelectedAnswer = ref<string | null>(null);
+const secondSelectedAnswerMs = ref<number | null>(null);
+const secondAttemptAvailable = ref(false);
+const displayedBotAnswer = ref<string | null>(null);
 const roundResolved = ref(false);
+const reviewVisible = ref(false);
 const botHasAnswered = ref(false);
 const botState = ref<'thinking' | 'correct' | 'incorrect'>('thinking');
 const studentState = ref<'ready' | 'correct' | 'incorrect'>('ready');
@@ -66,12 +76,16 @@ const isResultPending = ref(false);
 const exitDialog = ref(false);
 const pendingDestination = ref('/games');
 const allowNavigation = ref(false);
+const currentPlayMode = ref<GrammarRacePlayMode>('competitive');
 
 let roundStartedAt = 0;
 let botTimer: number | null = null;
 let graceTimer: number | null = null;
 let nextRoundTimer: number | null = null;
 let progressTimer: number | null = null;
+let secondAttemptStartedAt = 0;
+let secondAttemptDurationMs = 0;
+let secondAttemptEndsAtMs = 0;
 const mistakeVibrationDurationMs = 300;
 
 const vibrateOnMistake = (): void => {
@@ -105,11 +119,11 @@ const task = computed<GrammarRaceTask | null>(() => {
   return {
     id: String(apiTask.value.position),
     position: apiTask.value.position,
-    prompt: apiTask.value.prompt,
-    translation: apiTask.value.translation,
-    choices: session.value.options,
+    type: apiTask.value.type,
+    payload: apiTask.value.payload,
+    options: apiTask.value.options,
     correctAnswer: apiTask.value.correctAnswer,
-    botAnswer: apiTask.value.botAnswer,
+    botAnswer: displayedBotAnswer.value ?? apiTask.value.botAnswer,
     botDelayMs: apiTask.value.botDelayMs,
   };
 });
@@ -122,9 +136,22 @@ const nextEntryCost = computed(() => status.value?.nextEntryCost ?? null);
 const canReplay = computed(() => (
   isConnected.value
   && !isResultPending.value
-  && attemptsRemaining.value > 0
-  && nextEntryCost.value !== null
-  && nextEntryCost.value <= (status.value?.available ?? 0)
+  && (currentPlayMode.value === 'training'
+    || (
+      attemptsRemaining.value > 0
+      && nextEntryCost.value !== null
+      && nextEntryCost.value <= (status.value?.available ?? 0)
+    ))
+));
+const canAnswer = computed(() => (
+  !roundResolved.value
+  && (
+    firstSelectedAnswer.value === null
+    || (
+      secondAttemptAvailable.value
+      && secondSelectedAnswer.value === null
+    )
+  )
 ));
 
 const loadStatus = async (): Promise<void> => {
@@ -136,6 +163,7 @@ const loadStatus = async (): Promise<void> => {
       await repository.syncPending(user.value.id);
       status.value = await repository.getStatus(user.value.id, props.gameCode);
       session.value = status.value.activeSession;
+      if (session.value) currentPlayMode.value = session.value.playMode;
     } else {
       session.value = await repository.getCachedSession(
         user.value.id,
@@ -151,6 +179,7 @@ const loadStatus = async (): Promise<void> => {
 
 const updateLocalAttemptsAfterStart = (): void => {
   if (!status.value || !session.value) return;
+  if (session.value.playMode === 'training' || session.value.attemptNumber === null) return;
   status.value.attemptsUsed = session.value.attemptNumber;
   status.value.attemptsRemaining = Math.max(
     0,
@@ -171,6 +200,17 @@ const updateProgress = (): void => {
   if (!apiTask.value || !session.value || roundResolved.value) return;
   const elapsed = performance.now() - roundStartedAt;
 
+  if (secondAttemptAvailable.value) {
+    timerProgress.value = secondAttemptDurationMs <= 0
+      ? 100
+      : Math.min(
+        100,
+        (performance.now() - secondAttemptStartedAt)
+          / secondAttemptDurationMs * 100,
+      );
+    return;
+  }
+
   if (!botHasAnswered.value) {
     timerProgress.value = Math.min(100, elapsed / apiTask.value.botDelayMs * 100);
     return;
@@ -188,6 +228,12 @@ const finishMatch = async (): Promise<void> => {
   clearRoundTimers();
   result.value = studentScore.value >= session.value.winningScore ? 'win' : 'loss';
   screen.value = 'result';
+
+  if (session.value.playMode === 'training') {
+    isResultPending.value = false;
+    return;
+  }
+
   isResultPending.value = true;
   const payload = {
     clientResultId: crypto.randomUUID(),
@@ -210,6 +256,24 @@ const finishMatch = async (): Promise<void> => {
     isResultPending.value = true;
     addError(getApiErrorMessage(error, 'Результат сохранён, но пока не отправлен'));
   }
+};
+
+const advanceAfterRound = (): void => {
+  if (!session.value) return;
+  if (
+    studentScore.value >= session.value.winningScore
+    || computerScore.value >= session.value.winningScore
+  ) {
+    void finishMatch();
+    return;
+  }
+
+  roundIndex.value++;
+  startRound();
+};
+
+const scheduleNextRound = (delay = 1100): void => {
+  nextRoundTimer = window.setTimeout(advanceAfterRound, delay);
 };
 
 const finishRound = (outcome: GrammarRaceRoundOutcome): void => {
@@ -235,42 +299,78 @@ const finishRound = (outcome: GrammarRaceRoundOutcome): void => {
 
   rounds.value.push({
     taskPosition: apiTask.value.position,
-    playerAnswer: selectedAnswer.value,
-    playerAnswerMs: selectedAnswerMs.value,
+    playerAnswer: firstSelectedAnswer.value,
+    playerAnswerMs: firstSelectedAnswerMs.value,
+    secondPlayerAnswer: secondSelectedAnswer.value,
+    secondPlayerAnswerMs: secondSelectedAnswerMs.value,
   });
 
-  nextRoundTimer = window.setTimeout(() => {
-    if (
-      studentScore.value >= session.value!.winningScore
-      || computerScore.value >= session.value!.winningScore
-    ) {
-      void finishMatch();
-      return;
-    }
+  const needsReview = props.game.requiresMistakeReview
+    && needsGrammarRaceReview(apiTask.value, selectedAnswer.value);
+  if (needsReview) {
+    reviewVisible.value = true;
+    return;
+  }
 
-    roundIndex.value++;
-    startRound();
-  }, 1100);
+  scheduleNextRound();
+};
+
+const acknowledgeReview = (): void => {
+  if (!reviewVisible.value) return;
+  reviewVisible.value = false;
+  scheduleNextRound(200);
 };
 
 const resolveCurrentRound = (): void => {
   if (!apiTask.value || !session.value) return;
   finishRound(resolveGrammarRaceRound(
     apiTask.value,
-    selectedAnswer.value,
-    selectedAnswerMs.value,
+    firstSelectedAnswer.value,
+    firstSelectedAnswerMs.value,
     session.value.difficulty.answerGraceMs,
+    secondSelectedAnswer.value,
+    secondSelectedAnswerMs.value,
   ));
 };
 
-const handleBotAnswer = (): void => {
+const handleBotAnswer = (afterEarlyMistake = false): void => {
   if (roundResolved.value || !apiTask.value || !session.value) return;
   botHasAnswered.value = true;
+  displayedBotAnswer.value = grammarRaceBotDisplayAnswer(
+    apiTask.value,
+    afterEarlyMistake ? firstSelectedAnswer.value : null,
+  );
   const botCorrect = apiTask.value.botAnswer === apiTask.value.correctAnswer;
   botState.value = botCorrect ? 'correct' : 'incorrect';
 
   if (botCorrect) {
     resolveCurrentRound();
+    return;
+  }
+
+  if (afterEarlyMistake && firstSelectedAnswerMs.value !== null) {
+    const retryWindow = grammarRaceSecondAttemptWindow(
+      apiTask.value,
+      firstSelectedAnswerMs.value,
+      session.value.difficulty.answerGraceMs,
+    );
+    const elapsed = performance.now() - roundStartedAt;
+    secondAttemptEndsAtMs = retryWindow.endsAtMs;
+    secondAttemptDurationMs = Math.max(0, retryWindow.endsAtMs - elapsed);
+    secondAttemptStartedAt = performance.now();
+    secondAttemptAvailable.value = true;
+    timerProgress.value = 0;
+    roundMessage.value = `Компьютер ошибся — попробуйте ещё раз. У вас ${Math.ceil(secondAttemptDurationMs / 1000)} сек.`;
+
+    if (secondAttemptDurationMs <= 0) {
+      resolveCurrentRound();
+      return;
+    }
+
+    graceTimer = window.setTimeout(
+      resolveCurrentRound,
+      secondAttemptDurationMs,
+    );
     return;
   }
 
@@ -291,8 +391,17 @@ const handleBotAnswer = (): void => {
 const startRound = (): void => {
   clearRoundTimers();
   selectedAnswer.value = null;
-  selectedAnswerMs.value = null;
+  firstSelectedAnswer.value = null;
+  firstSelectedAnswerMs.value = null;
+  secondSelectedAnswer.value = null;
+  secondSelectedAnswerMs.value = null;
+  secondAttemptAvailable.value = false;
+  displayedBotAnswer.value = null;
+  secondAttemptStartedAt = 0;
+  secondAttemptDurationMs = 0;
+  secondAttemptEndsAtMs = 0;
   roundResolved.value = false;
+  reviewVisible.value = false;
   botHasAnswered.value = false;
   botState.value = 'thinking';
   studentState.value = 'ready';
@@ -307,14 +416,34 @@ const startRound = (): void => {
 
 const answer = (value: string): void => {
   if (
-    roundResolved.value
-    || selectedAnswer.value !== null
+    !canAnswer.value
     || !apiTask.value
     || !session.value
-    || !session.value.options.includes(value as PersonalPronoun)
+    || !apiTask.value.options.some(option => option.id === value)
   ) return;
 
   const elapsed = Math.max(0, Math.round(performance.now() - roundStartedAt));
+
+  if (firstSelectedAnswer.value !== null) {
+    if (elapsed > secondAttemptEndsAtMs) {
+      secondAttemptAvailable.value = false;
+      resolveCurrentRound();
+      return;
+    }
+
+    secondSelectedAnswer.value = value;
+    secondSelectedAnswerMs.value = elapsed;
+    selectedAnswer.value = value;
+    secondAttemptAvailable.value = false;
+    studentState.value = value === apiTask.value.correctAnswer
+      ? 'correct'
+      : 'incorrect';
+
+    if (value !== apiTask.value.correctAnswer) vibrateOnMistake();
+    resolveCurrentRound();
+    return;
+  }
+
   const botCorrect = apiTask.value.botAnswer === apiTask.value.correctAnswer;
   const roundEndMs = botCorrect
     ? apiTask.value.botDelayMs
@@ -327,8 +456,9 @@ const answer = (value: string): void => {
     return;
   }
 
-  selectedAnswer.value = value as PersonalPronoun;
-  selectedAnswerMs.value = elapsed;
+  selectedAnswer.value = value;
+  firstSelectedAnswer.value = value;
+  firstSelectedAnswerMs.value = elapsed;
   studentState.value = value === apiTask.value.correctAnswer
     ? 'correct'
     : 'incorrect';
@@ -349,23 +479,30 @@ const answer = (value: string): void => {
   if (value === apiTask.value.correctAnswer) {
     finishRound('student');
   } else {
-    roundMessage.value = 'Ответ принят. Ждём компьютер…';
+    if (botTimer !== null) window.clearTimeout(botTimer);
+    roundMessage.value = 'Неверно. Компьютер отвечает…';
+    botTimer = window.setTimeout(
+      () => handleBotAnswer(true),
+      grammarRaceRetryBotDelayMs,
+    );
   }
 };
 
 const begin = (): void => {
   if (!session.value) return;
+  currentPlayMode.value = session.value.playMode;
   studentScore.value = 0;
   computerScore.value = 0;
   roundIndex.value = 0;
   rounds.value = [];
   result.value = 'loss';
   isResultPending.value = false;
+  reviewVisible.value = false;
   screen.value = 'round';
   startRound();
 };
 
-const startOrResume = async (): Promise<void> => {
+const startOrResume = async (playMode: GrammarRacePlayMode = 'competitive'): Promise<void> => {
   if (!user.value?.id) return;
   if (session.value?.status === 'active') {
     begin();
@@ -374,7 +511,7 @@ const startOrResume = async (): Promise<void> => {
 
   isLoading.value = true;
   try {
-    session.value = await repository.start(user.value.id, props.gameCode);
+    session.value = await repository.start(user.value.id, props.gameCode, playMode);
     updateLocalAttemptsAfterStart();
     begin();
   } catch (error) {
@@ -389,7 +526,7 @@ const replay = async (): Promise<void> => {
   screen.value = 'lobby';
   session.value = null;
   await loadStatus();
-  if (canReplay.value) await startOrResume();
+  if (canReplay.value) await startOrResume(currentPlayMode.value);
 };
 
 const requestExit = (destination = '/games'): void => {
@@ -398,7 +535,11 @@ const requestExit = (destination = '/games'): void => {
 };
 
 const confirmExit = async (): Promise<void> => {
-  if (session.value && user.value?.id) {
+  if (
+    session.value
+    && session.value.playMode !== 'training'
+    && user.value?.id
+  ) {
     try {
       await repository.enqueue(
         user.value.id,
@@ -458,6 +599,9 @@ onBeforeUnmount(() => {
       :current-level="status?.currentLevel ?? session?.difficulty.level ?? 1"
       :game="game"
       :has-active-session="hasActiveSession"
+      :active-play-mode="session?.playMode ?? 'competitive'"
+      :is-available="status?.isAvailable ?? ((user?.grade ?? 0) >= game.minGrade)"
+      :min-grade="status?.minGrade ?? game.minGrade"
       :is-connected="isConnected"
       :is-loading="isLoading"
       :next-entry-cost="status?.nextEntryCost ?? null"
@@ -471,18 +615,20 @@ onBeforeUnmount(() => {
       :bot-has-answered="botHasAnswered"
       :computer-score="computerScore"
       :game="game"
-      :is-answer-locked="selectedAnswer !== null || roundResolved"
+      :is-answer-locked="!canAnswer"
       :player-score="studentScore"
       :player-avatar="playerAvatar"
       :student-name="user?.name?.trim() || 'Вы'"
       :round-message="roundMessage"
       :round-number="rounds.length + 1"
       :round-resolved="roundResolved"
+      :review-visible="reviewVisible"
       :selected-answer="selectedAnswer"
       :student-state="studentState"
       :task="task"
       :timer-progress="timerProgress"
       @answer="answer"
+      @acknowledge-review="acknowledgeReview"
     ></GrammarRaceRoundScreen>
 
     <GrammarRaceResultScreen
@@ -491,6 +637,7 @@ onBeforeUnmount(() => {
       :computer-score="computerScore"
       :game="game"
       :is-result-pending="isResultPending"
+      :is-training="currentPlayMode === 'training'"
       :player-score="studentScore"
       :student-name="user?.name?.trim() || 'Вы'"
       :replay-cost="nextEntryCost"
@@ -502,7 +649,9 @@ onBeforeUnmount(() => {
     <IConfirmDialog
       v-model="exitDialog"
       no-button-text="Продолжить игру"
-      text="Выход будет засчитан как поражение. Бесплатная попытка будет использована, а потраченная монета не возвращается."
+      :text="currentPlayMode === 'training'
+        ? 'Тренировка будет завершена без результата.'
+        : 'Выход будет засчитан как поражение. Бесплатная попытка будет использована, а потраченная монета не возвращается.'"
       title="Выйти из игры?"
       yes-button-text="Выйти"
       @yes="confirmExit"

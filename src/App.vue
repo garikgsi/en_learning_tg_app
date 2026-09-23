@@ -67,7 +67,7 @@ const pageTitle = computed(() => {
       return 'Перевод слов';
     }
 
-    if (activeExercise.value.type.name === 'plural') {
+    if (['plural', 'userPlural'].includes(activeExercise.value.type.name)) {
       return 'Множественное число';
     }
 

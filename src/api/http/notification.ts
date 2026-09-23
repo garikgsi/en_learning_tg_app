@@ -27,6 +27,10 @@ export const httpNotificationDriver = {
     );
   },
 
+  markAllRead(): Promise<{readAt: string, unreadCount: number}> {
+    return http.patch('/notifications/read');
+  },
+
   registerDevice(payload: RegisterDevicePayload): Promise<void> {
     return http.put<void>('/notification-devices', payload);
   },

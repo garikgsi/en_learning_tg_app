@@ -13,7 +13,7 @@ import {useUserStore} from '@/stores/userStore';
 import {formatRubles} from '@/use/encoin';
 import type {AdminMonetizationRequest, EnCoinBalance} from '@/api/types/encoin';
 
-const balance: EnCoinBalance = {balance: 60, reserved: 0, available: 60, rublesPerCoin: 10, withdrawalThreshold: 50, totalEarnedCoins: 80, totalEarnedRubles: 800, requests: []};
+const balance: EnCoinBalance = {balance: 60, reserved: 0, available: 60, rublesPerCoin: 10, withdrawalThreshold: 50, hasCompletedDailyThisWeek: true, totalEarnedCoins: 80, totalEarnedRubles: 800, requests: []};
 const request: AdminMonetizationRequest = {id: 42, coins: 50, rublesPerCoin: 10, amountRubles: 500, createdAt: '2026-09-18T10:00:00Z', processedAt: null, isProcessed: false, user: {id: 'recipient', name: 'Анна', phone: '+79990000001', balance: 70, reserved: 50}};
 const page = {items: [request], page: 1, lastPage: 1, total: 1};
 let wrapper: ReturnType<typeof mount> | null = null;
@@ -29,7 +29,12 @@ const open = async (component: Component, role: 'admin' | 'user' = 'admin') => {
   const pinia = createPinia();
   setActivePinia(pinia);
   useUserStore().user = {id: 'encoin-test', name: 'Пользователь', phone: '+79990000000', role, avatar: '', createdAt: request.createdAt};
-  const router = createRouter({history: createMemoryHistory(), routes: [{path: '/', component: {render: () => h('div')}}]});
+  const emptyRoute = {render: () => h('div')};
+  const router = createRouter({history: createMemoryHistory(), routes: [
+    {path: '/', component: emptyRoute},
+    {path: '/exercises', component: emptyRoute},
+    {path: '/games', component: emptyRoute},
+  ]});
   await router.push('/');
   await router.isReady();
   wrapper = mount(VApp, {attachTo: document.body, slots: {default: () => h(component)}, global: {plugins: [pinia, createVuetify(), router]}});
@@ -42,8 +47,9 @@ describe('EnCoin interface', () => {
   it('invites a user with zero lifetime earnings to exercises in the green block', async () => {
     vi.spyOn(httpEnCoinDriver, 'getBalance').mockResolvedValue({...balance, balance: 0, available: 0, totalEarnedCoins: 0, totalEarnedRubles: 0});
     await open(BalancePage, 'user');
-    expect(wrapper!.text()).toContain('Начните зарабатывать деньги просто проходя упражнения');
-    expect(wrapper!.get('.encoin-balance__start a').attributes('href')).toBe('/exercises');
+    expect(wrapper!.text()).toContain('Начните зарабатывать деньги просто проходя упражнения и играя в игры');
+    expect(wrapper!.findAll('.encoin-balance__start a').map(link => link.attributes('href')))
+      .toEqual(['/exercises', '/games']);
     expect(wrapper!.get('.encoin-balance__start').element.closest('.v-card')!.classList.contains('text-success')).toBe(true);
   });
   it('limits typed and pasted withdrawal amounts to available coins including reservations', async () => {

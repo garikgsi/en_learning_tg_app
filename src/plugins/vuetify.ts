@@ -74,7 +74,9 @@ export default createVuetify({
   },
   defaults: {
     VBtn: {
-      variant: 'outlined',
+      class: 'text-none',
+      rounded: 'xl',
+      variant: 'tonal',
     },
   },
   locale: {

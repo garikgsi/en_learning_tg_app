@@ -1,4 +1,5 @@
 import type {CompleteExercisePayload} from '@/api/types/exercise';
+import type {TranslationExerciseProgress} from '@/types/translation';
 
 export type PendingCompletionStatus = 'pending' | 'failed';
 
@@ -12,4 +13,12 @@ export type PendingCompletion = {
   nextRetryAt: string | null
   lastError: string | null
   createdAt: string
+}
+
+export type CachedExerciseProgress = {
+  key: string
+  userId: string
+  exerciseId: number
+  updatedAt: string
+  progress: TranslationExerciseProgress
 }

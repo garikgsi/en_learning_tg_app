@@ -14,6 +14,7 @@ type Props = {
   replayCost?: number | null
   canReplay?: boolean
   studentName?: string
+  isTraining?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
@@ -21,6 +22,7 @@ withDefaults(defineProps<Props>(), {
   replayCost: 1,
   canReplay: true,
   studentName: 'Вы',
+  isTraining: false,
 });
 
 defineEmits<{
@@ -89,7 +91,7 @@ defineEmits<{
       </v-sheet>
 
       <v-sheet
-        v-if="result === 'win'"
+        v-if="result === 'win' && !isTraining"
         class="pronoun-result__reward mt-3 pa-4"
         rounded="xl"
       >
@@ -103,7 +105,7 @@ defineEmits<{
       </v-sheet>
 
       <v-alert
-        v-else
+        v-else-if="!isTraining"
         class="mt-3 text-left"
         density="compact"
         type="info"
@@ -113,7 +115,17 @@ defineEmits<{
       </v-alert>
 
       <v-alert
-        v-if="isResultPending"
+        v-else
+        class="mt-3 text-left"
+        density="compact"
+        type="info"
+        variant="tonal"
+      >
+        Это была тренировка — попытки и монеты не расходуются, награда не начисляется
+      </v-alert>
+
+      <v-alert
+        v-if="isResultPending && !isTraining"
         class="mt-3 text-left"
         density="compact"
         icon="mdi-cloud-upload-outline"
@@ -144,10 +156,12 @@ defineEmits<{
         height="46"
         prepend-icon="mdi-replay"
         rounded="xl"
-        variant="text"
+        variant="tonal"
         @click="$emit('replay')"
       >
-        {{ replayCost === 0
+        {{ isTraining
+          ? 'Тренироваться ещё'
+          : replayCost === 0
           ? 'Сыграть ещё бесплатно'
           : `Сыграть ещё за ${replayCost} EnCoin` }}
       </v-btn>

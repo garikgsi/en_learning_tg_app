@@ -53,6 +53,18 @@ const repository = {
 
     return notification;
   },
+
+  async markAllRead(userId: string): Promise<void> {
+    const {readAt} = await httpNotificationDriver.markAllRead();
+    const notifications = await indexedDbNotificationDriver.getAll(userId);
+
+    await Promise.all(notifications.map(notification => (
+      indexedDbNotificationDriver.put(userId, {
+        ...notification,
+        readAt: notification.readAt ?? readAt,
+      })
+    )));
+  },
 };
 
 export const useNotificationRepository = () => repository;

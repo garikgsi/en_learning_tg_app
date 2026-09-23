@@ -135,7 +135,7 @@ onBeforeUnmount(() => { clearTimeout(searchTimer); searchSequence++; });
 
 <template>
   <div class="daily-assignment mx-auto">
-    <v-btn class="mb-4" variant="text" prepend-icon="mdi-arrow-left" to="/statistics" :disabled="isSaving">К статистике</v-btn>
+    <v-btn class="mb-4" variant="tonal" prepend-icon="mdi-arrow-left" to="/statistics" :disabled="isSaving">К статистике</v-btn>
     <v-alert v-if="!userStore.isAdmin" type="error" variant="tonal">Создание заданий доступно только администраторам.</v-alert>
     <v-card v-else variant="outlined">
       <v-card-text class="pa-5 pa-sm-6">
@@ -148,7 +148,7 @@ onBeforeUnmount(() => { clearTimeout(searchTimer); searchSequence++; });
         <v-alert v-if="!isConnected" type="info" variant="tonal" class="mb-4">Для поиска и создания задания нужно подключение к интернету.</v-alert>
         <v-alert v-if="usersError" type="error" variant="tonal" class="mb-4">
           {{ usersError }}
-          <v-btn variant="text" :loading="isUsersLoading" @click="loadUsers">Повторить</v-btn>
+          <v-btn variant="tonal" :loading="isUsersLoading" @click="loadUsers">Повторить</v-btn>
         </v-alert>
         <v-form :disabled="isSaving" @submit.prevent="save">
           <v-dialog v-model="isDateDialogOpen" max-width="360">
@@ -251,7 +251,7 @@ onBeforeUnmount(() => { clearTimeout(searchTimer); searchSequence++; });
           <p class="text-body-2 text-medium-emphasis mb-5">Если дейли-задание на {{ dateText }} ещё не пройдено, заменим его слова. Если таких заданий несколько, заменим последнее. В остальных случаях создадим новое задание.</p>
           <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4">{{ saveError }}</v-alert>
           <div class="daily-assignment__actions">
-            <v-btn variant="text" to="/statistics" :disabled="isSaving">Отмена</v-btn>
+            <v-btn variant="tonal" to="/statistics" :disabled="isSaving">Отмена</v-btn>
             <v-btn type="submit" color="primary" prepend-icon="mdi-plus" :disabled="!canSave" :loading="isSaving">Создать задание</v-btn>
           </div>
         </v-form>

@@ -10,6 +10,7 @@ import type {
   AbandonGrammarRacePayload,
   CompleteGrammarRacePayload,
   GrammarRaceGameCode,
+  GrammarRacePlayMode,
   GrammarRaceSession,
   GrammarRaceStatus,
   PendingGrammarRaceResult,
@@ -25,10 +26,11 @@ const retryDelayMs = (attemptsCount: number): number => {
 const startStorageKey = (
   userId: string,
   gameCode: GrammarRaceGameCode,
-): string => `en-learning:grammar-race-start:${userId}:${gameCode}`;
+  playMode: GrammarRacePlayMode,
+): string => `en-learning:grammar-race-start:${userId}:${gameCode}:${playMode}`;
 
-const readStartId = (userId: string, gameCode: GrammarRaceGameCode): string => {
-  const key = startStorageKey(userId, gameCode);
+const readStartId = (userId: string, gameCode: GrammarRaceGameCode, playMode: GrammarRacePlayMode): string => {
+  const key = startStorageKey(userId, gameCode, playMode);
 
   try {
     const stored = localStorage.getItem(key);
@@ -42,9 +44,9 @@ const readStartId = (userId: string, gameCode: GrammarRaceGameCode): string => {
   }
 };
 
-const clearStartId = (userId: string, gameCode: GrammarRaceGameCode): void => {
+const clearStartId = (userId: string, gameCode: GrammarRaceGameCode, playMode: GrammarRacePlayMode): void => {
   try {
-    localStorage.removeItem(startStorageKey(userId, gameCode));
+    localStorage.removeItem(startStorageKey(userId, gameCode, playMode));
   } catch {
     // The server-side idempotency still protects an in-flight request.
   }
@@ -135,20 +137,22 @@ const repository = {
   async start(
     userId: string,
     gameCode: GrammarRaceGameCode,
+    playMode: GrammarRacePlayMode,
   ): Promise<GrammarRaceSession> {
-    const clientRequestId = readStartId(userId, gameCode);
+    const clientRequestId = readStartId(userId, gameCode, playMode);
 
     try {
       const {item} = await httpGrammarRaceDriver.start(
         gameCode,
         clientRequestId,
+        playMode,
       );
       await indexedDbGrammarRaceDriver.saveSession(userId, item);
-      clearStartId(userId, gameCode);
+      clearStartId(userId, gameCode, playMode);
 
       return item;
     } catch (error) {
-      if (!isNetworkError(error)) clearStartId(userId, gameCode);
+      if (!isNetworkError(error)) clearStartId(userId, gameCode, playMode);
       throw error;
     }
   },

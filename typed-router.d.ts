@@ -20,10 +20,13 @@ declare module 'vue-router/auto-routes' {
   export interface RouteNamedMap {
     '/': RouteRecordInfo<'/', '/', Record<never, never>, Record<never, never>>,
     '/about': RouteRecordInfo<'/about', '/about', Record<never, never>, Record<never, never>>,
+    '/achievements': RouteRecordInfo<'/achievements', '/achievements', Record<never, never>, Record<never, never>>,
     '/balance': RouteRecordInfo<'/balance', '/balance', Record<never, never>, Record<never, never>>,
     '/dictionary': RouteRecordInfo<'/dictionary', '/dictionary', Record<never, never>, Record<never, never>>,
     '/exercises': RouteRecordInfo<'/exercises', '/exercises', Record<never, never>, Record<never, never>>,
     '/games/': RouteRecordInfo<'/games/', '/games', Record<never, never>, Record<never, never>>,
+    '/games/articles': RouteRecordInfo<'/games/articles', '/games/articles', Record<never, never>, Record<never, never>>,
+    '/games/possessive-pronoun': RouteRecordInfo<'/games/possessive-pronoun', '/games/possessive-pronoun', Record<never, never>, Record<never, never>>,
     '/games/pronoun': RouteRecordInfo<'/games/pronoun', '/games/pronoun', Record<never, never>, Record<never, never>>,
     '/login': RouteRecordInfo<'/login', '/login', Record<never, never>, Record<never, never>>,
     '/notifications': RouteRecordInfo<'/notifications', '/notifications', Record<never, never>, Record<never, never>>,

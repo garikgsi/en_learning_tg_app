@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import {computed, nextTick, ref, watch} from 'vue';
 import GrammarRacePlayerScore from './GrammarRacePlayerScore.vue';
+import GrammarRaceTaskHost from './tasks/GrammarRaceTaskHost.vue';
 import studentHappy from './assets/student-happy.png';
 import studentSad from './assets/student-sad.png';
 import robotHappy from './assets/robot-happy.png';
 import robotSad from './assets/robot-sad.png';
 import robotThinking from './assets/robot-thinking.png';
+import robotScientist from './assets/robot-scientist.png';
 import type {
-  GrammarRaceAnswerState,
   GrammarRaceDefinition,
   GrammarRaceTask,
 } from './types';
@@ -28,6 +29,7 @@ type Props = {
   studentState?: 'ready' | 'correct' | 'incorrect'
   playerAvatar?: string | null
   studentName?: string
+  reviewVisible?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -41,10 +43,12 @@ const props = withDefaults(defineProps<Props>(), {
   studentState: 'ready',
   playerAvatar: null,
   studentName: 'Вы',
+  reviewVisible: false,
 });
 
 const emit = defineEmits<{
   answer: [answer: string]
+  acknowledgeReview: []
 }>();
 
 type ScoreFlight = {
@@ -133,44 +137,6 @@ watch(() => props.computerScore, score => {
   void startScoreFlight('computer', score);
 });
 
-const promptParts = computed(() => {
-  const blankIndex = props.task.prompt.indexOf('___');
-
-  if (blankIndex < 0) {
-    return [props.task.prompt.trim(), ''] as const;
-  }
-
-  return [
-    props.task.prompt.slice(0, blankIndex).trim(),
-    props.task.prompt.slice(blankIndex + 3).trim(),
-  ] as const;
-});
-
-const getAnswerState = (answer: string): GrammarRaceAnswerState => {
-  if (answer === props.selectedAnswer) {
-    return answer === props.task.correctAnswer ? 'correct' : 'incorrect';
-  }
-
-  return props.roundResolved && answer === props.task.correctAnswer
-    ? 'correct'
-    : 'idle';
-};
-
-const isBotAnswer = (answer: string): boolean => (
-  props.botHasAnswered && answer === props.task.botAnswer
-);
-
-const getAnswerLabel = (answer: string): string => {
-  const state = getAnswerState(answer);
-  const labels = [answer];
-
-  if (state === 'correct') labels.push('правильный ответ');
-  if (state === 'incorrect') labels.push('неправильный ответ');
-  if (isBotAnswer(answer)) labels.push('ответ компьютера');
-
-  return labels.join(', ');
-};
-
 const studentAvatar = computed(() => props.studentState === 'incorrect'
   ? studentSad
   : studentHappy);
@@ -179,15 +145,38 @@ const robotAvatar = computed(() => ({
   correct: robotHappy,
   incorrect: robotSad,
 })[props.botState]);
+
+const reviewTranslation = computed(() => {
+  if (props.task.payload.feedback?.translation) {
+    return props.task.payload.feedback.translation;
+  }
+
+  if (!props.task.payload.translation) {
+    return null;
+  }
+
+  const answerTranslations: Record<string, string> = {
+    he: 'он',
+    she: 'она',
+    it: 'это',
+    we: 'мы',
+    they: 'они',
+  };
+  const answer = answerTranslations[props.task.correctAnswer]
+    ?? props.task.correctAnswer;
+
+  return `${props.task.payload.translation} → ${answer}`;
+});
 </script>
 
 <template>
-  <v-card
-    class="pronoun-screen pronoun-round overflow-hidden"
-    elevation="8"
-    rounded="xl"
-  >
-    <v-card-text class="pa-4 pa-sm-5">
+  <div class="grammar-race-round-host">
+    <v-card
+      class="pronoun-screen pronoun-round overflow-hidden"
+      elevation="8"
+      rounded="xl"
+    >
+      <v-card-text class="pa-4 pa-sm-5">
       <div class="d-flex ga-2">
         <div ref="playerScoreElement" class="pronoun-round__score-player">
           <GrammarRacePlayerScore
@@ -262,79 +251,74 @@ const robotAvatar = computed(() => ({
         rounded
       ></v-progress-linear>
 
-      <v-sheet
-        class="pronoun-round__question mt-4 pa-5 text-center"
-        rounded="xl"
-      >
-        <div class="text-overline text-medium-emphasis">
-          {{ game.instruction }}
-        </div>
-        <div class="pronoun-round__phrase mt-1">
-          {{ promptParts[0] }}<span v-if="promptParts[0]">&nbsp;</span><span>___</span><template v-if="promptParts[1]"> {{ promptParts[1] }}</template>
-        </div>
-        <div
-          v-if="task.translation"
-          class="text-body-2 text-medium-emphasis mt-2"
-        >
-          {{ task.translation }}
-        </div>
-      </v-sheet>
-
-      <div ref="answersElement" class="pronoun-round__answers mt-4">
-        <v-chip
-          v-for="answer in task.choices"
-          :key="answer"
-          :aria-label="getAnswerLabel(answer)"
-          class="pronoun-round__answer justify-center"
-          :class="{
-            'pronoun-round__answer--correct': getAnswerState(answer) === 'correct',
-            'pronoun-round__answer--incorrect': getAnswerState(answer) === 'incorrect',
-            'pronoun-round__answer--bot-selected': isBotAnswer(answer),
-            'pronoun-round__answer--locked': isAnswerLocked,
-          }"
-          :color="getAnswerState(answer) === 'correct'
-            ? 'success'
-            : getAnswerState(answer) === 'incorrect'
-              ? 'error'
-              : isBotAnswer(answer)
-                ? 'warning'
-              : undefined"
-          label
-          size="x-large"
-          :variant="getAnswerState(answer) === 'idle' && !isBotAnswer(answer)
-            ? 'outlined'
-            : 'flat'"
-          :aria-disabled="isAnswerLocked"
-          @click="!isAnswerLocked && emit('answer', answer)"
-        >
-          <span class="font-weight-bold">{{ answer }}</span>
-          <v-icon
-            v-if="getAnswerState(answer) === 'correct'"
-            class="ml-2"
-            icon="mdi-check-circle"
-            size="20"
-          ></v-icon>
-          <v-icon
-            v-if="getAnswerState(answer) === 'incorrect'"
-            class="ml-2"
-            icon="mdi-close-circle"
-            size="20"
-          ></v-icon>
-          <v-icon
-            v-if="isBotAnswer(answer)"
-            class="ml-2 pronoun-round__bot-answer-icon"
-            color="warning"
-            icon="mdi-robot-outline"
-            size="20"
-          ></v-icon>
-        </v-chip>
+      <div ref="answersElement">
+        <GrammarRaceTaskHost
+          :bot-has-answered="botHasAnswered"
+          :instruction="task.payload.instruction || game.instruction"
+          :is-answer-locked="isAnswerLocked"
+          :round-resolved="roundResolved"
+          :selected-answer="selectedAnswer"
+          :task="task"
+          @answer="emit('answer', $event)"
+        ></GrammarRaceTaskHost>
       </div>
 
       <div class="text-caption text-medium-emphasis text-center mt-4">
         {{ roundMessage }}
       </div>
-    </v-card-text>
-  </v-card>
+      </v-card-text>
+    </v-card>
+
+    <v-dialog
+      contained
+      :model-value="reviewVisible"
+      max-width="400"
+      persistent
+    >
+      <v-card class="pronoun-round__review" rounded="xl">
+        <div
+          aria-hidden="true"
+          class="pronoun-round__review-robot"
+          :style="{backgroundImage: `url(${robotScientist})`}"
+        ></div>
+        <v-card-title class="d-flex align-center ga-2 pt-5 px-5">
+          <v-icon color="secondary" icon="mdi-lightbulb-on-outline"></v-icon>
+          Разберём пример
+        </v-card-title>
+        <v-card-text class="px-5">
+          <div class="text-body-2 text-medium-emphasis">Правильный вариант</div>
+          <div class="text-h6 font-weight-bold mt-1">
+            {{ task.payload.feedback?.correctText }}
+          </div>
+          <div
+            v-if="reviewTranslation"
+            class="text-body-2 text-medium-emphasis mt-1"
+          >
+            {{ reviewTranslation }}
+          </div>
+          <v-alert
+            class="mt-4"
+            color="secondary"
+            icon="mdi-school-outline"
+            variant="tonal"
+          >
+            {{ task.payload.feedback?.explanation }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions class="px-5 pb-5">
+          <v-btn
+            block
+            color="success"
+            size="large"
+            variant="flat"
+            @click="emit('acknowledgeReview')"
+          >
+            Понятно
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </div>
 
   <Teleport to="body">
     <div
@@ -357,6 +341,35 @@ const robotAvatar = computed(() => ({
 </template>
 
 <style scoped>
+.grammar-race-round-host {
+  position: relative;
+}
+
+.pronoun-round__review {
+  isolation: isolate;
+  overflow: hidden;
+  position: relative;
+}
+
+.pronoun-round__review-robot {
+  background-position: right top;
+  background-repeat: no-repeat;
+  background-size: contain;
+  height: 235px;
+  opacity: 0.24;
+  pointer-events: none;
+  position: absolute;
+  right: -28px;
+  top: 18px;
+  width: 180px;
+  z-index: 0;
+}
+
+.pronoun-round__review > :not(.pronoun-round__review-robot) {
+  position: relative;
+  z-index: 1;
+}
+
 .pronoun-screen {
   background:
     radial-gradient(circle at 50% 18%, rgba(var(--v-theme-secondary), 0.14), transparent 34%),
@@ -442,60 +455,6 @@ const robotAvatar = computed(() => ({
 
 .pronoun-round__timer {
   background: rgba(var(--v-theme-warning), 0.12);
-}
-
-.pronoun-round__question {
-  background: rgba(var(--v-theme-primary), 0.06);
-  border: 1px solid rgba(var(--v-theme-primary), 0.16);
-}
-
-.pronoun-round__phrase {
-  color: rgb(var(--v-theme-on-surface));
-  font-size: clamp(28px, 8vw, 38px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-.pronoun-round__phrase span {
-  color: rgb(var(--v-theme-primary));
-}
-
-.pronoun-round__answers {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.pronoun-round__answer {
-  border-color: rgba(var(--v-theme-primary), 0.28);
-  font-size: 18px;
-  height: 56px;
-  max-width: none;
-  width: 100%;
-}
-
-.pronoun-round__answer--correct {
-  box-shadow: 0 8px 18px rgba(var(--v-theme-success), 0.2);
-}
-
-.pronoun-round__answer--incorrect {
-  box-shadow: 0 8px 18px rgba(var(--v-theme-error), 0.18);
-}
-
-.pronoun-round__answer--bot-selected {
-  outline: 3px solid rgba(var(--v-theme-warning), 0.78);
-  outline-offset: 2px;
-}
-
-.pronoun-round__bot-answer-icon {
-  background: rgb(var(--v-theme-surface));
-  border-radius: 50%;
-  padding: 2px;
-}
-
-.pronoun-round__answer--locked {
-  cursor: default;
-  pointer-events: none;
 }
 
 .pronoun-round__score-flight {

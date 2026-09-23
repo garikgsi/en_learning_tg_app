@@ -1,32 +1,36 @@
 <script setup lang="ts">
+import {computed} from 'vue';
+import {storeToRefs} from 'pinia';
 import robotThinking from '@/components/games/grammar-race/assets/robot-thinking.png';
 import studentHappy from '@/components/games/grammar-race/assets/student-happy.png';
 import studentThinking from '@/components/games/grammar-race/assets/student-thinking.png';
+import {useUserStore} from '@/stores/userStore';
+import {pronounRace} from '@/components/games/pronoun/pronounRace';
+import {possessivePronounRace} from '@/components/games/possessive-pronoun/possessivePronounRace';
+import {articleRace} from '@/components/games/article/articleRace';
+
+const minimumPronounGrade = pronounRace.minGrade;
+const minimumPossessivePronounGrade = possessivePronounRace.minGrade;
+const minimumArticleGrade = articleRace.minGrade;
+const {user} = storeToRefs(useUserStore());
+const isPronounGameAvailable = computed(() => (
+  (user.value?.grade ?? 0) >= minimumPronounGrade
+));
+const isPossessivePronounGameAvailable = computed(() => (
+  (user.value?.grade ?? 0) >= minimumPossessivePronounGrade
+));
+const isArticleGameAvailable = computed(() => (
+  (user.value?.grade ?? 0) >= minimumArticleGrade
+));
 
 const upcomingGames = [
-  {
-    title: 'Притяжательные местоимения',
-    description: 'Выбирайте my, your, his, her, its, our или their.',
-    character: studentThinking,
-    characterClass: 'game-card__character--girl-thinking',
-    contain: true,
-    visualClass: 'game-card__visual--possessive',
-    tokens: ['my', 'their'],
-  },
-  {
-    title: 'Артикли',
-    description: 'Соревнуйтесь в выборе a, an и the.',
-    character: robotThinking,
-    characterClass: 'game-card__character--robot-book',
-    visualClass: 'game-card__visual--articles',
-    book: 'a · an · the',
-  },
   {
     title: 'Формы глаголов',
     description: 'Подставляйте правильную форму глагола в предложение.',
     character: robotThinking,
     characterClass: 'game-card__character--robot-face game-card__character--mirrored',
     visualClass: 'game-card__visual--verbs',
+    contain: false,
     tokens: ['is', 'are'],
   },
 ];
@@ -35,25 +39,28 @@ const upcomingGames = [
 <template>
   <section class="games-page">
     <div class="games-page__heading">
-      <div>
-        <div class="text-overline text-primary">Грамматические гонки</div>
-        <h1 class="text-h4 font-weight-bold">Учимся в игре</h1>
-        <p class="text-body-1 text-medium-emphasis mt-2 mb-0">
-          Отвечайте быстрее компьютера, повышайте сложность и получайте коины за победы.
-        </p>
+      <div class="games-page__heading-top">
+        <div>
+          <div class="text-overline text-primary">Грамматические гонки</div>
+          <h1 class="text-h4 font-weight-bold">Учимся в игре</h1>
+        </div>
+
+        <div class="games-page__characters" aria-hidden="true">
+          <v-img :src="studentHappy" width="98"></v-img>
+          <v-img :src="robotThinking" width="98"></v-img>
+        </div>
       </div>
 
-      <div class="games-page__characters" aria-hidden="true">
-        <v-img :src="studentHappy" width="98"></v-img>
-        <v-img :src="robotThinking" width="98"></v-img>
-      </div>
+      <p class="games-page__description text-body-1 text-medium-emphasis mt-2 mb-0">
+        Отвечайте быстрее компьютера, повышайте сложность и получайте коины за победы.
+      </p>
     </div>
 
     <div class="games-grid mt-6">
       <v-card
         class="game-card game-card--active"
         color="primary"
-        to="/games/pronoun"
+        :to="isPronounGameAvailable ? '/games/pronoun' : undefined"
         variant="tonal"
       >
         <v-card-item>
@@ -73,7 +80,9 @@ const upcomingGames = [
             </div>
           </template>
           <v-card-title>Личные местоимения</v-card-title>
-          <v-card-subtitle>Доступно сейчас</v-card-subtitle>
+          <v-card-subtitle>
+            {{ isPronounGameAvailable ? 'Доступно сейчас' : `Доступно со ${minimumPronounGrade} класса` }}
+          </v-card-subtitle>
         </v-card-item>
 
         <v-card-text>
@@ -81,8 +90,102 @@ const upcomingGames = [
         </v-card-text>
 
         <v-card-actions class="justify-end">
-          <v-btn append-icon="mdi-arrow-right" color="primary" variant="flat">
-            Играть
+          <v-btn
+            :append-icon="isPronounGameAvailable ? 'mdi-arrow-right' : undefined"
+            color="primary"
+            :disabled="!isPronounGameAvailable"
+            :prepend-icon="isPronounGameAvailable ? undefined : 'mdi-lock-outline'"
+            variant="flat"
+          >
+            {{ isPronounGameAvailable ? 'Играть' : `С ${minimumPronounGrade} класса` }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+
+      <v-card
+        class="game-card game-card--active"
+        color="primary"
+        :to="isArticleGameAvailable ? '/games/articles' : undefined"
+        variant="tonal"
+      >
+        <v-card-item>
+          <template #prepend>
+            <div
+              aria-hidden="true"
+              class="game-card__visual game-card__visual--articles"
+            >
+              <v-img
+                class="game-card__character game-card__character--robot-book"
+                contain
+                :src="robotThinking"
+              ></v-img>
+              <div class="game-card__book">a · an · the</div>
+            </div>
+          </template>
+          <v-card-title>Гонка артиклей</v-card-title>
+          <v-card-subtitle>
+            {{ isArticleGameAvailable ? 'Доступно сейчас' : `Доступно с ${minimumArticleGrade} класса` }}
+          </v-card-subtitle>
+        </v-card-item>
+
+        <v-card-text>
+          Выбирайте a, an, the или вариант без артикля и получайте понятный разбор ошибок
+        </v-card-text>
+
+        <v-card-actions class="justify-end">
+          <v-btn
+            :append-icon="isArticleGameAvailable ? 'mdi-arrow-right' : undefined"
+            color="primary"
+            :disabled="!isArticleGameAvailable"
+            :prepend-icon="isArticleGameAvailable ? undefined : 'mdi-lock-outline'"
+            variant="flat"
+          >
+            {{ isArticleGameAvailable ? 'Играть' : `С ${minimumArticleGrade} класса` }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+
+      <v-card
+        class="game-card game-card--active"
+        color="primary"
+        :to="isPossessivePronounGameAvailable ? '/games/possessive-pronoun' : undefined"
+        variant="tonal"
+      >
+        <v-card-item>
+          <template #prepend>
+            <div
+              aria-hidden="true"
+              class="game-card__visual game-card__visual--possessive"
+            >
+              <v-img
+                class="game-card__character game-card__character--girl-thinking"
+                contain
+                position="center 21%"
+                :src="studentThinking"
+              ></v-img>
+              <span class="game-card__token game-card__token--left">my</span>
+              <span class="game-card__token game-card__token--right">their</span>
+            </div>
+          </template>
+          <v-card-title>Притяжательные местоимения</v-card-title>
+          <v-card-subtitle>
+            {{ isPossessivePronounGameAvailable ? 'Доступно сейчас' : `Доступно с ${minimumPossessivePronounGrade} класса` }}
+          </v-card-subtitle>
+        </v-card-item>
+
+        <v-card-text>
+          Выбирайте my, your, his, her, its, our или their быстрее компьютера и получите 2 монеты за победу
+        </v-card-text>
+
+        <v-card-actions class="justify-end">
+          <v-btn
+            :append-icon="isPossessivePronounGameAvailable ? 'mdi-arrow-right' : undefined"
+            color="primary"
+            :disabled="!isPossessivePronounGameAvailable"
+            :prepend-icon="isPossessivePronounGameAvailable ? undefined : 'mdi-lock-outline'"
+            variant="flat"
+          >
+            {{ isPossessivePronounGameAvailable ? 'Играть' : `С ${minimumPossessivePronounGrade} класса` }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -103,21 +206,16 @@ const upcomingGames = [
               <v-img
                 class="game-card__character"
                 :class="game.characterClass"
-                :cover="!game.book && !game.contain"
-                :position="game.book ? 'center' : 'center 21%'"
+                :cover="!game.contain"
+                position="center 21%"
                 :src="game.character"
               ></v-img>
-              <div v-if="game.book" class="game-card__book">
-                {{ game.book }}
-              </div>
-              <template v-else>
-                <span class="game-card__token game-card__token--left">
-                  {{ game.tokens?.[0] }}
-                </span>
-                <span class="game-card__token game-card__token--right">
-                  {{ game.tokens?.[1] }}
-                </span>
-              </template>
+              <span class="game-card__token game-card__token--left">
+                {{ game.tokens?.[0] }}
+              </span>
+              <span class="game-card__token game-card__token--right">
+                {{ game.tokens?.[1] }}
+              </span>
             </div>
           </template>
           <v-card-title>{{ game.title }}</v-card-title>
@@ -148,10 +246,18 @@ const upcomingGames = [
 }
 
 .games-page__heading {
+  width: 100%;
+}
+
+.games-page__heading-top {
   align-items: center;
   display: flex;
   gap: 24px;
   justify-content: space-between;
+}
+
+.games-page__description {
+  width: 100%;
 }
 
 .games-page__characters {
@@ -336,7 +442,7 @@ const upcomingGames = [
 }
 
 @media (max-width: 600px) {
-  .games-page__heading {
+  .games-page__heading-top {
     align-items: flex-start;
   }
 

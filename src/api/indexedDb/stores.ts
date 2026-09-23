@@ -9,6 +9,7 @@ export const indexedDbStores = {
   notifications: 'notifications',
   grammarRaceSessions: 'grammarRaceSessions',
   grammarRaceOutbox: 'grammarRaceOutbox',
+  exerciseProgress: 'exerciseProgress',
 } as const;
 
 export type IndexedDbStore = typeof indexedDbStores[keyof typeof indexedDbStores];

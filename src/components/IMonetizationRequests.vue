@@ -113,7 +113,7 @@ onMounted(() => { if (userStore.isAdmin) void Promise.all([load(), loadRate()]);
             <tbody><tr><td>1 EnCoin</td><td class="font-weight-medium">{{ formatRubles(rate) }}</td></tr></tbody>
           </v-table>
           <v-alert v-if="rateError" type="error" variant="tonal" class="mb-3">
-            {{ rateError }}<v-btn v-if="rate === null" variant="text" @click="loadRate">Повторить</v-btn>
+            {{ rateError }}<v-btn v-if="rate === null" variant="tonal" @click="loadRate">Повторить</v-btn>
           </v-alert>
           <v-form v-if="rate !== null" class="monetization__rate-form" @submit.prevent="saveRate">
             <v-text-field v-model="rateDraft" label="Рублей за 1 EnCoin" type="number" min="0.01" max="100000" step="0.01" variant="outlined" density="compact" hide-details :disabled="isRateSaving" />
@@ -124,7 +124,7 @@ onMounted(() => { if (userStore.isAdmin) void Promise.all([load(), loadRate()]);
       </v-card>
       <div class="d-flex align-center ga-3 mb-4">
         <v-select v-model="status" :items="filters" label="Статус" variant="outlined" density="compact" hide-details @update:model-value="changeStatus" />
-        <v-btn aria-label="Обновить запросы" icon="mdi-refresh" variant="text" :disabled="!isConnected" :loading="isLoading" @click="load" />
+        <v-btn aria-label="Обновить запросы" icon="mdi-refresh" variant="tonal" :disabled="!isConnected" :loading="isLoading" @click="load" />
       </div>
       <v-alert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</v-alert>
       <v-progress-linear v-if="isLoading" indeterminate color="primary" class="mb-3" />

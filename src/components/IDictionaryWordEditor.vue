@@ -128,7 +128,7 @@ onMounted(() => {
 <template>
   <div class="word-editor mx-auto">
     <div class="word-editor__header mb-5">
-      <v-btn variant="text" prepend-icon="mdi-arrow-left" to="/dictionary" :disabled="isSaving">К словарю</v-btn>
+      <v-btn variant="tonal" prepend-icon="mdi-arrow-left" to="/dictionary" :disabled="isSaving">К словарю</v-btn>
       <v-chip v-if="hasChanges" size="small" variant="tonal" color="primary">Есть изменения</v-chip>
     </div>
 
@@ -137,7 +137,7 @@ onMounted(() => {
       <v-skeleton-loader v-if="isLoading" type="article, article" />
       <v-alert v-if="error" class="mb-4" type="error" variant="tonal">
         {{ error }}
-        <v-btn v-if="!word" class="mt-2" variant="text" @click="loadWord()">Попробовать снова</v-btn>
+        <v-btn v-if="!word" class="mt-2" variant="tonal" @click="loadWord()">Попробовать снова</v-btn>
       </v-alert>
 
       <v-form v-if="word && !isLoading" ref="form" :disabled="isSaving" @submit.prevent="save">
@@ -199,7 +199,7 @@ onMounted(() => {
         </v-card>
 
         <div class="word-editor__actions mt-4">
-          <v-btn variant="text" to="/dictionary" :disabled="isSaving">Отмена</v-btn>
+          <v-btn variant="tonal" to="/dictionary" :disabled="isSaving">Отмена</v-btn>
           <v-btn color="primary" prepend-icon="mdi-check" type="submit" :disabled="!hasChanges || !isConnected" :loading="isSaving">Сохранить</v-btn>
         </div>
       </v-form>

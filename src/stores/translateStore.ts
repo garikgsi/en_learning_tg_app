@@ -3,6 +3,7 @@ import {defineStore} from 'pinia';
 import {getApiErrorMessage} from '@/api/errors';
 import type {Exercise} from '@/api/types/exercise';
 import type {
+  TranslationExerciseProgress,
   TranslationTask,
   TranslationWord,
 } from '@/types/translation';
@@ -12,6 +13,7 @@ import {useExerciseRepository} from '@/use/exerciseRepository';
 import {useUserStore} from '@/stores/userStore';
 import {useOfflineManager} from '@/use/offlineManager';
 import {messageKeys} from '@/use/messageKeys';
+import {indexedDbExerciseProgressDriver} from '@/api/indexedDb/exerciseProgress';
 
 type ExerciseItemResultPayload = {
   exercise_item_id: number
@@ -40,6 +42,93 @@ export const useTranslateStore = defineStore('translate', () => {
   const exerciseRepository = useExerciseRepository();
   const userStore = useUserStore();
   const offlineManager = useOfflineManager();
+  let progressWriteQueue: Promise<void> = Promise.resolve();
+
+  const resumableExerciseTypes = new Set(['daily', 'weekly', 'plural']);
+
+  const isActiveExerciseResumable = (): boolean => {
+    return activeExercise.value !== null
+      && resumableExerciseTypes.has(activeExercise.value.type.name);
+  };
+
+  const exerciseItemIds = (): number[] => {
+    return activeExercise.value?.items.map(item => item.id) ?? [];
+  };
+
+  const sameExerciseItems = (
+    progress: TranslationExerciseProgress,
+  ): boolean => {
+    const currentIds = exerciseItemIds();
+
+    return currentIds.length === progress.exerciseItemIds.length
+      && currentIds.every((id, index) => id === progress.exerciseItemIds[index]);
+  };
+
+  const loadExerciseProgress = async (): Promise<TranslationExerciseProgress | null> => {
+    const userId = userStore.user?.id;
+    const exercise = activeExercise.value;
+
+    if (!userId || !exercise || !isActiveExerciseResumable()) {
+      return null;
+    }
+
+    await progressWriteQueue.catch(() => undefined);
+    const progress = await indexedDbExerciseProgressDriver.get(userId, exercise.id);
+
+    if (
+      !progress
+      || progress.version !== 1
+      || progress.exerciseId !== exercise.id
+      || !sameExerciseItems(progress)
+    ) {
+      if (progress) {
+        await indexedDbExerciseProgressDriver.remove(userId, exercise.id);
+      }
+
+      return null;
+    }
+
+    return progress;
+  };
+
+  const saveExerciseProgress = (
+    progress: TranslationExerciseProgress,
+  ): Promise<void> => {
+    const userId = userStore.user?.id;
+    const exercise = activeExercise.value;
+
+    if (
+      !userId
+      || !exercise
+      || !isActiveExerciseResumable()
+      || progress.exerciseId !== exercise.id
+      || !sameExerciseItems(progress)
+    ) {
+      return Promise.resolve();
+    }
+
+    const snapshot = structuredClone(progress);
+    progressWriteQueue = progressWriteQueue
+      .catch(() => undefined)
+      .then(() => indexedDbExerciseProgressDriver.put(userId, snapshot));
+
+    return progressWriteQueue;
+  };
+
+  const clearExerciseProgress = (exerciseId?: number): Promise<void> => {
+    const userId = userStore.user?.id;
+    const targetExerciseId = exerciseId ?? activeExercise.value?.id;
+
+    if (!userId || !targetExerciseId) {
+      return Promise.resolve();
+    }
+
+    progressWriteQueue = progressWriteQueue
+      .catch(() => undefined)
+      .then(() => indexedDbExerciseProgressDriver.remove(userId, targetExerciseId));
+
+    return progressWriteQueue;
+  };
 
   const reversedWordList = computed<TranslationWord[]>(() => {
     return wordList.value.map(word => {
@@ -62,7 +151,8 @@ export const useTranslateStore = defineStore('translate', () => {
   const setExercises = (exercises: Exercise[]): void => {
     wordList.value = exercises.flatMap(exercise => {
       return exercise.items.map(({id, word, plural}) => {
-        const isPlural = exercise.type.name === 'plural' && plural != null;
+        const isPlural = ['plural', 'userPlural'].includes(exercise.type.name)
+          && plural != null;
 
         return {
           id,
@@ -253,6 +343,12 @@ export const useTranslateStore = defineStore('translate', () => {
       );
       await offlineManager.updateOutboxSummary(userId);
 
+      await Promise.all(
+        [...resultsByExercise.keys()].map(exerciseId => {
+          return clearExerciseProgress(exerciseId);
+        }),
+      );
+
       wordList.value = [];
 
       if (summary.pending > 0) {
@@ -275,6 +371,9 @@ export const useTranslateStore = defineStore('translate', () => {
     setExercises,
     clearWords,
     taskCompleted,
+    loadExerciseProgress,
+    saveExerciseProgress,
+    clearExerciseProgress,
 
   };
 });

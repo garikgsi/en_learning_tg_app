@@ -2,12 +2,18 @@ import {http} from '@/api/http';
 import type {
   AbandonGrammarRacePayload,
   CompleteGrammarRacePayload,
+  GrammarRaceAchievementsResponse,
   GrammarRaceGameCode,
+  GrammarRacePlayMode,
   GrammarRaceSession,
   GrammarRaceStatus,
 } from '@/api/types/grammarRace';
 
 export const httpGrammarRaceDriver = {
+  getAchievements(): Promise<GrammarRaceAchievementsResponse> {
+    return http.get('/grammar-race-achievements');
+  },
+
   getStatus(gameCode: GrammarRaceGameCode): Promise<GrammarRaceStatus> {
     return http.get(`/grammar-race-games/${gameCode}/status`);
   },
@@ -15,9 +21,11 @@ export const httpGrammarRaceDriver = {
   start(
     gameCode: GrammarRaceGameCode,
     clientRequestId: string,
+    playMode: GrammarRacePlayMode,
   ): Promise<{item: GrammarRaceSession}> {
     return http.post(`/grammar-race-games/${gameCode}/sessions`, {
       clientRequestId,
+      playMode,
     });
   },
 

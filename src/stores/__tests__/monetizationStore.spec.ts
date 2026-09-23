@@ -17,7 +17,11 @@ describe('monetization menu count', () => {
     const get = vi.spyOn(httpEnCoinDriver, 'getRequests').mockResolvedValue({items: [], page: 1, lastPage: 3, total: 65});
     const store = useMonetizationStore();
     await store.synchronize();
-    expect(Object.keys(routes).filter(path => routes[path]!.showInSideBar).slice(0, 2)).toEqual(['/balance', '/monetization-requests']);
+    expect(Object.keys(routes).filter(path => routes[path]!.showInSideBar).slice(0, 3)).toEqual([
+      '/balance',
+      '/achievements',
+      '/monetization-requests',
+    ]);
     expect(get).toHaveBeenCalledWith('pending', 1);
     expect(store.pendingCount).toBe(65);
     get.mockResolvedValue({items: [], page: 1, lastPage: 1, total: 0});

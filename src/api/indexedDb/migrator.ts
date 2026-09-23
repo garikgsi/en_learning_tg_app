@@ -3,6 +3,7 @@ import {migrationV2} from '@/api/indexedDb/migrations/v2';
 import {migrationV3} from '@/api/indexedDb/migrations/v3';
 import {migrationV4} from '@/api/indexedDb/migrations/v4';
 import {migrationV5} from '@/api/indexedDb/migrations/v5';
+import {migrationV6} from '@/api/indexedDb/migrations/v6';
 import type {IndexedDbMigration} from '@/api/indexedDb/migrations/types';
 
 const migrations: IndexedDbMigration[] = [
@@ -11,6 +12,7 @@ const migrations: IndexedDbMigration[] = [
   migrationV3,
   migrationV4,
   migrationV5,
+  migrationV6,
 ].sort((left, right) => left.version - right.version);
 
 export const indexedDbDatabaseVersion = migrations.at(-1)?.version ?? 0;

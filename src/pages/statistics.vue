@@ -9,7 +9,6 @@
   } from 'vue';
 import {storeToRefs} from 'pinia';
 import {useRouter} from 'vue-router';
-import IConfirmDialog from '@/components/IConfirmDialog.vue';
   import IChipWordList from '@/components/IChipWordList.vue';
 import {
   findStatisticsAchievement,
@@ -26,13 +25,13 @@ import {useNetwork} from '@/use/network';
   import {
     buildStatisticsCalendarGroups,
     buildStatisticsExerciseQueue,
-    findUncompletedUserExerciseForDay,
     formatStatisticsWordTranslation,
     selectStatisticsCalendarExercise,
   } from '@/use/statisticsCalendar';
-  import type {
+import type {
     StatisticsCalendarGroup,
   } from '@/use/statisticsCalendar';
+import type {UserExerciseType} from '@/api/types/exercise';
 
 const IStatisticsCharts = defineAsyncComponent(
   () => import('@/components/IStatisticsCharts.vue'),
@@ -58,6 +57,11 @@ const calendarDate = ref<Date[]>([new Date()]);
   const selectedGroup = ref<StatisticsCalendarGroup | null>(null);
 const isExerciseDialogOpen = ref(false);
 const isCreateDialogOpen = ref(false);
+const selectedUserExerciseType = ref<UserExerciseType>('translate');
+const userExerciseTypes = [
+  {title: 'Translate exercise', value: 'translate'},
+  {title: 'Plural exercise', value: 'plural'},
+];
 
   const selectedExerciseFor = (
     group: StatisticsCalendarGroup,
@@ -79,7 +83,11 @@ const exerciseDialogTitle = computed(() => {
   }
 
     if (group.typeName === 'user') {
-      return 'Пользовательское упражнение';
+      return 'Translate exercise';
+  }
+
+    if (group.typeName === 'userPlural') {
+      return 'Plural exercise';
   }
 
     if (group.typeName === 'plural') {
@@ -92,7 +100,7 @@ const exerciseDialogTitle = computed(() => {
 });
 
   const canStartSelectedGroup = computed(() => {
-    return selectedGroup.value?.typeName !== 'user'
+    return !['user', 'userPlural'].includes(selectedGroup.value?.typeName ?? '')
       || selectedEvent.value?.status === 'uncompleted';
   });
 
@@ -107,8 +115,8 @@ const exerciseDialogTitle = computed(() => {
   });
 
   const isSelectedUncompletedUserExercise = computed(() => {
-    return selectedGroup.value?.typeName === 'user'
-      && selectedGroup.value.status === 'uncompleted';
+    return ['user', 'userPlural'].includes(selectedGroup.value?.typeName ?? '')
+      && selectedGroup.value?.status === 'uncompleted';
   });
 
   const selectedWords = computed(() => {
@@ -146,6 +154,8 @@ const exerciseDialogTitle = computed(() => {
         ? 'Weekly'
         : group.typeName === 'plural'
           ? 'Plural'
+          : group.typeName === 'userPlural'
+            ? 'My plural'
           : 'My';
   }
 
@@ -185,7 +195,10 @@ const startSelectedExercise = async (): Promise<void> => {
 
 const createUserExercise = async (): Promise<void> => {
   try {
-    const exerciseId = await statisticsStore.createUserExercise();
+    const exerciseId = await statisticsStore.createUserExercise(
+      selectedUserExerciseType.value,
+    );
+    isCreateDialogOpen.value = false;
     await router.push(`/exercises/${exerciseId}`);
   } catch {
     // The store exposes the API error in the page alert.
@@ -242,20 +255,7 @@ const achievementMessage = computed(() => {
     return buildStatisticsCalendarGroups(items.value);
 });
 
-  const openUserExerciseCreation = async (): Promise<void> => {
-    const existingGroup = findUncompletedUserExerciseForDay(
-      events.value,
-      new Date(),
-    );
-    const existingExerciseId = existingGroup
-      ? buildStatisticsExerciseQueue(existingGroup)[0]
-      : null;
-
-    if (existingExerciseId) {
-      await router.push(`/exercises/${existingExerciseId}`);
-      return;
-    }
-
+  const openUserExerciseCreation = (): void => {
     isCreateDialogOpen.value = true;
   }
 
@@ -310,7 +310,7 @@ onMounted(async () => {
       <v-btn
         v-if="userStore.isAdmin"
         :disabled="isCreating"
-        variant="text"
+        variant="tonal"
         @click="openUserExerciseCreation"
       >Самоподготовка</v-btn>
 
@@ -319,7 +319,7 @@ onMounted(async () => {
         :disabled="isCreating"
         :loading="isCreating"
         prepend-icon="mdi-plus"
-        variant="text"
+        variant="tonal"
         @click="userStore.isAdmin ? router.push('/statistics/daily/new') : openUserExerciseCreation()"
       >
         Новое задание
@@ -602,14 +602,37 @@ onMounted(async () => {
     </v-card>
   </v-dialog>
 
-  <IConfirmDialog
+  <v-dialog
     v-model="isCreateDialogOpen"
-    no-button-text="Нет"
-    text="Создать пользовательское задание на текущую дату?"
-    title="Новое задание"
-    yes-button-text="Создать"
-    @yes="createUserExercise"
-  />
+    max-width="440"
+  >
+    <v-card rounded="xl">
+      <v-card-title>Новое задание</v-card-title>
+      <v-card-text>
+        <v-select
+          v-model="selectedUserExerciseType"
+          hide-details
+          :items="userExerciseTypes"
+          label="Тип упражнения"
+          variant="outlined"
+        />
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn :disabled="isCreating" @click="isCreateDialogOpen = false">
+          Отмена
+        </v-btn>
+        <v-btn
+          color="primary"
+          :loading="isCreating"
+          variant="flat"
+          @click="createUserExercise"
+        >
+          Создать
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <style scoped>

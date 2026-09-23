@@ -8,12 +8,15 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ArticleGame: typeof import('./src/components/games/article/ArticleGame.vue')['default']
     GrammarRaceGame: typeof import('./src/components/games/grammar-race/GrammarRaceGame.vue')['default']
     GrammarRaceGameMockup: typeof import('./src/components/games/grammar-race/GrammarRaceGameMockup.vue')['default']
     GrammarRaceLobbyScreen: typeof import('./src/components/games/grammar-race/GrammarRaceLobbyScreen.vue')['default']
     GrammarRacePlayerScore: typeof import('./src/components/games/grammar-race/GrammarRacePlayerScore.vue')['default']
     GrammarRaceResultScreen: typeof import('./src/components/games/grammar-race/GrammarRaceResultScreen.vue')['default']
     GrammarRaceRoundScreen: typeof import('./src/components/games/grammar-race/GrammarRaceRoundScreen.vue')['default']
+    GrammarRaceSingleChoiceTask: typeof import('./src/components/games/grammar-race/tasks/GrammarRaceSingleChoiceTask.vue')['default']
+    GrammarRaceTaskHost: typeof import('./src/components/games/grammar-race/tasks/GrammarRaceTaskHost.vue')['default']
     IAdminDailyAssignment: typeof import('./src/components/IAdminDailyAssignment.vue')['default']
     IAdminUsers: typeof import('./src/components/IAdminUsers.vue')['default']
     IAvatarPicker: typeof import('./src/components/IAvatarPicker.vue')['default']
@@ -32,6 +35,7 @@ declare module 'vue' {
     ITimer: typeof import('./src/components/ITimer.vue')['default']
     ITranslateTask: typeof import('./src/components/ITranslateTask.vue')['default']
     IWord: typeof import('./src/components/IWord.vue')['default']
+    PossessivePronounGame: typeof import('./src/components/games/possessive-pronoun/PossessivePronounGame.vue')['default']
     PronounGameMockup: typeof import('./src/components/games/pronoun/PronounGameMockup.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

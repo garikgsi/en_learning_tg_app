@@ -1,32 +1,52 @@
-export type GrammarRaceGameCode = 'personal_pronouns'
+export type GrammarRaceGameCode = 'personal_pronouns' | 'possessive_pronouns' | 'articles'
 export type GrammarRaceTaskMode = 'phrase' | 'sentence'
+export type GrammarRacePlayMode = 'competitive' | 'training'
+export type GrammarRaceTaskType = 'single_choice'
 export type GrammarRaceSessionStatus =
   | 'active'
   | 'student_won'
   | 'computer_won'
   | 'abandoned'
-export type PersonalPronoun = 'he' | 'she' | 'it' | 'we' | 'they'
+export type GrammarRaceAnswer = string
+
+export type GrammarRaceTaskOption = {
+  id: string
+  label: string
+}
 
 export type GrammarRaceApiTask = {
   position: number
-  prompt: string
-  translation: string | null
-  correctAnswer: PersonalPronoun
-  botAnswer: PersonalPronoun
+  type: GrammarRaceTaskType
+  payload: {
+    text: string
+    translation: string | null
+    instruction?: string
+    feedback?: {
+      correctText: string
+      translation?: string
+      explanation: string
+    }
+  }
+  options: GrammarRaceTaskOption[]
+  correctAnswer: GrammarRaceAnswer
+  botAnswer: GrammarRaceAnswer
   botDelayMs: number
 }
 
 export type GrammarRaceRound = {
   taskPosition: number
-  playerAnswer: PersonalPronoun | null
+  playerAnswer: GrammarRaceAnswer | null
   playerAnswerMs: number | null
+  secondPlayerAnswer: GrammarRaceAnswer | null
+  secondPlayerAnswerMs: number | null
 }
 
 export type GrammarRaceSession = {
   id: string
   gameCode: GrammarRaceGameCode
+  playMode: GrammarRacePlayMode
   status: GrammarRaceSessionStatus
-  attemptNumber: number
+  attemptNumber: number | null
   entryCost: number
   winReward: number
   difficulty: {
@@ -38,7 +58,6 @@ export type GrammarRaceSession = {
     answerGraceMs: number
   }
   winningScore: number
-  options: PersonalPronoun[]
   score: {student: number, computer: number}
   tasks: GrammarRaceApiTask[]
   rounds: Array<GrammarRaceRound & {
@@ -54,6 +73,9 @@ export type GrammarRaceSession = {
 
 export type GrammarRaceStatus = {
   gameCode: GrammarRaceGameCode
+  minGrade: number
+  isAvailable: boolean
+  reactionTimeMultiplier: number
   currentLevel: number
   maxLevel: number
   attemptsUsed: number
@@ -62,6 +84,32 @@ export type GrammarRaceStatus = {
   balance: number
   available: number
   activeSession: GrammarRaceSession | null
+}
+
+export type GrammarRaceAchievement = {
+  gameCode: GrammarRaceGameCode
+  gameTitle: string
+  rankTitle: string
+  route: string
+  minGrade: number
+  isAvailable: boolean
+  currentLevel: number
+  maxLevel: number
+  medalTier: number
+  isMaxLevel: boolean
+  gamesPlayed: number
+  gamesWon: number
+  gamesAtLevel: number
+  winsAtLevel: number
+  progressPercent: number
+}
+
+export type GrammarRaceAchievementsResponse = {
+  items: GrammarRaceAchievement[]
+  levelUp: {
+    minimumGames: number
+    minimumWinRatePercent: number
+  }
 }
 
 export type CompleteGrammarRacePayload = {

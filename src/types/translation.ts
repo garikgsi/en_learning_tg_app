@@ -38,3 +38,18 @@ export type TranslationTask = {
   list: TranslationWord[]
   results: WordStatistics[]
 }
+
+export type TranslationExerciseProgress = {
+  version: 1
+  exerciseId: number
+  exerciseItemIds: number[]
+  currentLanguage?: TranslationLanguage
+  currentWordIndex: number
+  currentWordId: number | null
+  answer: string
+  errorsOnCurrentAttempt: number
+  hintUsageByWord: Record<number, number>
+  visitedWordIdsInCycle: number[]
+  russianResults: WordStatistics[]
+  englishResults: WordStatistics[]
+}

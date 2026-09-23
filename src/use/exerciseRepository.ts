@@ -10,6 +10,7 @@ import type {PendingCompletion} from '@/api/indexedDb/types/exercise';
 import type {
   CompleteExercisePayload,
   Exercise,
+  UserExerciseType,
 } from '@/api/types/exercise';
 import type {RepositoryResult} from '@/use/types/repository';
 import type {
@@ -92,8 +93,8 @@ const performSync = async (userId: string): Promise<CompletionSyncSummary> => {
 };
 
 const repository = {
-  createUserExercise(): Promise<number> {
-    return httpExerciseDriver.createUserExercise();
+  createUserExercise(type: UserExerciseType = 'translate'): Promise<number> {
+    return httpExerciseDriver.createUserExercise(type);
   },
 
   async getForPeriod(

@@ -2,6 +2,9 @@ import {createPinia, setActivePinia} from 'pinia';
 import {beforeEach, describe, expect, it} from 'vitest';
 import type {Exercise} from '@/api/types/exercise';
 import {useTranslateStore} from '@/stores/translateStore';
+import {useUserStore} from '@/stores/userStore';
+import {indexedDb, indexedDbStores} from '@/api/indexedDb';
+import type {TranslationExerciseProgress} from '@/types/translation';
 
 const exercise: Exercise = {
   id: 7,
@@ -24,7 +27,10 @@ const exercise: Exercise = {
 };
 
 describe('translateStore exercise words', () => {
-  beforeEach(() => setActivePinia(createPinia()));
+  beforeEach(async () => {
+    setActivePinia(createPinia());
+    await indexedDb.clear(indexedDbStores.exerciseProgress);
+  });
 
   it('uses only primary translations for answers and keeps variants as hints', () => {
     const store = useTranslateStore();
@@ -80,4 +86,89 @@ describe('translateStore exercise words', () => {
       exerciseType: 'plural',
     });
   });
+
+  it('stores and restores daily exercise progress only on this device', async () => {
+    const store = useTranslateStore();
+    const dailyExercise: Exercise = {
+      ...exercise,
+      type: {id: 1, name: 'daily', title: 'Перевод слов'},
+    };
+    useUserStore().user = {
+      id: 'progress-user',
+      name: 'Ученик',
+      phone: '+79990000000',
+      role: 'user',
+      avatar: '',
+      createdAt: '2026-08-26T00:00:00Z',
+    };
+    store.activeExercise = dailyExercise;
+    store.setExercises([dailyExercise]);
+    const progress: TranslationExerciseProgress = {
+      version: 1,
+      exerciseId: dailyExercise.id,
+      exerciseItemIds: [91],
+      currentLanguage: 'en',
+      currentWordIndex: 0,
+      currentWordId: 91,
+      answer: 'MA',
+      errorsOnCurrentAttempt: 1,
+      hintUsageByWord: {91: 1},
+      visitedWordIdsInCycle: [91],
+      russianResults: [],
+      englishResults: [{
+        id: 91,
+        retries: 0,
+        isOk: false,
+        variants: ['mx'],
+        skipTimes: 0,
+        hintTimes: 1,
+        errorTimes: 1,
+      }],
+    };
+
+    await store.saveExerciseProgress(progress);
+
+    expect(await store.loadExerciseProgress()).toEqual(progress);
+
+    await store.clearExerciseProgress();
+    expect(await store.loadExerciseProgress()).toBeNull();
+  });
+
+  it.each(['daily', 'weekly', 'plural'])(
+    'allows resuming %s exercises',
+    async exerciseType => {
+      const store = useTranslateStore();
+      const resumableExercise: Exercise = {
+        ...exercise,
+        type: {id: 1, name: exerciseType, title: exerciseType},
+      };
+      useUserStore().user = {
+        id: `progress-${exerciseType}`,
+        name: 'Ученик',
+        phone: '+79990000000',
+        role: 'user',
+        avatar: '',
+        createdAt: '2026-08-26T00:00:00Z',
+      };
+      store.activeExercise = resumableExercise;
+      store.setExercises([resumableExercise]);
+      const progress: TranslationExerciseProgress = {
+        version: 1,
+        exerciseId: resumableExercise.id,
+        exerciseItemIds: [91],
+        currentWordIndex: -1,
+        currentWordId: null,
+        answer: '',
+        errorsOnCurrentAttempt: 0,
+        hintUsageByWord: {},
+        visitedWordIdsInCycle: [],
+        russianResults: [],
+        englishResults: [],
+      };
+
+      await store.saveExerciseProgress(progress);
+
+      expect(await store.loadExerciseProgress()).toEqual(progress);
+    },
+  );
 });

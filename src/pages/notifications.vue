@@ -12,7 +12,7 @@ const router = useRouter();
 const userStore = useUserStore();
 const notificationStore = useNotificationStore();
 const {user} = storeToRefs(userStore);
-const {items, isSynchronizing} = storeToRefs(notificationStore);
+const {items, isSynchronizing, unreadCount} = storeToRefs(notificationStore);
 const {isConnected} = useNetwork();
 const appUpdate = useAppUpdate();
 
@@ -23,9 +23,22 @@ const formatDate = (value: string): string => {
   }).format(new Date(value));
 };
 
+const notificationIcon = (type: string): string => {
+  if (type === 'app.release.available') return 'mdi-cellphone-arrow-down';
+  if (type === 'grammar_race.level_up') return 'mdi-medal-outline';
+
+  return 'mdi-bell-outline';
+};
+
 const refresh = async (): Promise<void> => {
   if (user.value?.id && isConnected.value) {
     await notificationStore.synchronize(user.value.id);
+  }
+};
+
+const markAllRead = async (): Promise<void> => {
+  if (isConnected.value && unreadCount.value > 0) {
+    await notificationStore.markAllRead();
   }
 };
 
@@ -61,14 +74,24 @@ onMounted(async () => {
   <v-card class="mx-auto" max-width="760">
     <v-card-title class="notifications-title">
       <span>Уведомления</span>
-      <v-btn
-        aria-label="Обновить уведомления"
-        :disabled="!isConnected"
-        :loading="isSynchronizing"
-        icon="mdi-refresh"
-        variant="text"
-        @click="refresh"
-      />
+      <div class="d-flex ga-2">
+        <v-btn
+          v-if="unreadCount > 0"
+          aria-label="Отметить все уведомления прочитанными"
+          :disabled="!isConnected || isSynchronizing"
+          icon="mdi-check-all"
+          variant="tonal"
+          @click="markAllRead"
+        />
+        <v-btn
+          aria-label="Обновить уведомления"
+          :disabled="!isConnected"
+          :loading="isSynchronizing"
+          icon="mdi-refresh"
+          variant="tonal"
+          @click="refresh"
+        />
+      </div>
     </v-card-title>
 
     <v-divider />
@@ -84,9 +107,7 @@ onMounted(async () => {
           <template #prepend>
             <v-icon
               :color="notification.readAt === null ? 'primary' : undefined"
-              :icon="notification.type === 'app.release.available'
-                ? 'mdi-cellphone-arrow-down'
-                : 'mdi-bell-outline'"
+              :icon="notificationIcon(notification.type)"
             />
           </template>
           <template #append>

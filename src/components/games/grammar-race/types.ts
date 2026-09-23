@@ -1,13 +1,26 @@
+import type {
+  GrammarRaceTaskOption,
+  GrammarRaceTaskType,
+} from '@/api/types/grammarRace';
+
 export type GrammarRaceTask = {
   id: string
   position?: number
-  prompt: string
-  translation?: string | null
-  choices: readonly string[]
+  type: GrammarRaceTaskType
+  payload: {
+    text: string
+    translation: string | null
+    instruction?: string
+    feedback?: {
+      correctText: string
+      translation?: string
+      explanation: string
+    }
+  }
+  options: readonly GrammarRaceTaskOption[]
   correctAnswer: string
   botAnswer?: string
   botDelayMs?: number
-  explanation?: string
 }
 
 export type GrammarRaceRules = {
@@ -24,7 +37,9 @@ export type GrammarRaceDefinition = {
   rankTitle: string
   title: string
   description: string
+  minGrade: number
   instruction: string
+  requiresMistakeReview?: boolean
   tasks: readonly GrammarRaceTask[]
   rules: GrammarRaceRules
 }

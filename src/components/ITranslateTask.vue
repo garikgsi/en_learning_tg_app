@@ -4,6 +4,7 @@ import {
   computed,
   type ComputedRef,
   nextTick,
+  onBeforeUnmount,
   onMounted,
   ref,
 } from "vue";
@@ -12,6 +13,7 @@ import IWord from "@/components/IWord.vue";
 import ITimer from '@/components/ITimer.vue';
 import type {
   TranslationLanguage,
+  TranslationExerciseProgress,
   TranslationTask,
   WordMistake,
   WordResult,
@@ -28,12 +30,13 @@ type Emits = {
 }
 
 const emits = defineEmits<Emits>();
-const {wordList, reversedWordList} = storeToRefs(useTranslateStore());
+const translateStore = useTranslateStore();
+const {wordList, reversedWordList} = storeToRefs(translateStore);
 const dictionaryStore = useDictionaryStore();
 const {isAnswerLetterCorrect, normalizeAnswer} = useKeyNormalizer();
 const isPluralExercise = computed(() => {
   return wordList.value.length > 0
-    && wordList.value.every(word => word.exerciseType === 'plural');
+    && wordList.value.every(word => ['plural', 'userPlural'].includes(word.exerciseType ?? ''));
 });
 
 const wordCompleteSuccessfully = ref(false);
@@ -55,6 +58,7 @@ const wordInstanceKey = ref(0);
 const errorsOnCurrentAttempt = ref(0);
 const hintUsageByWord = ref<Record<number, number>>({});
 const visitedWordIdsInCycle = ref<Set<number>>(new Set());
+const isProgressReady = ref(false);
 
 const otp = ref<InstanceType<typeof IWord> | null>(null);
 const timer = ref<InstanceType<typeof ITimer> | null>(null);
@@ -261,13 +265,122 @@ const taskTitle = computed(() => {
   return `Осталось слов: ${remainingWordsCount.value} из ${currentWordList.value.length}`
 })
 
-onMounted(async () => {
-  if (isPluralExercise.value) {
-    await selectLanguage('en');
+const buildProgress = (): TranslationExerciseProgress | null => {
+  const exerciseId = wordList.value[0]?.exerciseId;
+  if (!exerciseId) {
+    return null;
+  }
+
+  const copyResults = (results: WordStatistics[]): WordStatistics[] => {
+    return results.map(result => ({
+      ...result,
+      variants: [...result.variants],
+    }));
+  };
+
+  return {
+    version: 1,
+    exerciseId,
+    exerciseItemIds: wordList.value.map(word => word.exerciseItemId),
+    currentLanguage: currentLanguage.value,
+    currentWordIndex: currentWordIndex.value,
+    currentWordId: currentWordId.value,
+    answer: isShowingSkippedWord.value ? '' : answer.value,
+    errorsOnCurrentAttempt: errorsOnCurrentAttempt.value,
+    hintUsageByWord: {...hintUsageByWord.value},
+    visitedWordIdsInCycle: [...visitedWordIdsInCycle.value],
+    russianResults: copyResults(russianResults.value),
+    englishResults: copyResults(englishResults.value),
+  };
+};
+
+const persistProgress = (): void => {
+  if (!isProgressReady.value) {
     return;
   }
 
-  await startNewWord(0);
+  const progress = buildProgress();
+  if (progress) {
+    void translateStore.saveExerciseProgress(progress).catch(() => undefined);
+  }
+};
+
+const restoreProgress = async (
+  progress: TranslationExerciseProgress,
+): Promise<boolean> => {
+  const validIds = new Set(wordList.value.map(word => word.id));
+  const filterResults = (results: WordStatistics[]): WordStatistics[] => {
+    return results.filter(result => validIds.has(result.id));
+  };
+
+  russianResults.value = filterResults(progress.russianResults);
+  englishResults.value = filterResults(progress.englishResults);
+  currentLanguage.value = isPluralExercise.value
+    ? 'en'
+    : progress.currentLanguage;
+  currentWordIndex.value = progress.currentWordIndex;
+  currentWordId.value = progress.currentWordId;
+  errorsOnCurrentAttempt.value = progress.errorsOnCurrentAttempt;
+  hintUsageByWord.value = {...progress.hintUsageByWord};
+  visitedWordIdsInCycle.value = new Set(
+    progress.visitedWordIdsInCycle.filter(id => validIds.has(id)),
+  );
+
+  if (!currentLanguage.value) {
+    answer.value = '';
+    currentWordIndex.value = -1;
+    currentWordId.value = null;
+    return true;
+  }
+
+  if (remainingWords.value.length === 0) {
+    return false;
+  }
+
+  const restoredIndex = remainingWords.value.findIndex(word => {
+    return word.id === progress.currentWordId;
+  });
+  currentWordIndex.value = restoredIndex >= 0
+    ? restoredIndex
+    : Math.min(Math.max(progress.currentWordIndex, 0), remainingWords.value.length - 1);
+  currentWordId.value = remainingWords.value[currentWordIndex.value]?.id ?? null;
+  answer.value = currentWordId.value === progress.currentWordId
+    ? progress.answer
+    : '';
+  wordInstanceKey.value += 1;
+  isChangingWord.value = true;
+  await nextTick();
+  timer.value?.reset();
+  isChangingWord.value = false;
+  await nextTick();
+  await otp.value?.focus(answer.value.length);
+
+  return true;
+};
+
+onMounted(async () => {
+  const savedProgress = await translateStore.loadExerciseProgress();
+  if (savedProgress && await restoreProgress(savedProgress)) {
+    isProgressReady.value = true;
+    return;
+  }
+
+  if (savedProgress) {
+    await translateStore.clearExerciseProgress();
+  }
+
+  if (isPluralExercise.value) {
+    await selectLanguage('en');
+  } else {
+    await startNewWord(0);
+  }
+
+  isProgressReady.value = true;
+  persistProgress();
+});
+
+onBeforeUnmount(() => {
+  persistProgress();
 });
 
 const startNewWord = async (exclude?: number) => {
@@ -303,11 +416,14 @@ const startNewWord = async (exclude?: number) => {
 
   }
 
+  persistProgress();
+
 }
 
 const updateAnswer = (value: string): void => {
   if (!isChangingWord.value) {
     answer.value = value;
+    persistProgress();
   }
 }
 
@@ -317,6 +433,7 @@ const waitForLanguageSelection = (): void => {
   currentWordId.value = null;
   answer.value = '';
   isChangingWord.value = false;
+  persistProgress();
 }
 
 const timerText = computed(() => {
@@ -362,6 +479,7 @@ const skipWord = async () => {
     currentWord.value.checkWord,
     currentLanguage.value,
   );
+  persistProgress();
 
   try {
     await pause(skippedWordDisplayMs);
@@ -372,6 +490,7 @@ const skipWord = async () => {
     isShowingSkippedWord.value = false;
     timerPaused.value = false;
     isChangingWord.value = false;
+    persistProgress();
   }
 
 }
@@ -431,6 +550,8 @@ const addMistakes = async (mistake: WordMistake) => {
   ) {
     res.variants.push(mistake.answer);
   }
+
+  persistProgress();
 }
 
 const getHint = async () => {
@@ -451,6 +572,7 @@ const getHint = async () => {
     }
 
     otp.value?.focus(answer.value.length);
+    persistProgress();
 
   }
 
@@ -570,6 +692,7 @@ const selectLanguage = async (selectedLanguage: TranslationLanguage) => {
 
   await nextTick();
   await startNewWord();
+  persistProgress();
 }
 
 const selectEnglish = async () => {

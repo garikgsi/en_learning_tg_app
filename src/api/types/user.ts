@@ -6,5 +6,6 @@ export type UserInfo = {
   phone: string
   role: UserRole
   avatar: string
+  grade?: number | null
   createdAt: string
 }

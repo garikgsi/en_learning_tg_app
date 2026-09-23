@@ -39,6 +39,13 @@ export const useNotificationStore = defineStore('notifications', () => {
     items.value = await repository.getCached(activeUserId.value);
   };
 
+  const markAllRead = async (): Promise<void> => {
+    if (!activeUserId.value) return;
+
+    await repository.markAllRead(activeUserId.value);
+    items.value = await repository.getCached(activeUserId.value);
+  };
+
   return {
     items,
     isSynchronizing,
@@ -46,5 +53,6 @@ export const useNotificationStore = defineStore('notifications', () => {
     loadCached,
     synchronize,
     markRead,
+    markAllRead,
   };
 });

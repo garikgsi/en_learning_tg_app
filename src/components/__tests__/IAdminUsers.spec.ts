@@ -6,6 +6,7 @@ import {VApp} from 'vuetify/components';
 import {h} from 'vue';
 import IAdminUsers from '@/components/IAdminUsers.vue';
 import {httpAdminExerciseDriver} from '@/api/http/adminExercise';
+import type {AssignmentUser} from '@/api/http/adminExercise';
 import {useUserStore} from '@/stores/userStore';
 
 let wrapper: ReturnType<typeof mount> | null = null;
@@ -37,10 +38,21 @@ const open = async (role: 'admin' | 'user') => {
 };
 
 describe('admin users', () => {
-  it('shows login, phone and lifetime earned coins', async () => {
+  it('shows a skeleton while the user list is loading', async () => {
+    vi.spyOn(httpAdminExerciseDriver, 'getUsers').mockReturnValue(
+      new Promise<AssignmentUser[]>(() => undefined),
+    );
+
+    await open('admin');
+
+    expect(wrapper!.find('[data-testid="users-skeleton"]').exists()).toBe(true);
+    expect(wrapper!.findComponent({name: 'VSkeletonLoader'}).exists()).toBe(true);
+  });
+
+  it('shows phone, grade and current coin balance', async () => {
     vi.spyOn(httpAdminExerciseDriver, 'getUsers').mockResolvedValue([
-      {id: '1', name: 'Анна', phone: '+79990000001', grade: 5, avatar: '/storage/avatars/anna.webp', totalEarnedCoins: 12},
-      {id: '2', name: 'Борис', phone: '+79990000002', grade: null, avatar: '', totalEarnedCoins: 0},
+      {id: '1', name: 'Анна', phone: '+79990000001', grade: 5, avatar: '/storage/avatars/anna.webp', balance: 12},
+      {id: '2', name: 'Борис', phone: '+79990000002', grade: null, avatar: '', balance: 0},
     ]);
 
     await open('admin');
@@ -49,12 +61,18 @@ describe('admin users', () => {
     expect(wrapper!.find('table').exists()).toBe(false);
     expect(wrapper!.text()).not.toContain('Логин');
     expect(wrapper!.text()).not.toContain('Номер телефона');
-    expect(wrapper!.text()).not.toContain('Баланс');
+    expect(wrapper!.text()).toContain('Баланс: 12 EnCoin');
+    expect(wrapper!.text()).toContain('5 класс');
     expect(wrapper!.text()).toContain('Анна');
     expect(wrapper!.text()).toContain('+79990000001');
     expect(wrapper!.findAllComponents({name: 'VAvatar'})).toHaveLength(2);
     expect(wrapper!.findAllComponents({name: 'VImg'})).toHaveLength(1);
-    expect(wrapper!.findAllComponents({name: 'VBadge'}).map(badge => badge.props('content'))).toEqual(['12 EnCoin', '0 EnCoin']);
+    expect(wrapper!.findAllComponents({name: 'VBadge'}).map(badge => badge.props('content'))).toEqual([
+      '5 класс',
+      'Баланс: 12 EnCoin',
+      'Класс не указан',
+      'Баланс: 0 EnCoin',
+    ]);
   });
 
   it('does not request or expose user data to an ordinary user', async () => {

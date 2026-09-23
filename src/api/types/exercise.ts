@@ -4,6 +4,8 @@ export type ExerciseType = {
   title: string
 }
 
+export type UserExerciseType = 'translate' | 'plural'
+
 export type ExerciseWord = {
   id: number
   ru: string
