@@ -232,14 +232,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 
 ```powershell
 $description = @'
-Улучшен интерфейс.
-Исправлены ошибки.
+Добавлены игры «Гонка артиклей» и «Притяжательные местоимения».
+Добавлен раздел достижений.
+Увеличено время для учеников младших классов.
+Переработан алгоритм игрового движка и исправлены мелкие ошибки.
+Добавлены объяснения ошибок в играх.
+Добавлен режим тренировки во все игры.
 '@
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File C:\projects\_\en_learning_tg_app\scripts\publish-front.ps1 `
-  -VersionCode 17 `
-  -VersionName '0.1.0-rc.17' `
+  -VersionCode 23 `
+  -VersionName '0.1.0-rc.23' `
   -Description $description
 ```
 

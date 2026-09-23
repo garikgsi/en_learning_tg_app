@@ -239,15 +239,22 @@ try {
         1
     )
 
-    if ($updatedGradle -eq $gradleSource) {
-        throw 'Android version was not changed in build.gradle'
+    $expectedVersionCode = "\bversionCode\s+$([regex]::Escape([string] $VersionCode))\b"
+    $expectedVersionName = "\bversionName\s+`"$([regex]::Escape($VersionName))`""
+    if (
+        -not [regex]::IsMatch($updatedGradle, $expectedVersionCode) `
+        -or -not [regex]::IsMatch($updatedGradle, $expectedVersionName)
+    ) {
+        throw 'Android version could not be set in build.gradle'
     }
 
-    [IO.File]::WriteAllText(
-        $buildGradle,
-        $updatedGradle,
-        [Text.UTF8Encoding]::new($false)
-    )
+    if ($updatedGradle -ne $gradleSource) {
+        [IO.File]::WriteAllText(
+            $buildGradle,
+            $updatedGradle,
+            [Text.UTF8Encoding]::new($false)
+        )
+    }
 
     Invoke-ExternalCommand npm.cmd @('run', 'lint')
     Invoke-ExternalCommand npm.cmd @('test')
