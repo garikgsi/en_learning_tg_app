@@ -96,6 +96,17 @@ describe('GrammarRaceRoundScreen', () => {
     await wrapper.setProps({task: possessiveTask});
 
     expect(phrase()).toBe('Kate has got a dog. ___ dog is friendly.');
+
+    const toBeTask = task('is');
+    toBeTask.payload.text = 'She ___ at school today.';
+    toBeTask.payload.translation = 'Она сегодня в школе.';
+    toBeTask.options = ['am', 'is', 'are', 'was', 'were']
+      .map(id => ({id, label: id}));
+    toBeTask.correctAnswer = 'is';
+    await wrapper.setProps({task: toBeTask});
+
+    expect(phrase()).toBe('She ___ at school today.');
+    expect(wrapper.text()).toContain('Она сегодня в школе.');
   });
 
   it('updates the computer score only after the yellow point arrives', async () => {

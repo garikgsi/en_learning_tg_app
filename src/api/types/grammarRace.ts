@@ -1,4 +1,8 @@
-export type GrammarRaceGameCode = 'personal_pronouns' | 'possessive_pronouns' | 'articles'
+export type GrammarRaceGameCode =
+  | 'personal_pronouns'
+  | 'possessive_pronouns'
+  | 'articles'
+  | 'to_be'
 export type GrammarRaceTaskMode = 'phrase' | 'sentence'
 export type GrammarRacePlayMode = 'competitive' | 'training'
 export type GrammarRaceTaskType = 'single_choice'
@@ -78,6 +82,7 @@ export type GrammarRaceStatus = {
   reactionTimeMultiplier: number
   currentLevel: number
   maxLevel: number
+  winningScore: number
   attemptsUsed: number
   attemptsRemaining: number
   nextEntryCost: number | null

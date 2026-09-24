@@ -39,5 +39,6 @@ declare module 'vue' {
     PronounGameMockup: typeof import('./src/components/games/pronoun/PronounGameMockup.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    ToBeGame: typeof import('./src/components/games/to-be/ToBeGame.vue')['default']
   }
 }

@@ -305,7 +305,7 @@ onMounted(async () => {
   <v-card class="statistics-card">
     <v-card-title class="statistics-card__header">
 
-      <v-spacer />
+      <v-spacer class="statistics-card__header-spacer" />
 
       <v-btn
         v-if="userStore.isAdmin"
@@ -645,8 +645,27 @@ onMounted(async () => {
 .statistics-card__header {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   justify-content: space-between;
+  min-width: 0;
+  white-space: normal;
+}
+
+@media (max-width: 600px) {
+  .statistics-card__header {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 12px 16px;
+  }
+
+  .statistics-card__header-spacer {
+    display: none;
+  }
+
+  .statistics-card__header :deep(.v-btn) {
+    width: 100%;
+  }
 }
 
 .statistics-achievement {

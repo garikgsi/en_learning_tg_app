@@ -8,10 +8,12 @@ import {useUserStore} from '@/stores/userStore';
 import {pronounRace} from '@/components/games/pronoun/pronounRace';
 import {possessivePronounRace} from '@/components/games/possessive-pronoun/possessivePronounRace';
 import {articleRace} from '@/components/games/article/articleRace';
+import {toBeRace} from '@/components/games/to-be/toBeRace';
 
 const minimumPronounGrade = pronounRace.minGrade;
 const minimumPossessivePronounGrade = possessivePronounRace.minGrade;
 const minimumArticleGrade = articleRace.minGrade;
+const minimumToBeGrade = toBeRace.minGrade;
 const {user} = storeToRefs(useUserStore());
 const isPronounGameAvailable = computed(() => (
   (user.value?.grade ?? 0) >= minimumPronounGrade
@@ -22,18 +24,9 @@ const isPossessivePronounGameAvailable = computed(() => (
 const isArticleGameAvailable = computed(() => (
   (user.value?.grade ?? 0) >= minimumArticleGrade
 ));
-
-const upcomingGames = [
-  {
-    title: 'Формы глаголов',
-    description: 'Подставляйте правильную форму глагола в предложение.',
-    character: robotThinking,
-    characterClass: 'game-card__character--robot-face game-card__character--mirrored',
-    visualClass: 'game-card__visual--verbs',
-    contain: false,
-    tokens: ['is', 'are'],
-  },
-];
+const isToBeGameAvailable = computed(() => (
+  (user.value?.grade ?? 0) >= minimumToBeGrade
+));
 </script>
 
 <template>
@@ -191,48 +184,47 @@ const upcomingGames = [
       </v-card>
 
       <v-card
-        v-for="game in upcomingGames"
-        :key="game.title"
-        class="game-card"
-        variant="outlined"
+        class="game-card game-card--active"
+        color="primary"
+        :to="isToBeGameAvailable ? '/games/to-be' : undefined"
+        variant="tonal"
       >
         <v-card-item>
           <template #prepend>
             <div
               aria-hidden="true"
-              class="game-card__visual"
-              :class="game.visualClass"
+              class="game-card__visual game-card__visual--verbs"
             >
               <v-img
-                class="game-card__character"
-                :class="game.characterClass"
-                :cover="!game.contain"
+                class="game-card__character game-card__character--robot-face game-card__character--mirrored"
+                cover
                 position="center 21%"
-                :src="game.character"
+                :src="robotThinking"
               ></v-img>
-              <span class="game-card__token game-card__token--left">
-                {{ game.tokens?.[0] }}
-              </span>
-              <span class="game-card__token game-card__token--right">
-                {{ game.tokens?.[1] }}
-              </span>
+              <span class="game-card__token game-card__token--left">am</span>
+              <span class="game-card__token game-card__token--right">were</span>
             </div>
           </template>
-          <v-card-title>{{ game.title }}</v-card-title>
-          <v-card-subtitle>Готовим новую гонку</v-card-subtitle>
+          <v-card-title>Форма глагола to be</v-card-title>
+          <v-card-subtitle>
+            {{ isToBeGameAvailable ? 'Доступно сейчас' : `Доступно со ${minimumToBeGrade} класса` }}
+          </v-card-subtitle>
         </v-card-item>
-        <v-card-text class="text-medium-emphasis">
-          {{ game.description }}
+
+        <v-card-text>
+          Выбирайте am, is, are, а на сложных уровнях — was или were
         </v-card-text>
-        <v-card-actions class="game-card__soon">
-          <v-chip
-            append-icon="mdi-star-four-points"
-            color="secondary"
-            prepend-icon="mdi-party-popper"
-            variant="tonal"
+
+        <v-card-actions class="justify-end">
+          <v-btn
+            :append-icon="isToBeGameAvailable ? 'mdi-arrow-right' : undefined"
+            color="primary"
+            :disabled="!isToBeGameAvailable"
+            :prepend-icon="isToBeGameAvailable ? undefined : 'mdi-lock-outline'"
+            variant="flat"
           >
-            Скоро будет доступно
-          </v-chip>
+            {{ isToBeGameAvailable ? 'Играть' : `Со ${minimumToBeGrade} класса` }}
+          </v-btn>
         </v-card-actions>
       </v-card>
     </div>

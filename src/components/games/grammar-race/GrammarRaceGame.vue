@@ -605,6 +605,7 @@ onBeforeUnmount(() => {
       :is-connected="isConnected"
       :is-loading="isLoading"
       :next-entry-cost="status?.nextEntryCost ?? null"
+      :winning-score="session?.winningScore ?? status?.winningScore ?? game.rules.targetScore"
       @back="finish"
       @start="startOrResume"
     ></GrammarRaceLobbyScreen>

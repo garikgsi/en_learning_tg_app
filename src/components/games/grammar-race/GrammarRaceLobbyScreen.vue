@@ -8,6 +8,7 @@ import type {GrammarRacePlayMode} from '@/api/types/grammarRace';
 type Props = {
   game: GrammarRaceDefinition
   currentLevel?: number
+  winningScore?: number
   nextEntryCost?: number | null
   availableCoins?: number
   isConnected?: boolean
@@ -20,6 +21,7 @@ type Props = {
 
 const props = withDefaults(defineProps<Props>(), {
   currentLevel: 1,
+  winningScore: 5,
   nextEntryCost: 0,
   availableCoins: 0,
   isConnected: true,
@@ -112,7 +114,7 @@ const isStartDisabled = computed(() => (
 
       <div class="d-flex align-center justify-center ga-2 mt-1 text-body-2 font-weight-medium">
         <v-icon color="primary" icon="mdi-trophy-outline" size="20"></v-icon>
-        Первый, кто наберёт {{ game.rules.targetScore }} очков, получит
+        Первый, кто наберёт {{ winningScore }} очков, получит
         {{ game.rules.winReward }} монеты
       </div>
 
