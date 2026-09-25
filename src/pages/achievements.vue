@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue';
 import {getApiErrorMessage} from '@/api/errors';
+import {httpDachshundGameDriver} from '@/api/http/dachshundGame';
 import {httpGrammarRaceDriver} from '@/api/http/grammarRace';
+import type {DachshundGameRecords} from '@/api/types/dachshundGame';
 import type {
   GrammarRaceAchievement,
   GrammarRaceAchievementsResponse,
 } from '@/api/types/grammarRace';
 import {useNetwork} from '@/use/network';
+import dachshundSitting from '@/assets/games/dachshund/dachshund-sitting.png';
 
 const medalColors = [
   '#303136',
@@ -18,6 +21,7 @@ const medalColors = [
 
 const {isConnected} = useNetwork();
 const achievements = ref<GrammarRaceAchievementsResponse | null>(null);
+const dachshundRecords = ref<DachshundGameRecords | null>(null);
 const isLoading = ref(false);
 const error = ref('');
 
@@ -107,7 +111,10 @@ const load = async (): Promise<void> => {
   isLoading.value = true;
   error.value = '';
   try {
-    achievements.value = await httpGrammarRaceDriver.getAchievements();
+    [achievements.value, dachshundRecords.value] = await Promise.all([
+      httpGrammarRaceDriver.getAchievements(),
+      httpDachshundGameDriver.getRecords(),
+    ]);
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Не удалось загрузить достижения');
   } finally {
@@ -136,10 +143,61 @@ onMounted(load);
     </v-alert>
 
     <div v-if="isLoading && !achievements" class="achievements-grid">
-      <v-skeleton-loader v-for="index in 2" :key="index" type="article, actions" />
+      <v-skeleton-loader v-for="index in 3" :key="index" type="article, actions" />
     </div>
 
     <div v-else class="achievements-grid">
+      <v-card
+        class="achievement-card achievement-card--alpha"
+        color="success"
+        variant="tonal"
+      >
+        <v-card-text class="achievement-card__content pa-4 pa-sm-5">
+          <v-img
+            :src="dachshundSitting"
+            aria-hidden="true"
+            class="achievement-card__alpha-watermark"
+            contain
+          />
+
+          <div class="achievement-card__top">
+            <div class="achievement-card__heading">
+              <div class="achievement-card__game-title text-overline">
+                Такса Альфа
+              </div>
+              <h2 class="achievement-card__title font-weight-bold mt-1">
+                Рекорды алфавитного путешествия
+              </h2>
+            </div>
+          </div>
+
+          <div class="achievement-card__stats achievement-card__stats--alpha mt-6">
+            <div>
+              <span class="text-caption text-medium-emphasis">Ваш высший счёт</span>
+              <strong>{{ dachshundRecords?.personalBest ?? 0 }} очков</strong>
+            </div>
+            <div>
+              <span class="text-caption text-medium-emphasis">Лучший среди всех</span>
+              <strong>{{ dachshundRecords?.globalBest ?? 0 }} очков</strong>
+            </div>
+          </div>
+        </v-card-text>
+
+        <v-divider />
+        <v-card-actions class="pa-3 px-sm-5">
+          <span class="text-body-2 text-medium-emphasis">Соберите весь алфавит</span>
+          <v-spacer />
+          <v-btn
+            color="success"
+            prepend-icon="mdi-paw"
+            to="/games/dachshund"
+            variant="flat"
+          >
+            Играть
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+
       <v-card
         v-for="achievement in items"
         :key="achievement.gameCode"
@@ -266,6 +324,12 @@ onMounted(load);
   position: relative;
 }
 
+.achievement-card--alpha {
+  background:
+    radial-gradient(circle at 86% 12%, rgba(255, 255, 255, 0.7), transparent 24%),
+    linear-gradient(145deg, rgba(231, 249, 233, 0.94), rgba(199, 235, 211, 0.78));
+}
+
 .achievement-card .v-card-actions {
   margin-top: auto;
 }
@@ -279,6 +343,17 @@ onMounted(load);
   position: absolute;
   right: 8px;
   top: 4px;
+  z-index: 0;
+}
+
+.achievement-card__alpha-watermark {
+  bottom: -28px;
+  height: 172px;
+  opacity: 0.2;
+  pointer-events: none;
+  position: absolute;
+  right: -22px;
+  width: 172px;
   z-index: 0;
 }
 
@@ -326,6 +401,11 @@ onMounted(load);
   white-space: nowrap;
 }
 
+.achievement-card__stats--alpha {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 76%;
+}
+
 .achievement-card__maximum {
   color: #dfb92f;
   font-weight: 600;
@@ -343,6 +423,10 @@ onMounted(load);
 @media (max-width: 599px) {
   .achievement-card__watermark {
     right: 2px;
+  }
+
+  .achievement-card__stats--alpha {
+    max-width: 100%;
   }
 
 }

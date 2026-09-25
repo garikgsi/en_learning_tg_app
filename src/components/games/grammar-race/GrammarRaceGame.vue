@@ -628,6 +628,7 @@ onBeforeUnmount(() => {
       :student-state="studentState"
       :task="task"
       :timer-progress="timerProgress"
+      :winning-score="session.winningScore"
       @answer="answer"
       @acknowledge-review="acknowledgeReview"
     ></GrammarRaceRoundScreen>

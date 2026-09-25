@@ -9,6 +9,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ArticleGame: typeof import('./src/components/games/article/ArticleGame.vue')['default']
+    DachshundBeanstalkPrototype: typeof import('./src/components/games/dachshund/DachshundBeanstalkPrototype.vue')['default']
     GrammarRaceGame: typeof import('./src/components/games/grammar-race/GrammarRaceGame.vue')['default']
     GrammarRaceGameMockup: typeof import('./src/components/games/grammar-race/GrammarRaceGameMockup.vue')['default']
     GrammarRaceLobbyScreen: typeof import('./src/components/games/grammar-race/GrammarRaceLobbyScreen.vue')['default']

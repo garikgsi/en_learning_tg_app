@@ -18,6 +18,7 @@ type Props = {
   task: GrammarRaceTask
   playerScore: number
   computerScore: number
+  winningScore?: number
   roundNumber: number
   selectedAnswer?: string | null
   timerProgress?: number
@@ -44,6 +45,7 @@ const props = withDefaults(defineProps<Props>(), {
   playerAvatar: null,
   studentName: 'Вы',
   reviewVisible: false,
+  winningScore: undefined,
 });
 
 const emit = defineEmits<{
@@ -145,6 +147,8 @@ const robotAvatar = computed(() => ({
   correct: robotHappy,
   incorrect: robotSad,
 })[props.botState]);
+// The target is snapshotted by the server for the active difficulty level.
+const targetScore = computed(() => props.winningScore ?? props.game.rules.targetScore);
 
 const reviewTranslation = computed(() => {
   if (props.task.payload.feedback?.translation) {
@@ -184,7 +188,7 @@ const reviewTranslation = computed(() => {
             :label="studentName"
             :score="displayedPlayerScore"
             side="student"
-            :target-score="game.rules.targetScore"
+            :target-score="targetScore"
           ></GrammarRacePlayerScore>
         </div>
         <div ref="computerScoreElement" class="pronoun-round__score-player">
@@ -193,7 +197,7 @@ const reviewTranslation = computed(() => {
             label="Компьютер"
             :score="displayedComputerScore"
             side="computer"
-            :target-score="game.rules.targetScore"
+            :target-score="targetScore"
           ></GrammarRacePlayerScore>
         </div>
       </div>
@@ -208,7 +212,7 @@ const reviewTranslation = computed(() => {
           Раунд {{ roundNumber }}
         </v-chip>
         <span class="text-caption text-medium-emphasis">
-          Первый до {{ game.rules.targetScore }}
+          Первый до {{ targetScore }}
         </span>
       </div>
 

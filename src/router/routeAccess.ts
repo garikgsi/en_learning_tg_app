@@ -7,6 +7,12 @@ type RouteMetadata = {
 }
 
 export const routes: Record<string, RouteMetadata> = {
+  '/games/dachshund': {
+    title: 'Такса и алфавит',
+    icon: 'mdi-sprout',
+    showInSideBar: false,
+    isPublic: false,
+  },
   '/games/pronoun': {
     title: 'Гонка местоимений',
     icon: 'mdi-flag-checkered',
@@ -126,6 +132,10 @@ export const routes: Record<string, RouteMetadata> = {
 };
 
 export const isPublicRoute = (path: string): boolean => {
+  if (import.meta.env.DEV && path === '/games/dachshund') {
+    return true;
+  }
+
   return routes[path]?.isPublic ?? false;
 }
 

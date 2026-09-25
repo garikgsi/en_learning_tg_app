@@ -26,6 +26,7 @@ declare module 'vue-router/auto-routes' {
     '/exercises': RouteRecordInfo<'/exercises', '/exercises', Record<never, never>, Record<never, never>>,
     '/games/': RouteRecordInfo<'/games/', '/games', Record<never, never>, Record<never, never>>,
     '/games/articles': RouteRecordInfo<'/games/articles', '/games/articles', Record<never, never>, Record<never, never>>,
+    '/games/dachshund': RouteRecordInfo<'/games/dachshund', '/games/dachshund', Record<never, never>, Record<never, never>>,
     '/games/possessive-pronoun': RouteRecordInfo<'/games/possessive-pronoun', '/games/possessive-pronoun', Record<never, never>, Record<never, never>>,
     '/games/pronoun': RouteRecordInfo<'/games/pronoun', '/games/pronoun', Record<never, never>, Record<never, never>>,
     '/games/to-be': RouteRecordInfo<'/games/to-be', '/games/to-be', Record<never, never>, Record<never, never>>,

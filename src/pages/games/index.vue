@@ -4,6 +4,7 @@ import {storeToRefs} from 'pinia';
 import robotThinking from '@/components/games/grammar-race/assets/robot-thinking.png';
 import studentHappy from '@/components/games/grammar-race/assets/student-happy.png';
 import studentThinking from '@/components/games/grammar-race/assets/student-thinking.png';
+import dachshundSitting from '@/assets/games/dachshund/dachshund-sitting.png';
 import {useUserStore} from '@/stores/userStore';
 import {pronounRace} from '@/components/games/pronoun/pronounRace';
 import {possessivePronounRace} from '@/components/games/possessive-pronoun/possessivePronounRace';
@@ -31,6 +32,43 @@ const isToBeGameAvailable = computed(() => (
 
 <template>
   <section class="games-page">
+    <section class="alpha-game-section" aria-labelledby="alpha-game-title">
+      <v-card
+        class="alpha-game-card"
+        color="success"
+        to="/games/dachshund"
+        variant="tonal"
+      >
+        <v-card-item class="alpha-game-card__item">
+          <template #prepend>
+            <div class="alpha-game-card__avatar" aria-hidden="true">
+              <v-img :src="dachshundSitting" contain />
+            </div>
+          </template>
+
+          <div class="text-overline text-success">Игра с английским алфавитом</div>
+          <v-card-title id="alpha-game-title" class="alpha-game-card__title">
+            Такса Альфа
+          </v-card-title>
+          <v-card-subtitle class="alpha-game-card__subtitle">
+            Помоги Альфе допрыгнуть до кости
+          </v-card-subtitle>
+        </v-card-item>
+
+        <v-card-actions class="alpha-game-card__actions">
+          <v-btn
+            append-icon="mdi-arrow-right"
+            color="success"
+            variant="flat"
+          >
+            Играть
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </section>
+
+    <v-divider class="games-page__divider" />
+
     <div class="games-page__heading">
       <div class="games-page__heading-top">
         <div>
@@ -237,6 +275,76 @@ const isToBeGameAvailable = computed(() => (
   max-width: 1000px;
 }
 
+.alpha-game-card {
+  align-items: center;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.72), transparent 26%),
+    linear-gradient(135deg, rgba(228, 248, 231, 0.96), rgba(191, 232, 206, 0.88));
+  display: flex;
+  min-height: 168px;
+  overflow: hidden;
+  position: relative;
+}
+
+.alpha-game-card::after {
+  background: rgba(67, 137, 83, 0.13);
+  border-radius: 50%;
+  content: '';
+  height: 210px;
+  position: absolute;
+  right: -72px;
+  top: -92px;
+  width: 210px;
+}
+
+.alpha-game-card__item {
+  flex: 1 1 auto;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.alpha-game-card__avatar {
+  background: linear-gradient(145deg, #f0fff1, #a9ddb8);
+  border: 3px solid rgb(var(--v-theme-surface));
+  border-radius: 50%;
+  box-shadow: 0 8px 20px rgba(39, 93, 52, 0.22);
+  height: 112px;
+  overflow: hidden;
+  width: 112px;
+}
+
+.alpha-game-card__avatar :deep(.v-img) {
+  height: 122px;
+  transform: translateY(3px) scale(1.05);
+  width: 122px;
+}
+
+.alpha-game-card__title {
+  font-size: clamp(1.55rem, 4vw, 2.15rem);
+  font-weight: 800;
+  line-height: 1.12;
+}
+
+.alpha-game-card__subtitle {
+  font-size: clamp(0.92rem, 2.5vw, 1.08rem);
+  margin-top: 8px;
+  opacity: 0.86;
+  white-space: normal;
+}
+
+.alpha-game-card__actions {
+  align-self: stretch;
+  align-items: flex-end;
+  padding: 20px 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.games-page__divider {
+  margin: 36px 0 30px;
+}
+
 .games-page__heading {
   width: 100%;
 }
@@ -434,6 +542,35 @@ const isToBeGameAvailable = computed(() => (
 }
 
 @media (max-width: 600px) {
+  .alpha-game-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .alpha-game-card__avatar {
+    height: 88px;
+    width: 88px;
+  }
+
+  .alpha-game-card__avatar :deep(.v-img) {
+    height: 96px;
+    width: 96px;
+  }
+
+  .alpha-game-card__actions {
+    align-self: auto;
+    justify-content: flex-end;
+    padding: 0 16px 16px;
+  }
+
+  .alpha-game-card__actions :deep(.v-btn) {
+    width: 100%;
+  }
+
+  .games-page__divider {
+    margin: 28px 0 24px;
+  }
+
   .games-page__heading-top {
     align-items: flex-start;
   }
