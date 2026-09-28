@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import {computed, onBeforeUnmount, onMounted, ref} from 'vue';
-import {Capacitor, type PluginListenerHandle} from '@capacitor/core';
 import {Haptics} from '@capacitor/haptics';
-import {Motion} from '@capacitor/motion';
 import {httpDachshundGameDriver} from '@/api/http/dachshundGame';
 import beanstalkPlatformLeft from '@/assets/games/dachshund/beanstalk/beanstalk-platform-left.png';
 import beanstalkPlatformLeftVariant from '@/assets/games/dachshund/beanstalk/beanstalk-platform-left-variant.png';
@@ -24,7 +22,6 @@ type LeafVariant = 0 | 1 | 2;
 
 type GameStatus = 'playing' | 'over' | 'level-transition';
 type GameOverReason = 'missed' | 'wrong' | null;
-type ControlMode = 'buttons' | 'tilt';
 type EnvironmentId = 'forest' | 'troposphere' | 'stratosphere' | 'mesosphere' | 'thermosphere' | 'exosphere' | 'space';
 
 type EnvironmentDefinition = {
@@ -93,6 +90,8 @@ const facing = ref<ChoiceLane>('right');
 const score = ref(0);
 const scoreGain = ref(0);
 const scorePulseKey = ref(0);
+const recordConfettiKey = ref(0);
+const isRecordConfettiVisible = ref(false);
 const personalBest = ref(0);
 const globalBest = ref(0);
 const recordsLoaded = ref(false);
@@ -109,32 +108,28 @@ const isFalling = ref(false);
 const gameStatus = ref<GameStatus>('playing');
 const gameOverReason = ref<GameOverReason>(null);
 const worldOffset = ref(0);
-const hasReturnedToNeutral = ref(false);
 const hasRoundStarted = ref(false);
-const tiltGamma = ref(0);
-const controlMode = ref<ControlMode>('buttons');
 const landingForkId = ref<number | null>(null);
 let animationFrame: number | undefined;
 let landingAnimationTimer: number | undefined;
 let levelTransitionTimer: number | undefined;
+let recordConfettiTimer: number | undefined;
 let previousFrameTime: number | undefined;
 let forkSequence = 0;
 let jumpState: JumpState | undefined;
-let motionListener: PluginListenerHandle | undefined;
 let activeLetterAudio: HTMLAudioElement | undefined;
+let isLetterAudioPrimed = false;
 let audioDatabasePromise: Promise<IDBDatabase | undefined> | undefined;
-const letterAudio = new Map<string, HTMLAudioElement>();
+const letterAudioUrls = new Map<string, string>();
 
 const visibleForkCount = 4;
-const neutralAngle = 7;
-const jumpAngle = 18;
 const initialLeafY = 14;
 const initialDogStandOffset = 30;
 const branchLeafSurfaceOffset = 48;
 const branchLift: Record<ChoiceLane, number> = {left: -10, right: 16};
 const forkSpacing = 118;
 const firstForkY = initialLeafY + forkSpacing;
-const baseScrollSpeed = 36;
+const baseScrollSpeed = 72;
 const scrollSpeedStep = 6;
 const jumpDurationMs = 760;
 const jumpArcHeight = 82;
@@ -189,37 +184,6 @@ const renderedForks = computed(() => [...pastForks.value, ...forks.value]);
 const pathTransform = computed(() => `translateY(${Math.round(worldOffset.value)}px)`);
 const trunkTransform = computed(() => `translateY(${Math.round(worldOffset.value % trunkLoopHeight)}px)`);
 const dogScreenBottom = computed(() => dogWorldY.value - worldOffset.value);
-const controlMessage = computed(() => {
-  if (!isAudioReady.value && gameStatus.value === 'playing') {
-    return 'Готовим звуки букв…';
-  }
-
-  if (gameStatus.value === 'level-transition') {
-    return `Уровень ${currentLevel.value} начнётся через ${levelCountdown.value}`;
-  }
-
-  if (gameStatus.value === 'over') {
-    return 'Игра окончена';
-  }
-
-  if (isJumping.value) {
-    return 'Прыжок!';
-  }
-
-  if (controlMode.value === 'buttons') {
-    return hasRoundStarted.value
-      ? 'Нажмите стрелку для прыжка'
-      : 'Выберите направление — игра начнётся';
-  }
-
-  if (!hasRoundStarted.value && hasReturnedToNeutral.value) {
-    return 'Наклоните — первый прыжок начнёт игру';
-  }
-
-  return hasReturnedToNeutral.value
-    ? 'Теперь наклоните в сторону'
-    : 'Сначала держите телефон ровно';
-});
 const gameOverTitle = computed(() => {
   return gameOverReason.value === 'wrong' ? 'Не та буква!' : 'Альфа не успела!';
 });
@@ -241,12 +205,27 @@ function platformAsset(side: ChoiceLane, variant: LeafVariant) {
   return rightLeafAssets[pairedVariant];
 }
 
-function createFork(targetIndex: number, y: number, excludedLetters: Set<string>): Fork {
+function chooseCorrectLane(previousCorrectLanes: ChoiceLane[]): ChoiceLane {
+  const lastTwoLanes = previousCorrectLanes.slice(-2);
+
+  if (lastTwoLanes.length === 2 && lastTwoLanes[0] === lastTwoLanes[1]) {
+    return lastTwoLanes[1] === 'left' ? 'right' : 'left';
+  }
+
+  return Math.random() < 0.5 ? 'left' : 'right';
+}
+
+function createFork(
+  targetIndex: number,
+  y: number,
+  excludedLetters: Set<string>,
+  previousCorrectLanes: ChoiceLane[],
+): Fork {
   const id = forkSequence++;
   const targetLetter = alphabet[targetIndex];
   const distractorPool = alphabet.filter(letter => !excludedLetters.has(letter) && letter !== targetLetter);
   const distractorLetter = randomItem(distractorPool);
-  const correctLane: ChoiceLane = Math.random() < 0.5 ? 'left' : 'right';
+  const correctLane = chooseCorrectLane(previousCorrectLanes);
 
   excludedLetters.add(targetLetter);
   excludedLetters.add(distractorLetter);
@@ -264,7 +243,10 @@ function createFork(targetIndex: number, y: number, excludedLetters: Set<string>
   };
 }
 
-function buildInitialForks(startY = firstForkY): Fork[] {
+function buildInitialForks(
+  startY = firstForkY,
+  previousCorrectLanes: ChoiceLane[] = [],
+): Fork[] {
   const targetIndices = Array.from(
     {length: visibleForkCount},
     (_, index) => index % alphabet.length,
@@ -274,11 +256,19 @@ function buildInitialForks(startY = firstForkY): Fork[] {
     alphabet.slice(0, protectedTargetCount),
   );
 
-  return targetIndices.map((targetIndex, index) => createFork(
-    targetIndex,
-    startY + (index * forkSpacing),
-    excludedLetters,
-  ));
+  return targetIndices.reduce<Fork[]>((rows, targetIndex, index) => {
+    const correctLanes = [
+      ...previousCorrectLanes,
+      ...rows.map(row => row.correctLane),
+    ];
+
+    return [...rows, createFork(
+      targetIndex,
+      startY + (index * forkSpacing),
+      excludedLetters,
+      correctLanes,
+    )];
+  }, []);
 }
 
 function appendForkAfter(rows: Fork[], collectedIndex: number): Fork[] {
@@ -302,7 +292,12 @@ function appendForkAfter(rows: Fork[], collectedIndex: number): Fork[] {
     .slice(nextTargetIndex, nextTargetIndex + visibleForkCount)
     .forEach(letter => excludedLetters.add(letter));
 
-  return [...rows, createFork(nextTargetIndex, nextY, excludedLetters)];
+  return [...rows, createFork(
+    nextTargetIndex,
+    nextY,
+    excludedLetters,
+    rows.map(row => row.correctLane),
+  )];
 }
 
 async function loadRecords() {
@@ -313,6 +308,7 @@ async function loadRecords() {
     personalBest.value = Math.max(personalBest.value, records.personalBest);
     globalBest.value = records.globalBest;
     recordsLoaded.value = true;
+    celebrateRecordIfNeeded();
   } catch {
     recordsLoaded.value = false;
   }
@@ -327,8 +323,8 @@ async function saveResult(finalScore: number) {
 }
 
 function registerFinishedGame() {
-  isNewGlobalBest.value = recordsLoaded.value && score.value > globalBest.value;
-  isNewPersonalBest.value = score.value > personalBest.value;
+  isNewGlobalBest.value ||= recordsLoaded.value && score.value > globalBest.value;
+  isNewPersonalBest.value ||= score.value > personalBest.value;
 
   personalBest.value = Math.max(personalBest.value, score.value);
   writeLocalPersonalBest(personalBest.value);
@@ -338,6 +334,26 @@ function registerFinishedGame() {
   }
 
   void saveResult(score.value);
+}
+
+function celebrateRecordIfNeeded() {
+  const reachedPersonalBest = score.value > personalBest.value;
+  const reachedGlobalBest = recordsLoaded.value && score.value > globalBest.value;
+  const isNewRecord = (reachedPersonalBest && !isNewPersonalBest.value)
+    || (reachedGlobalBest && !isNewGlobalBest.value);
+
+  if (!isNewRecord) {
+    return;
+  }
+
+  isNewPersonalBest.value ||= reachedPersonalBest;
+  isNewGlobalBest.value ||= reachedGlobalBest;
+  recordConfettiKey.value += 1;
+  isRecordConfettiVisible.value = true;
+  window.clearTimeout(recordConfettiTimer);
+  recordConfettiTimer = window.setTimeout(() => {
+    isRecordConfettiVisible.value = false;
+  }, 1400);
 }
 
 function vibrateOnGameOver(reason: Exclude<GameOverReason, null>) {
@@ -359,7 +375,6 @@ function endGame(reason: Exclude<GameOverReason, null>) {
   gameOverReason.value = reason;
   isJumping.value = false;
   isFalling.value = true;
-  hasReturnedToNeutral.value = false;
   vibrateOnGameOver(reason);
   registerFinishedGame();
 }
@@ -395,20 +410,52 @@ function announceLetterWithSystemVoice(letter: string) {
 }
 
 function announceLetter(letter: string) {
-  const audio = letterAudio.get(letter);
+  const sourceUrl = letterAudioUrls.get(letter);
 
-  if (!audio) {
+  if (!sourceUrl) {
     announceLetterWithSystemVoice(letter);
     return;
   }
 
   window.speechSynthesis?.cancel();
-  activeLetterAudio?.pause();
-  activeLetterAudio = audio;
+  const audio = activeLetterAudio ?? new Audio();
+  audio.pause();
+  audio.src = sourceUrl;
   audio.currentTime = 0;
+  audio.muted = false;
+  audio.volume = 1;
   audio.playbackRate = letterPlaybackRate.value;
   audio.preservesPitch = true;
+  activeLetterAudio = audio;
   void audio.play().catch(() => announceLetterWithSystemVoice(letter));
+}
+
+function primeLetterAudio() {
+  if (isLetterAudioPrimed) {
+    return;
+  }
+
+  const sourceUrl = letterAudioUrls.get(alphabet[0]);
+
+  if (!sourceUrl) {
+    return;
+  }
+
+  const audio = activeLetterAudio ?? new Audio();
+  audio.pause();
+  audio.preload = 'auto';
+  audio.src = sourceUrl;
+  audio.currentTime = 0;
+  audio.muted = true;
+  audio.volume = 0;
+  activeLetterAudio = audio;
+  isLetterAudioPrimed = true;
+
+  void audio.play().catch(() => {
+    isLetterAudioPrimed = false;
+    audio.muted = false;
+    audio.volume = 1;
+  });
 }
 
 function openAudioDatabase(): Promise<IDBDatabase | undefined> {
@@ -499,11 +546,18 @@ async function preloadLetterAudio() {
       }
 
       const objectUrl = URL.createObjectURL(blob);
-      const audio = new Audio(objectUrl);
-      audio.preload = 'auto';
-      audio.load();
-      letterAudio.set(letter, audio);
+      letterAudioUrls.set(letter, objectUrl);
     }));
+
+    const firstLetterUrl = letterAudioUrls.get(alphabet[0]);
+
+    if (firstLetterUrl) {
+      const audio = activeLetterAudio ?? new Audio();
+      audio.preload = 'auto';
+      audio.src = firstLetterUrl;
+      audio.load();
+      activeLetterAudio = audio;
+    }
   } catch {
     // System speech remains available if the recorded audio pack cannot load.
   } finally {
@@ -527,12 +581,14 @@ function prepareNextLevel() {
 
   currentIndex.value = -1;
   scoreGain.value = 0;
-  forks.value = buildInitialForks(nextLevelFirstForkY);
+  forks.value = buildInitialForks(
+    nextLevelFirstForkY,
+    pastForks.value.slice(-2).map(row => row.correctLane),
+  );
   gameStatus.value = 'playing';
   gameOverReason.value = null;
   isJumping.value = false;
   isFalling.value = false;
-  hasReturnedToNeutral.value = false;
   hasRoundStarted.value = true;
   landingForkId.value = null;
   levelCountdown.value = 0;
@@ -572,6 +628,7 @@ function finishSuccessfulJump(activeJump: JumpState) {
   score.value += earnedPoints;
   scoreGain.value = earnedPoints;
   scorePulseKey.value += 1;
+  celebrateRecordIfNeeded();
   pastForks.value.push(landedFork);
   landingForkId.value = landedFork.id;
 
@@ -597,13 +654,12 @@ function attemptJump(nextLane: ChoiceLane) {
     gameStatus.value !== 'playing'
     || !isAudioReady.value
     || isJumping.value
-    || (controlMode.value === 'tilt' && !hasReturnedToNeutral.value)
   ) {
     return;
   }
 
   const nextFork = forks.value[0];
-  hasReturnedToNeutral.value = false;
+  primeLetterAudio();
   hasRoundStarted.value = true;
   lane.value = nextLane;
   facing.value = nextLane;
@@ -619,47 +675,6 @@ function attemptJump(nextLane: ChoiceLane) {
   };
 }
 
-function handleTiltGamma(gamma: number | null) {
-  if (gamma === null) {
-    return;
-  }
-
-  controlMode.value = 'tilt';
-  tiltGamma.value = gamma;
-
-  if (gameStatus.value !== 'playing' || isJumping.value) {
-    return;
-  }
-
-  if (Math.abs(gamma) <= neutralAngle) {
-    hasReturnedToNeutral.value = true;
-    return;
-  }
-
-  if (hasReturnedToNeutral.value && Math.abs(gamma) >= jumpAngle) {
-    attemptJump(gamma < 0 ? 'left' : 'right');
-  }
-}
-
-function handleWebOrientation(event: DeviceOrientationEvent) {
-  handleTiltGamma(event.gamma);
-}
-
-async function setupMotionControl() {
-  if (Capacitor.getPlatform() === 'android') {
-    try {
-      motionListener = await Motion.addListener('orientation', event => handleTiltGamma(event.gamma));
-    } catch {
-      controlMode.value = 'buttons';
-    }
-    return;
-  }
-
-  if (navigator.maxTouchPoints > 0) {
-    window.addEventListener('deviceorientation', handleWebOrientation);
-  }
-}
-
 function restartGame() {
   activeLetterAudio?.pause();
   window.speechSynthesis?.cancel();
@@ -668,6 +683,8 @@ function restartGame() {
   score.value = 0;
   scoreGain.value = 0;
   scorePulseKey.value = 0;
+  recordConfettiKey.value = 0;
+  isRecordConfettiVisible.value = false;
   isNewPersonalBest.value = false;
   isNewGlobalBest.value = false;
   lane.value = 'center';
@@ -680,12 +697,12 @@ function restartGame() {
   gameOverReason.value = null;
   isJumping.value = false;
   isFalling.value = false;
-  hasReturnedToNeutral.value = false;
   hasRoundStarted.value = false;
   landingForkId.value = null;
   levelCountdown.value = 0;
   window.clearTimeout(landingAnimationTimer);
   window.clearTimeout(levelTransitionTimer);
+  window.clearTimeout(recordConfettiTimer);
   jumpState = undefined;
   previousFrameTime = undefined;
 }
@@ -748,7 +765,6 @@ forks.value = buildInitialForks();
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown);
-  void setupMotionControl();
   void loadRecords();
   void preloadLetterAudio();
 
@@ -757,8 +773,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown);
-  window.removeEventListener('deviceorientation', handleWebOrientation);
-  void motionListener?.remove();
 
   if (animationFrame !== undefined) {
     window.cancelAnimationFrame(animationFrame);
@@ -766,11 +780,14 @@ onBeforeUnmount(() => {
 
   window.clearTimeout(landingAnimationTimer);
   window.clearTimeout(levelTransitionTimer);
+  window.clearTimeout(recordConfettiTimer);
 
   window.speechSynthesis?.cancel();
   activeLetterAudio?.pause();
-  letterAudio.forEach(audio => URL.revokeObjectURL(audio.src));
-  letterAudio.clear();
+  activeLetterAudio?.removeAttribute('src');
+  activeLetterAudio?.load();
+  letterAudioUrls.forEach(sourceUrl => URL.revokeObjectURL(sourceUrl));
+  letterAudioUrls.clear();
 });
 </script>
 
@@ -778,15 +795,11 @@ onBeforeUnmount(() => {
   <section class="beanstalk-prototype">
     <header class="prototype-heading">
       <div>
-        <div class="text-overline text-primary">Прототип новой игры</div>
         <h1 class="text-h4 font-weight-black">Такса и алфавит</h1>
         <p class="text-body-1 text-medium-emphasis mt-2 mb-0">
           Помоги таксе Альфе добраться по алфавиту до косточки.
         </p>
       </div>
-      <v-chip color="success" prepend-icon="mdi-sprout" variant="tonal">
-        Живой макет
-      </v-chip>
     </header>
 
     <div class="game-shell">
@@ -876,13 +889,24 @@ onBeforeUnmount(() => {
               <b>{{ currentEnvironment.title }} · {{ currentLevel }} уровень</b>
             </span>
           </div>
-          <div class="hud-card hud-card--score">
+          <div
+            class="hud-card hud-card--score"
+            :class="{'hud-card--global-record': isNewGlobalBest}"
+          >
             <strong>{{ score }}</strong>
             <span
               v-if="scorePulseKey && scoreGain > 0"
               :key="scorePulseKey"
               class="score-gain"
             >+{{ scoreGain }}</span>
+            <div
+              v-if="isRecordConfettiVisible"
+              :key="recordConfettiKey"
+              class="record-confetti"
+              aria-hidden="true"
+            >
+              <i v-for="piece in 14" :key="piece"></i>
+            </div>
           </div>
         </div>
 
@@ -1016,39 +1040,22 @@ onBeforeUnmount(() => {
           >{{ letter }}</span>
         </div>
 
-        <div
-          v-if="controlMode === 'tilt' && gameStatus === 'playing'"
-          class="tilt-status"
-          :class="{
-            'tilt-status--armed': hasReturnedToNeutral,
-            'tilt-status--sensor': true,
-          }"
-        >
-          <v-icon
-            :icon="hasReturnedToNeutral ? 'mdi-phone-rotate-landscape' : 'mdi-cellphone'"
-            size="19"
-          ></v-icon>
-          <span>{{ controlMessage }}</span>
-        </div>
-
-        <div v-if="controlMode === 'buttons' && gameStatus === 'playing'" class="game-controls">
+        <div v-if="gameStatus === 'playing'" class="game-controls">
           <v-btn
             aria-label="Прыгнуть влево"
             class="direction-button"
-            color="success"
             :disabled="!isAudioReady || isJumping || gameStatus !== 'playing'"
             icon="mdi-arrow-left-bold"
-            size="large"
+            size="x-large"
             variant="flat"
             @click="attemptJump('left')"
           ></v-btn>
           <v-btn
             aria-label="Прыгнуть вправо"
             class="direction-button"
-            color="success"
             :disabled="!isAudioReady || isJumping || gameStatus !== 'playing'"
             icon="mdi-arrow-right-bold"
-            size="large"
+            size="x-large"
             variant="flat"
             @click="attemptJump('right')"
           ></v-btn>
@@ -1059,7 +1066,7 @@ onBeforeUnmount(() => {
           class="level-transition-panel"
           aria-live="assertive"
         >
-          <v-icon color="success" icon="mdi-trophy-award" size="48"></v-icon>
+          <v-icon class="level-transition-panel__icon" icon="mdi-trophy-award" size="48"></v-icon>
           <h2>Отлично!</h2>
           <p>Ты перешел на <b>{{ currentLevel }}-й уровень.</b></p>
           <p>
@@ -1093,7 +1100,12 @@ onBeforeUnmount(() => {
           <p v-else-if="isNewPersonalBest" class="record-message">
             Поздравляем! Это твой лучший результат за все игры!
           </p>
-          <v-btn color="success" prepend-icon="mdi-replay" variant="flat" @click="restartGame">
+          <v-btn
+            class="restart-button"
+            prepend-icon="mdi-replay"
+            variant="flat"
+            @click="restartGame"
+          >
             Ещё раз
           </v-btn>
         </div>
@@ -1126,6 +1138,10 @@ onBeforeUnmount(() => {
 }
 
 .game-scene {
+  --level-accent: #196642;
+  --level-panel: #edf8f1;
+  --level-panel-border: #c9e7d4;
+  --level-shadow: rgba(25, 102, 66, 0.28);
   background:
     radial-gradient(circle at 50% -12%, rgba(255, 225, 218, 0.94), transparent 34%),
     linear-gradient(180deg, #ecdafa 0%, #d9efe6 42%, #76bb8f 73%, #287451 100%);
@@ -1141,32 +1157,60 @@ onBeforeUnmount(() => {
 }
 
 .game-scene--forest {
+  --level-accent: #196642;
+  --level-panel: #edf8f1;
+  --level-panel-border: #c9e7d4;
+  --level-shadow: rgba(25, 102, 66, 0.28);
   background:
     radial-gradient(circle at 50% -12%, rgba(255, 225, 218, 0.94), transparent 34%),
     linear-gradient(180deg, #ecdafa 0%, #d9efe6 42%, #76bb8f 73%, #287451 100%);
 }
 
 .game-scene--troposphere {
+  --level-accent: #11799f;
+  --level-panel: #ecf8fc;
+  --level-panel-border: #bfe3ef;
+  --level-shadow: rgba(17, 121, 159, 0.28);
   background: linear-gradient(180deg, #e8fbff 0%, #a9e7f5 42%, #61c4e1 72%, #318dbf 100%);
 }
 
 .game-scene--stratosphere {
+  --level-accent: #0965ad;
+  --level-panel: #eaf4fc;
+  --level-panel-border: #bad8f0;
+  --level-shadow: rgba(9, 101, 173, 0.3);
   background: linear-gradient(180deg, #8fe9ff 0%, #37bce8 36%, #188dcc 69%, #0c65ad 100%);
 }
 
 .game-scene--mesosphere {
+  --level-accent: #2452b5;
+  --level-panel: #edf0fb;
+  --level-panel-border: #c7d1f1;
+  --level-shadow: rgba(36, 82, 181, 0.32);
   background: linear-gradient(180deg, #276abe 0%, #16458e 42%, #0c2b6d 73%, #06194e 100%);
 }
 
 .game-scene--thermosphere {
+  --level-accent: #5146a8;
+  --level-panel: #f0eefb;
+  --level-panel-border: #d0caed;
+  --level-shadow: rgba(81, 70, 168, 0.32);
   background: linear-gradient(180deg, #173b8e 0%, #152d72 38%, #0a1d54 70%, #050d32 100%);
 }
 
 .game-scene--exosphere {
+  --level-accent: #46358e;
+  --level-panel: #f1eff9;
+  --level-panel-border: #cec7e7;
+  --level-shadow: rgba(70, 53, 142, 0.34);
   background: linear-gradient(180deg, #101f55 0%, #09163e 42%, #050d29 74%, #020719 100%);
 }
 
 .game-scene--space {
+  --level-accent: #313b72;
+  --level-panel: #eeeef5;
+  --level-panel-border: #c9cadc;
+  --level-shadow: rgba(24, 34, 74, 0.4);
   background: radial-gradient(circle at 72% 16%, #182047 0%, #080c22 30%, #02040d 68%, #000 100%);
 }
 
@@ -1557,22 +1601,76 @@ onBeforeUnmount(() => {
 }
 
 .hud-card--score strong {
+  color: #194b39;
   font-size: 22px;
   line-height: 1;
+  transition: color 260ms ease, transform 260ms ease;
 }
+
+.hud-card--score.hud-card--global-record strong {
+  color: #d52f3f;
+  text-shadow: 0 2px 10px rgba(213, 47, 63, 0.24);
+  transform: scale(1.08);
+}
+
+.record-confetti {
+  inset: 50% 50% auto auto;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+.record-confetti i {
+  --confetti-x: 0px;
+  --confetti-y: -58px;
+  --confetti-rotate: 180deg;
+  animation: record-confetti-burst 1.35s cubic-bezier(0.18, 0.72, 0.24, 1) both;
+  background: #dc3f50;
+  border-radius: 2px;
+  height: 8px;
+  left: -3px;
+  position: absolute;
+  top: -4px;
+  width: 5px;
+}
+
+.record-confetti i:nth-child(2n) { background: #28a96b; }
+.record-confetti i:nth-child(3n) { background: #8a55c5; border-radius: 50%; }
+.record-confetti i:nth-child(4n) { background: #ef7d45; }
+.record-confetti i:nth-child(1) { --confetti-x: -54px; --confetti-y: -40px; --confetti-rotate: -190deg; }
+.record-confetti i:nth-child(2) { --confetti-x: -38px; --confetti-y: -70px; --confetti-rotate: 230deg; }
+.record-confetti i:nth-child(3) { --confetti-x: -14px; --confetti-y: -78px; --confetti-rotate: -260deg; }
+.record-confetti i:nth-child(4) { --confetti-x: 14px; --confetti-y: -76px; --confetti-rotate: 210deg; }
+.record-confetti i:nth-child(5) { --confetti-x: 40px; --confetti-y: -66px; --confetti-rotate: -220deg; }
+.record-confetti i:nth-child(6) { --confetti-x: 58px; --confetti-y: -38px; --confetti-rotate: 260deg; }
+.record-confetti i:nth-child(7) { --confetti-x: 62px; --confetti-y: 2px; --confetti-rotate: -240deg; }
+.record-confetti i:nth-child(8) { --confetti-x: 44px; --confetti-y: 42px; --confetti-rotate: 190deg; }
+.record-confetti i:nth-child(9) { --confetti-x: 16px; --confetti-y: 54px; --confetti-rotate: -210deg; }
+.record-confetti i:nth-child(10) { --confetti-x: -16px; --confetti-y: 55px; --confetti-rotate: 250deg; }
+.record-confetti i:nth-child(11) { --confetti-x: -43px; --confetti-y: 40px; --confetti-rotate: -180deg; }
+.record-confetti i:nth-child(12) { --confetti-x: -62px; --confetti-y: 6px; --confetti-rotate: 220deg; }
+.record-confetti i:nth-child(13) { --confetti-x: 28px; --confetti-y: -52px; --confetti-rotate: -280deg; }
+.record-confetti i:nth-child(14) { --confetti-x: -29px; --confetti-y: -50px; --confetti-rotate: 270deg; }
 
 .score-gain {
   animation: score-gain-pop 820ms cubic-bezier(0.2, 0.82, 0.32, 1) forwards;
-  color: #1a8a50;
+  color: var(--level-accent);
   font-size: 19px;
   font-weight: 1000;
   right: calc(100% + 7px);
   pointer-events: none;
   position: absolute;
-  text-shadow: 0 2px 0 #fff, 0 5px 12px rgba(18, 106, 63, 0.32);
+  text-shadow: 0 2px 0 #fff, 0 5px 12px var(--level-shadow);
   top: 50%;
   transform: translateY(-50%);
   white-space: nowrap;
+}
+
+.restart-button {
+  background: var(--level-accent) !important;
+  box-shadow: 0 8px 18px var(--level-shadow);
+  color: #fff !important;
+  transition: background-color 500ms ease, box-shadow 500ms ease;
 }
 
 .hud-caption {
@@ -2143,9 +2241,9 @@ onBeforeUnmount(() => {
   bottom: 16px;
   display: flex;
   justify-content: space-between;
-  left: 22px;
+  left: 8px;
   position: absolute;
-  right: 22px;
+  right: 8px;
   z-index: 20;
 }
 
@@ -2187,44 +2285,13 @@ onBeforeUnmount(() => {
 }
 
 .direction-button {
+  background: var(--level-accent) !important;
   border: 3px solid rgba(255, 255, 255, 0.76);
-  box-shadow: 0 8px 18px rgba(6, 48, 31, 0.28);
-}
-
-.tilt-status {
-  align-items: center;
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.86);
-  border-radius: 999px;
-  color: #24533f;
-  display: flex;
-  font-size: 12px;
-  font-weight: 700;
-  gap: 6px;
-}
-
-.tilt-status {
-  bottom: 82px;
-  box-shadow: 0 7px 18px rgba(6, 48, 31, 0.2);
-  display: flex;
-  left: 50%;
-  max-width: calc(100% - 32px);
-  padding: 8px 13px;
-  position: absolute;
-  text-align: center;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  z-index: 21;
-}
-
-.tilt-status--sensor {
-  bottom: 20px;
-}
-
-.tilt-status--armed {
-  background: rgba(224, 250, 230, 0.9);
-  color: #17633e;
+  box-shadow: 0 8px 18px var(--level-shadow);
+  color: #fff !important;
+  height: 62px;
+  transition: background-color 500ms ease, box-shadow 500ms ease;
+  width: 62px;
 }
 
 .game-over-panel,
@@ -2250,13 +2317,17 @@ onBeforeUnmount(() => {
 }
 
 .level-transition-panel {
-  background:
-    radial-gradient(circle at 50% 0, rgba(230, 255, 213, 0.98), transparent 44%),
-    rgba(249, 252, 244, 0.95);
-  border-color: rgba(238, 255, 222, 0.96);
+  background: var(--level-panel);
+  border-color: var(--level-panel-border);
   box-shadow:
     0 22px 50px rgba(12, 48, 34, 0.34),
-    0 0 42px rgba(141, 219, 96, 0.22);
+    0 0 42px var(--level-shadow);
+  color: var(--level-accent);
+  transition: background-color 500ms ease, border-color 500ms ease, color 500ms ease;
+}
+
+.level-transition-panel__icon {
+  color: var(--level-accent);
 }
 
 .level-transition-panel h2,
@@ -2302,7 +2373,7 @@ onBeforeUnmount(() => {
 }
 
 .level-transition-panel__start {
-  color: #17633e;
+  color: var(--level-accent);
   font-size: 16px !important;
   font-weight: 900;
   opacity: 1 !important;
@@ -2311,10 +2382,10 @@ onBeforeUnmount(() => {
 .level-countdown {
   align-items: center;
   animation: level-countdown-pulse 1s ease-out both;
-  background: linear-gradient(145deg, #55bb68, #278b51);
+  background: var(--level-accent);
   border: 4px solid rgba(255, 255, 255, 0.92);
   border-radius: 50%;
-  box-shadow: 0 8px 20px rgba(33, 117, 68, 0.28);
+  box-shadow: 0 8px 20px var(--level-shadow);
   color: #fff;
   display: flex;
   font-size: 31px;
@@ -2383,6 +2454,24 @@ onBeforeUnmount(() => {
   24% { opacity: 1; transform: translateY(-56%) scale(1.18); }
   70% { opacity: 1; transform: translateY(-96%) scale(1); }
   100% { opacity: 0; transform: translateY(-132%) scale(0.92); }
+}
+
+@keyframes record-confetti-burst {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0) scale(0.45);
+  }
+  14% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+    transform: translate(var(--confetti-x), var(--confetti-y)) rotate(var(--confetti-rotate)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--confetti-x), calc(var(--confetti-y) + 24px)) rotate(var(--confetti-rotate)) scale(0.82);
+  }
 }
 
 @keyframes bone-rise {
@@ -2519,15 +2608,9 @@ onBeforeUnmount(() => {
     width: clamp(115px, 31vw, 130px);
   }
 
-  .tilt-status {
-    bottom: 78px;
-    font-size: 11px;
-    padding: 7px 10px;
-  }
-
   .game-controls {
-    left: 18px;
-    right: 18px;
+    left: 6px;
+    right: 6px;
   }
 }
 
@@ -2541,6 +2624,10 @@ onBeforeUnmount(() => {
   .dog-position,
   .dachshund-sprite {
     transition-duration: 1ms;
+  }
+
+  .record-confetti {
+    display: none;
   }
 }
 </style>

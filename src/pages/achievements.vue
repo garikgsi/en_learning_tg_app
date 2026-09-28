@@ -149,8 +149,7 @@ onMounted(load);
     <div v-else class="achievements-grid">
       <v-card
         class="achievement-card achievement-card--alpha"
-        color="success"
-        variant="tonal"
+        variant="elevated"
       >
         <v-card-text class="achievement-card__content pa-4 pa-sm-5">
           <v-img
@@ -188,7 +187,7 @@ onMounted(load);
           <span class="text-body-2 text-medium-emphasis">Соберите весь алфавит</span>
           <v-spacer />
           <v-btn
-            color="success"
+            class="achievement-card__alpha-button"
             prepend-icon="mdi-paw"
             to="/games/dachshund"
             variant="flat"
@@ -325,9 +324,43 @@ onMounted(load);
 }
 
 .achievement-card--alpha {
-  background:
-    radial-gradient(circle at 86% 12%, rgba(255, 255, 255, 0.7), transparent 24%),
-    linear-gradient(145deg, rgba(231, 249, 233, 0.94), rgba(199, 235, 211, 0.78));
+  background: #f1ecf7;
+  border: 1px solid rgba(103, 74, 128, 0.16);
+  box-shadow: 0 14px 32px rgba(79, 54, 99, 0.12) !important;
+  color: #382848 !important;
+}
+
+.achievement-card--alpha .achievement-card__game-title {
+  color: #72459a;
+}
+
+.achievement-card--alpha .text-medium-emphasis {
+  color: #64576e !important;
+  opacity: 1;
+}
+
+.achievement-card__alpha-button {
+  background: #7444a8 !important;
+  color: #fff !important;
+}
+
+.achievement-card--alpha.v-theme--brandDark {
+  background: #30283a;
+  border-color: rgba(214, 188, 236, 0.18);
+  box-shadow: 0 14px 32px rgba(8, 5, 12, 0.32) !important;
+  color: #f8f2fc !important;
+}
+
+.achievement-card--alpha.v-theme--brandDark .achievement-card__game-title {
+  color: #d7b9ed;
+}
+
+.achievement-card--alpha.v-theme--brandDark .text-medium-emphasis {
+  color: #e5dce9 !important;
+}
+
+.achievement-card--alpha.v-theme--brandDark .v-divider {
+  border-color: rgba(228, 211, 239, 0.2);
 }
 
 .achievement-card .v-card-actions {

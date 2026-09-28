@@ -35,9 +35,8 @@ const isToBeGameAvailable = computed(() => (
     <section class="alpha-game-section" aria-labelledby="alpha-game-title">
       <v-card
         class="alpha-game-card"
-        color="success"
         to="/games/dachshund"
-        variant="tonal"
+        variant="elevated"
       >
         <v-card-item class="alpha-game-card__item">
           <template #prepend>
@@ -46,7 +45,7 @@ const isToBeGameAvailable = computed(() => (
             </div>
           </template>
 
-          <div class="text-overline text-success">Игра с английским алфавитом</div>
+          <div class="alpha-game-card__eyebrow text-overline">Игра с английским алфавитом</div>
           <v-card-title id="alpha-game-title" class="alpha-game-card__title">
             Такса Альфа
           </v-card-title>
@@ -58,7 +57,7 @@ const isToBeGameAvailable = computed(() => (
         <v-card-actions class="alpha-game-card__actions">
           <v-btn
             append-icon="mdi-arrow-right"
-            color="success"
+            class="alpha-game-card__button"
             variant="flat"
           >
             Играть
@@ -277,9 +276,10 @@ const isToBeGameAvailable = computed(() => (
 
 .alpha-game-card {
   align-items: center;
-  background:
-    radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.72), transparent 26%),
-    linear-gradient(135deg, rgba(228, 248, 231, 0.96), rgba(191, 232, 206, 0.88));
+  background: #f1ecf7;
+  border: 1px solid rgba(103, 74, 128, 0.16);
+  box-shadow: 0 14px 32px rgba(79, 54, 99, 0.12) !important;
+  color: #382848 !important;
   display: flex;
   min-height: 168px;
   overflow: hidden;
@@ -287,7 +287,7 @@ const isToBeGameAvailable = computed(() => (
 }
 
 .alpha-game-card::after {
-  background: rgba(67, 137, 83, 0.13);
+  background: rgba(126, 86, 164, 0.1);
   border-radius: 50%;
   content: '';
   height: 210px;
@@ -305,13 +305,18 @@ const isToBeGameAvailable = computed(() => (
 }
 
 .alpha-game-card__avatar {
-  background: linear-gradient(145deg, #f0fff1, #a9ddb8);
+  background: #ddd1e9;
   border: 3px solid rgb(var(--v-theme-surface));
   border-radius: 50%;
-  box-shadow: 0 8px 20px rgba(39, 93, 52, 0.22);
+  box-shadow: 0 8px 20px rgba(77, 55, 96, 0.2);
   height: 112px;
   overflow: hidden;
   width: 112px;
+}
+
+.alpha-game-card__eyebrow {
+  color: #72459a;
+  font-weight: 800;
 }
 
 .alpha-game-card__avatar :deep(.v-img) {
@@ -339,6 +344,36 @@ const isToBeGameAvailable = computed(() => (
   padding: 20px 24px;
   position: relative;
   z-index: 1;
+}
+
+.alpha-game-card__button {
+  background: #7444a8 !important;
+  color: #fff !important;
+}
+
+.alpha-game-card.v-theme--brandDark {
+  background: #30283a;
+  border-color: rgba(214, 188, 236, 0.18);
+  box-shadow: 0 14px 32px rgba(8, 5, 12, 0.32) !important;
+  color: #f8f2fc !important;
+}
+
+.alpha-game-card.v-theme--brandDark::after {
+  background: rgba(211, 176, 237, 0.08);
+}
+
+.alpha-game-card.v-theme--brandDark .alpha-game-card__avatar {
+  background: #483b54;
+  border-color: #6b5a78;
+}
+
+.alpha-game-card.v-theme--brandDark .alpha-game-card__eyebrow {
+  color: #d7b9ed;
+}
+
+.alpha-game-card.v-theme--brandDark .alpha-game-card__subtitle {
+  color: #e5dce9;
+  opacity: 0.9;
 }
 
 .games-page__divider {

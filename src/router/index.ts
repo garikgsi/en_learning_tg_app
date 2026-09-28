@@ -12,6 +12,7 @@ import exercises from '@/pages/exercises.vue'
 import StatisticsRoute from '@/router/StatisticsRoute.vue'
 import {isPublicRoute} from '@/router/routeAccess'
 import {useUserStore} from '@/stores/userStore'
+import {recordGameVisit} from '@/use/gameVisits'
 
 const applicationRoutes = routes.map(route => route.path === '/statistics'
   ? {...route, component: StatisticsRoute}
@@ -69,6 +70,14 @@ router.beforeEach(async to => {
 
   if (to.meta.requiresAdmin && !userStore.isAdmin) {
     return '/dictionary'
+  }
+})
+
+router.afterEach(to => {
+  const userId = useUserStore().user?.id;
+
+  if (userId) {
+    recordGameVisit(userId, to.path);
   }
 })
 

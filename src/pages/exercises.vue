@@ -12,6 +12,9 @@ import type {Exercise} from '@/api/types/exercise';
 import type {ExerciseStatisticsItem} from '@/api/types/statistics';
 import {formatStatisticsWordTranslation} from '@/use/statisticsCalendar';
 import {useNetwork} from '@/use/network';
+import {getLeastRecentlyVisitedGame} from '@/use/gameVisits';
+import {useUserStore} from '@/stores/userStore';
+import robotHappy from '@/components/games/grammar-race/assets/robot-happy.png';
 
 type Props = {
   exerciseId?: string
@@ -21,11 +24,16 @@ const props = defineProps<Props>();
 const translateStore = useTranslateStore();
 const statisticsStore = useStatisticsStore();
 const dictionaryStore = useDictionaryStore();
+const userStore = useUserStore();
 const {wordList, currentExercises} = storeToRefs(translateStore);
 const {isCreating, items: statisticsItems} = storeToRefs(statisticsStore);
 const {isConnected} = useNetwork();
 const router = useRouter();
 const route = useRoute();
+const recommendedGame = computed(() => getLeastRecentlyVisitedGame(
+  userStore.user?.id ?? 'guest',
+  userStore.user?.grade ?? 0,
+));
 
 translateStore.clearWords();
 const isLoadingExercises = ref(false);
@@ -263,6 +271,38 @@ const createUserExercise = async (): Promise<void> => {
         На сегодня непройденных упражнений не осталось.
       </v-alert>
 
+      <v-card class="game-recommendation" elevation="0">
+        <div class="game-recommendation__sparkles" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <img
+          alt="Радостный робот приглашает поиграть"
+          class="game-recommendation__robot"
+          :src="robotHappy"
+        >
+        <div class="game-recommendation__content">
+          <div class="game-recommendation__eyebrow">
+            <v-icon icon="mdi-gamepad-variant" size="18"></v-icon>
+            Время для игры
+          </div>
+          <v-card-title class="game-recommendation__title">
+            Давай немного поиграем - это возможность заработать пару монеток
+          </v-card-title>
+          <v-card-text class="game-recommendation__details">
+            <strong>{{ recommendedGame.title }}</strong>
+            <span>{{ recommendedGame.slogan }}</span>
+          </v-card-text>
+          <v-btn
+            append-icon="mdi-arrow-right"
+            class="game-recommendation__button"
+            :to="recommendedGame.route"
+            variant="flat"
+          >
+            Поехали
+          </v-btn>
+        </div>
+      </v-card>
+
       <div class="exercises-completed__toggle-row">
         <v-btn
           v-if="completedExercises.length > 0"
@@ -365,6 +405,166 @@ const createUserExercise = async (): Promise<void> => {
 .exercises-completed {
   display: grid;
   gap: 16px;
+}
+
+.game-recommendation {
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.92), transparent 25%),
+    linear-gradient(135deg, #fff0f6 0%, #f1e7ff 52%, #ffe5dc 100%);
+  border: 1px solid rgba(126, 71, 164, 0.16);
+  border-radius: 0;
+  box-shadow: 0 16px 36px rgba(91, 52, 116, 0.16) !important;
+  min-height: 250px;
+  overflow: hidden;
+  position: relative;
+}
+
+.game-recommendation::after {
+  background: rgba(255, 255, 255, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  border-radius: 50%;
+  content: '';
+  height: 260px;
+  position: absolute;
+  right: -64px;
+  top: -78px;
+  width: 260px;
+}
+
+.game-recommendation__content {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 250px;
+  padding: 22px 210px 22px 24px;
+  position: relative;
+  z-index: 2;
+}
+
+.game-recommendation__eyebrow {
+  align-items: center;
+  color: #7b3fc6;
+  display: flex;
+  font-size: 0.76rem;
+  font-weight: 900;
+  gap: 6px;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.game-recommendation__title {
+  color: #40204f;
+  font-size: clamp(1.15rem, 3vw, 1.58rem);
+  font-weight: 900;
+  line-height: 1.2;
+  padding: 0;
+  white-space: normal;
+}
+
+.game-recommendation__details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 16px 0 18px;
+}
+
+.game-recommendation__details strong {
+  color: #7b3fc6;
+  font-size: 1.13rem;
+}
+
+.game-recommendation__details span {
+  color: #5e4268;
+  font-size: 0.97rem;
+  line-height: 1.35;
+}
+
+.game-recommendation__button {
+  align-self: flex-start;
+  background: #7b3fc6 !important;
+  box-shadow: 0 8px 18px rgba(123, 63, 198, 0.28);
+  color: #fff !important;
+  font-weight: 900;
+  margin-top: auto;
+  min-width: 142px;
+}
+
+.game-recommendation__robot {
+  bottom: -25px;
+  height: 230px;
+  object-fit: contain;
+  position: absolute;
+  right: 8px;
+  width: 200px;
+  z-index: 2;
+}
+
+.game-recommendation__sparkles {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+
+.game-recommendation__sparkles i {
+  animation: recommendation-sparkle 2.4s ease-in-out infinite;
+  background: #d44c8e;
+  border-radius: 50%;
+  height: 8px;
+  position: absolute;
+  width: 8px;
+}
+
+.game-recommendation__sparkles i:nth-child(1) { left: 4%; top: 16%; }
+.game-recommendation__sparkles i:nth-child(2) { animation-delay: -0.7s; height: 5px; left: 48%; top: 13%; width: 5px; }
+.game-recommendation__sparkles i:nth-child(3) { animation-delay: -1.2s; background: #8b50cf; left: 58%; top: 72%; }
+.game-recommendation__sparkles i:nth-child(4) { animation-delay: -1.7s; background: #ed7a63; height: 6px; left: 72%; top: 18%; width: 6px; }
+.game-recommendation__sparkles i:nth-child(5) { animation-delay: -0.35s; background: #8b50cf; left: 94%; top: 66%; }
+
+@keyframes recommendation-sparkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.72); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+
+@media (max-width: 600px) {
+  .game-recommendation {
+    min-height: 285px;
+  }
+
+  .game-recommendation__content {
+    min-height: 285px;
+    padding: 18px 116px 20px 18px;
+  }
+
+  .game-recommendation__title {
+    font-size: 1.08rem;
+  }
+
+  .game-recommendation__details {
+    padding-block: 12px 14px;
+  }
+
+  .game-recommendation__details strong {
+    font-size: 1rem;
+  }
+
+  .game-recommendation__details span {
+    font-size: 0.9rem;
+  }
+
+  .game-recommendation__robot {
+    bottom: -10px;
+    height: 166px;
+    right: -20px;
+    width: 145px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-recommendation__sparkles i {
+    animation: none;
+  }
 }
 
 .exercises-completed__actions {
