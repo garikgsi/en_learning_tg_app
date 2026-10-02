@@ -11,6 +11,8 @@ import {useDictionaryStore} from '@/stores/dictionaryStore';
 import type {Exercise} from '@/api/types/exercise';
 import type {ExerciseStatisticsItem} from '@/api/types/statistics';
 import {formatStatisticsWordTranslation} from '@/use/statisticsCalendar';
+import {selectWeeklyUncompletedExercises} from '@/use/weeklyExercises';
+import {exerciseEnCoinReward} from '@/use/exerciseReward';
 import {useNetwork} from '@/use/network';
 import {getLeastRecentlyVisitedGame} from '@/use/gameVisits';
 import {useUserStore} from '@/stores/userStore';
@@ -77,6 +79,10 @@ const completedExercises = computed<ExerciseStatisticsItem[]>(() => {
   });
 });
 
+const weeklyUncompletedExercises = computed<ExerciseStatisticsItem[]>(() => (
+  selectWeeklyUncompletedExercises(statisticsItems.value)
+));
+
 const continueQueueOrReturnToExercises = async (): Promise<void> => {
   if (wordList.value.length === 0) {
     const queue = typeof route.query.queue === 'string'
@@ -122,7 +128,7 @@ const loadPage = async (): Promise<void> => {
     await translateStore.loadCurrentExercises();
 
     if (currentExercises.value.length === 0) {
-      await statisticsStore.loadMonth(new Date());
+      await statisticsStore.loadWeek(new Date());
     }
   } finally {
     isLoadingExercises.value = false;
@@ -194,6 +200,35 @@ const completedExerciseWords = (exercise: ExerciseStatisticsItem) => {
   }));
 }
 
+const uncompletedExerciseWords = (exercise: ExerciseStatisticsItem) => {
+  return exercise.words.map(word => ({
+    id: word.wordId,
+    en: word.english,
+    ru: formatStatisticsWordTranslation({
+      ...word,
+      isUncompleted: true,
+    }),
+    color: 'grey',
+  }));
+}
+
+const exerciseDateLabel = (value: string): string => {
+  return new Intl.DateTimeFormat('ru-RU', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date(value));
+}
+
+const exerciseReward = (
+  exercise: Pick<Exercise, 'type' | 'dueDate'>
+    | Pick<ExerciseStatisticsItem, 'type' | 'date'>,
+): number => {
+  const dueDate = 'dueDate' in exercise ? exercise.dueDate : exercise.date;
+
+  return exerciseEnCoinReward(exercise.type.name, dueDate);
+}
+
 const startExercise = async (exerciseId: number): Promise<void> => {
   await router.push(`/exercises/${exerciseId}`);
 }
@@ -247,6 +282,17 @@ const createUserExercise = async (): Promise<void> => {
           />
         </v-card-text>
         <v-card-actions>
+          <v-chip
+            v-if="exerciseReward(exercise) > 0"
+            class="exercise-card__reward"
+            label
+            size="large"
+            variant="flat"
+          >
+            <v-icon icon="mdi-circle-multiple-outline" size="20"></v-icon>
+            <strong>+{{ exerciseReward(exercise) }}</strong>
+            <span>EnCoin</span>
+          </v-chip>
           <v-spacer />
           <v-btn
             color="primary"
@@ -262,7 +308,63 @@ const createUserExercise = async (): Promise<void> => {
       v-else
       class="exercises-completed"
     >
+      <div
+        v-if="weeklyUncompletedExercises.length > 0"
+        class="weekly-exercises"
+      >
+        <div>
+          <h2 class="text-h6 font-weight-bold">
+            Непройденные упражнения этой недели
+          </h2>
+          <div class="text-body-2 text-medium-emphasis mt-1">
+            Сегодня новых заданий нет, но можно закончить предыдущие.
+          </div>
+        </div>
+
+        <div class="exercise-cards">
+          <v-card
+            v-for="(exercise, index) in weeklyUncompletedExercises"
+            :key="`${exercise.exerciseId}-${exercise.createdAt}-${index}`"
+            class="exercise-card"
+            variant="outlined"
+          >
+            <v-card-title>{{ exerciseTitle(exercise) }}</v-card-title>
+            <v-card-subtitle class="text-warning">
+              Не пройдено · {{ exerciseDateLabel(exercise.date) }}
+            </v-card-subtitle>
+            <v-card-text>
+              <IChipWordList
+                :limit="20"
+                :words="uncompletedExerciseWords(exercise)"
+                @play="dictionaryStore.playWordAudio"
+              />
+            </v-card-text>
+            <v-card-actions>
+              <v-chip
+                v-if="exerciseReward(exercise) > 0"
+                class="exercise-card__reward"
+                label
+                size="large"
+                variant="flat"
+              >
+                <v-icon icon="mdi-circle-multiple-outline" size="20"></v-icon>
+                <strong>+{{ exerciseReward(exercise) }}</strong>
+                <span>EnCoin</span>
+              </v-chip>
+              <v-spacer />
+              <v-btn
+                color="primary"
+                @click="startExercise(exercise.exerciseId)"
+              >
+                Пройти упражнение
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </div>
+      </div>
+
       <v-alert
+        v-else
         icon="mdi-check-circle-outline"
         title="Все упражнения пройдены"
         type="success"
@@ -402,9 +504,44 @@ const createUserExercise = async (): Promise<void> => {
   margin-top: auto;
 }
 
+.exercise-card__reward {
+  background: #f8cf54 !important;
+  border: 1px solid #d89a12;
+  border-radius: 999px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 4px 10px rgba(151, 99, 0, 0.22);
+  color: #513500 !important;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.exercise-card__reward :deep(.v-chip__content) {
+  gap: 5px;
+}
+
+.exercise-card__reward :deep(.v-icon) {
+  background: #fff0a3;
+  border: 1px solid rgba(138, 87, 0, 0.24);
+  border-radius: 50%;
+  color: #8a5700;
+  padding: 2px;
+}
+
+.exercise-card__reward strong {
+  font-size: 1rem;
+  font-weight: 900;
+}
+
 .exercises-completed {
   display: grid;
   gap: 16px;
+}
+
+.weekly-exercises {
+  display: grid;
+  gap: 12px;
 }
 
 .game-recommendation {

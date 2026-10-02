@@ -42,8 +42,8 @@ project setting.
 
 - Prefer built-in Vue/Vuetify components, directives, composables, and other
   framework helpers over custom reactive plumbing.
-- Never use gradients for buttons. Use a solid fill that remains legible in
-  both light and dark themes.
+- Never use gradients in the project UI. Use solid fills that remain legible
+  in both light and dark themes.
 - Avoid `watch` when the same behavior can be expressed declaratively or with
   a framework helper. Add a watcher only when no simpler built-in mechanism
   fits the requirement.

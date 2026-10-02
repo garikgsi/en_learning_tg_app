@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import DachshundBeanstalkPrototype from '@/components/games/dachshund/DachshundBeanstalkPrototype.vue';
+import DachshundBeanstalk from '@/components/games/dachshund/DachshundBeanstalk.vue';
 </script>
 
 <template>
-  <DachshundBeanstalkPrototype></DachshundBeanstalkPrototype>
+  <DachshundBeanstalk></DachshundBeanstalk>
 </template>

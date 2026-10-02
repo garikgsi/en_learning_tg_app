@@ -792,7 +792,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="beanstalk-prototype">
+  <section class="beanstalk">
     <header class="prototype-heading">
       <div>
         <h1 class="text-h4 font-weight-black">Такса и алфавит</h1>
@@ -1115,7 +1115,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.beanstalk-prototype {
+.beanstalk {
   margin: 0 auto;
   max-width: 920px;
 }
@@ -2255,7 +2255,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   bottom: 23px;
   box-shadow: 0 6px 16px rgba(6, 48, 31, 0.2);
-  color: #286549;
+  color: var(--level-accent);
   display: flex;
   font-size: 14px;
   font-weight: 900;

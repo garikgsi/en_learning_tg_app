@@ -99,6 +99,29 @@ const monthPeriod = (date: Date) => {
   };
 }
 
+const weekPeriod = (date: Date) => {
+  const dateFrom = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+  const daysSinceMonday = (dateFrom.getDay() + 6) % 7;
+  dateFrom.setDate(dateFrom.getDate() - daysSinceMonday);
+
+  const dateTo = new Date(dateFrom);
+  dateTo.setDate(dateTo.getDate() + 7);
+  dateTo.setMilliseconds(-1);
+
+  return {
+    dateFrom: dateFrom.toISOString(),
+    dateTo: dateTo.toISOString(),
+  };
+}
+
 export const useStatisticsStore = defineStore('statistics', () => {
   const items = ref<ExerciseStatisticsItem[]>([]);
   const charts = ref<ExerciseStatisticsCharts | null>(null);
@@ -111,8 +134,11 @@ export const useStatisticsStore = defineStore('statistics', () => {
   const userStore = useUserStore();
 
 
-  const loadMonth = async (date: Date): Promise<void> => {
-
+  const loadPeriod = async (
+    periodKey: string,
+    period: {dateFrom: string, dateTo: string},
+    reload: () => Promise<void>,
+  ): Promise<void> => {
     try {
       const userId = userStore.user?.id;
 
@@ -120,10 +146,6 @@ export const useStatisticsStore = defineStore('statistics', () => {
         throw new Error('Пользователь не авторизован');
       }
 
-      const period = monthPeriod(date);
-      const periodKey = `${date.getFullYear()}-${String(
-        date.getMonth() + 1,
-      ).padStart(2, '0')}`;
       const result = await statisticsRepository.getForPeriod(
         userId,
         periodKey,
@@ -154,7 +176,7 @@ export const useStatisticsStore = defineStore('statistics', () => {
             action: {
               title: 'Обновить',
               handler: async () => {
-                await loadMonth(date);
+                await reload();
               },
             },
           },
@@ -175,12 +197,31 @@ export const useStatisticsStore = defineStore('statistics', () => {
           action: {
             title: 'Обновить',
             handler: async () => {
-              await loadMonth(date);
+              await reload();
             },
           },
         },
       );
     }
+  }
+
+  const loadMonth = async (date: Date): Promise<void> => {
+    const period = monthPeriod(date);
+    const periodKey = `${date.getFullYear()}-${String(
+      date.getMonth() + 1,
+    ).padStart(2, '0')}`;
+
+    await loadPeriod(periodKey, period, () => loadMonth(date));
+  }
+
+  const loadWeek = async (date: Date): Promise<void> => {
+    const period = weekPeriod(date);
+    const localWeekStart = new Date(period.dateFrom);
+    const periodKey = `week-${localWeekStart.getFullYear()}-${String(
+      localWeekStart.getMonth() + 1,
+    ).padStart(2, '0')}-${String(localWeekStart.getDate()).padStart(2, '0')}`;
+
+    await loadPeriod(periodKey, period, () => loadWeek(date));
   }
 
   const createUserExercise = async (type: UserExerciseType = 'translate'): Promise<number> => {
@@ -242,6 +283,7 @@ export const useStatisticsStore = defineStore('statistics', () => {
     addingAttentionWordIds,
     isCreating,
     loadMonth,
+    loadWeek,
     createUserExercise,
     isAddingAttentionWord,
     addAttentionWordToRepetition,

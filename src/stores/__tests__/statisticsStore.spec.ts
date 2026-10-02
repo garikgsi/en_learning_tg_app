@@ -88,6 +88,41 @@ describe('statisticsStore', () => {
     ]);
   });
 
+  it('loads the whole Monday-to-Sunday week across a month boundary', async () => {
+    const get = vi.spyOn(apiClient, 'get').mockResolvedValue({
+      data: {
+        items: [],
+        charts: chartsWithUsers([]),
+        attentionWords: [],
+      },
+    } as never);
+    useUserStore().user = {
+      id: 'current-user',
+      name: 'Current user',
+      phone: '+79991234567',
+      role: 'user',
+      avatar: '',
+      createdAt: '2026-07-01T00:00:00Z',
+    };
+    const store = useStatisticsStore();
+    const date = new Date(2026, 9, 2, 12);
+    const dateFrom = new Date(2026, 8, 28, 0, 0, 0, 0);
+    const dateTo = new Date(2026, 9, 5, 0, 0, 0, 0);
+    dateTo.setMilliseconds(-1);
+
+    await store.loadWeek(date);
+
+    expect(get).toHaveBeenCalledWith(
+      '/api/v1/exercises/statistics',
+      {
+        params: {
+          dateFrom: dateFrom.toISOString(),
+          dateTo: dateTo.toISOString(),
+        },
+      },
+    );
+  });
+
   it('selects the first criterion for the best non-zero place', () => {
     const charts = chartsWithUsers([
       {

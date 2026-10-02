@@ -22,6 +22,8 @@ const emit = defineEmits<{
   answer: [answer: string]
 }>();
 
+const isDenseAnswerGrid = computed(() => props.task.options.length > 8);
+
 const promptParts = computed(() => {
   const blankIndex = props.task.payload.text.indexOf('___');
 
@@ -84,7 +86,10 @@ const getAnswerLabel = (answer: string, label: string): string => {
     </div>
   </v-sheet>
 
-  <div class="pronoun-round__answers mt-4">
+  <div
+    class="pronoun-round__answers mt-4"
+    :class="{'pronoun-round__answers--dense': isDenseAnswerGrid}"
+  >
     <v-chip
       v-for="option in task.options"
       :key="option.id"
@@ -163,12 +168,22 @@ const getAnswerLabel = (answer: string, label: string): string => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.pronoun-round__answers--dense {
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .pronoun-round__answer {
   border-color: rgba(var(--v-theme-primary), 0.28);
   font-size: 18px;
   height: 56px;
   max-width: none;
   width: 100%;
+}
+
+.pronoun-round__answers--dense .pronoun-round__answer {
+  font-size: 16px;
+  height: 48px;
 }
 
 .pronoun-round__answer-label--compact {

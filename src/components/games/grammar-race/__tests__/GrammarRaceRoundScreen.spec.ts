@@ -97,6 +97,16 @@ describe('GrammarRaceRoundScreen', () => {
 
     expect(phrase()).toBe('Kate has got a dog. ___ dog is friendly.');
 
+    possessiveTask.options = [
+      'my', 'your', 'his', 'her', 'its', 'our', 'their',
+      'mine', 'yours', 'hers', 'ours', 'theirs',
+    ].map(id => ({id, label: id}));
+    await wrapper.setProps({task: {...possessiveTask}});
+
+    expect(wrapper.findAll('.pronoun-round__answer')).toHaveLength(12);
+    expect(wrapper.get('.pronoun-round__answers').classes())
+      .toContain('pronoun-round__answers--dense');
+
     const toBeTask = task('is');
     toBeTask.payload.text = 'She ___ at school today.';
     toBeTask.payload.translation = 'Она сегодня в школе.';
