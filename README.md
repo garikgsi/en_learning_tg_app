@@ -1,4 +1,4 @@
-# English Learning Telegram App
+# English Learning Android App
 
 Клиентское приложение для изучения английского языка. Стек: Vue 3, TypeScript,
 Vuetify, Pinia, Vite и Capacitor.
